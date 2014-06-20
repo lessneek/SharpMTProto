@@ -7,6 +7,7 @@
 using System;
 using System.Linq;
 using System.Reactive.Subjects;
+using System.Threading;
 using System.Threading.Tasks;
 using BigMath.Utils;
 using Catel.IoC;
@@ -14,6 +15,7 @@ using Catel.Logging;
 using FluentAssertions;
 using Moq;
 using NUnit.Framework;
+using SharpMTProto.Messages;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
@@ -35,15 +37,27 @@ namespace SharpMTProto.Tests
             TimeSpan defaultRpcTimeout = TimeSpan.FromSeconds(5);
             TimeSpan defaultConnectTimeout = TimeSpan.FromSeconds(5);
 
-            var serviceLocator = new ServiceLocator();
-            var typeFactory = serviceLocator.ResolveType<ITypeFactory>();
+            var serviceLocator = ServiceLocator.Default;
+            var typeFactory = this.GetTypeFactory();
+
+            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
+            serviceLocator.RegisterInstance(TLRig.Default);
+            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
+            serviceLocator.RegisterInstance<INonceGenerator>(new TestNonceGenerator());
+            serviceLocator.RegisterType<IHashServices, HashServices>();
+            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
+            serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
+            serviceLocator.RegisterType<IMessageProcessor, MessageProcessor>();
+            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
+            serviceLocator.RegisterType<IMTProtoConnectionFactory, MTProtoConnectionFactory>();
+            serviceLocator.RegisterType<IKeyChain, KeyChain>();
 
             var inTransport = new Subject<byte[]>();
             var mockTransport = new Mock<ITransport>();
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inTransport.Subscribe(observer));
-            mockTransport.Setup(transport => transport.Send(TestData.ReqPQ)).Callback(() => inTransport.OnNext(TestData.ResPQ));
-            mockTransport.Setup(transport => transport.Send(TestData.ReqDHParams)).Callback(() => inTransport.OnNext(TestData.ServerDHParams));
-            mockTransport.Setup(transport => transport.Send(TestData.SetClientDHParams)).Callback(() => inTransport.OnNext(TestData.DhGenOk));
+            mockTransport.Setup(transport => transport.SendAsync(TestData.ReqPQ, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.ResPQ)).Returns(() => Task.FromResult(false));
+            mockTransport.Setup(transport => transport.SendAsync(TestData.ReqDHParams, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.ServerDHParams)).Returns(() => Task.FromResult(false));
+            mockTransport.Setup(transport => transport.SendAsync(TestData.SetClientDHParams, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.DhGenOk)).Returns(() => Task.FromResult(false));
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<TransportConfig>())).Returns(mockTransport.Object);
@@ -60,13 +74,8 @@ namespace SharpMTProto.Tests
 
             serviceLocator.RegisterInstance(Mock.Of<ITransportConfigProvider>(provider => provider.DefaultTransportConfig == Mock.Of<TransportConfig>()));
             serviceLocator.RegisterInstance(mockTransportFactory.Object);
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterInstance<INonceGenerator>(new TestNonceGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
             serviceLocator.RegisterInstance(mockEncryptionServices.Object);
-            serviceLocator.RegisterType<IKeyChain, KeyChain>();
-            serviceLocator.RegisterType<IMTProtoConnectionFactory, MTProtoConnectionFactory>();
+            
 
             var keyChain = serviceLocator.ResolveType<IKeyChain>();
             keyChain.AddKeys(TestData.TestPublicKeys);
@@ -79,7 +88,7 @@ namespace SharpMTProto.Tests
 
             var authInfo = await authKeyNegotiator.CreateAuthKey();
             authInfo.AuthKey.ShouldAllBeEquivalentTo(TestData.AuthKey);
-            authInfo.InitialSalt.Should().Be(TestData.InitialSalt);
+            authInfo.Salt.Should().Be(TestData.InitialSalt);
         }
     }
 }
