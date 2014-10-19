@@ -55,8 +55,8 @@ namespace SharpMTProto.Tests
                 await connection.Connect();
 
                 // Testing sending.
-                var message = new Message(0x0102030405060708UL, 0, messageData);
-                await connection.SendMessageAsync(message, false);
+                var expectedMessage = new Message(0x0102030405060708UL, 0, messageData);
+                await connection.SendMessageAsync(expectedMessage, false);
 
                 await Task.Delay(100); // Wait while internal sender processes the message.
                 mockTransport.Verify(transport => transport.SendAsync(expectedMessageBytes, It.IsAny<CancellationToken>()), Times.Once);
@@ -67,10 +67,9 @@ namespace SharpMTProto.Tests
                 inConnector.OnNext(expectedMessageBytes);
 
                 await Task.Delay(100); // Wait while internal receiver processes the message.
-                IMessage actualMessage = await connection.InMessagesHistory.FirstAsync().ToTask();
-                actualMessage.ShouldBeEquivalentTo(message);
-                actualMessage.Body.ShouldBeEquivalentTo(messageData);
-
+                IMessage actualMessage = await connection.InMessagesHistory.FirstAsync();
+                actualMessage.Should().Be(expectedMessage);
+                
                 await connection.Disconnect();
             }
             mockTransportFactory.Verify();

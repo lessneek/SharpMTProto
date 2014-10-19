@@ -5,6 +5,9 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using SharpMTProto.Messages;
 using SharpTL;
 
@@ -13,7 +16,7 @@ using SharpTL;
 namespace MTProtoSchema
 {
     [TLObject(typeof (MessageSerializer))]
-    public class Message : IMessage
+    public class Message : IMessage, IEquatable<Message>
     {
         public Message()
         {
@@ -31,6 +34,62 @@ namespace MTProtoSchema
         public UInt32 Seqno { get; set; }
 
         public Object Body { get; set; }
+
+        #region Equality
+
+        public bool Equals(Message other)
+        {
+            if (ReferenceEquals(null, other))
+            {
+                return false;
+            }
+            if (ReferenceEquals(this, other))
+            {
+                return true;
+            }
+            var equals = MsgId == other.MsgId && Seqno == other.Seqno;
+            if (Body is IEnumerable && other.Body is IEnumerable)
+            {
+                equals &= ((IEnumerable) Body).Cast<object>().SequenceEqual(((IEnumerable) other.Body).Cast<object>());
+            }
+            return equals;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj))
+            {
+                return false;
+            }
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+            var other = obj as Message;
+            return other != null && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hashCode = MsgId.GetHashCode();
+                hashCode = (hashCode*397) ^ (int) Seqno;
+                hashCode = (hashCode*397) ^ (Body != null ? Body.GetHashCode() : 0);
+                return hashCode;
+            }
+        }
+
+        public static bool operator ==(Message left, Message right)
+        {
+            return Equals(left, right);
+        }
+
+        public static bool operator !=(Message left, Message right)
+        {
+            return !Equals(left, right);
+        }
+        #endregion
     }
 
     public partial interface IMessage
