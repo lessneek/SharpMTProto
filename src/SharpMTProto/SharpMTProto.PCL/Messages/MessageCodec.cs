@@ -9,7 +9,7 @@ using System.Diagnostics;
 using BigMath;
 using BigMath.Utils;
 using Catel;
-using MTProtoSchema;
+using SharpMTProto.Schema;
 using SharpMTProto.Annotations;
 using SharpMTProto.Services;
 using SharpTL;

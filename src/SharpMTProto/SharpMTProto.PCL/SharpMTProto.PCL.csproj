@@ -84,9 +84,10 @@
     <Compile Include="Exceptions.cs" />
     <Compile Include="Messages\MessageCodec.cs" />
     <Compile Include="Messages\MessageSerializer.cs" />
-    <Compile Include="MTProtoSchemaEx.cs" />
+    <Compile Include="Schema\MTProtoSchemaEx.cs" />
     <Compile Include="Messages\Sender.cs" />
     <Compile Include="Rpc.cs" />
+    <Compile Include="Schema\MTProtoSchema.cs" />
     <Compile Include="Services\RandomGenerator.cs" />
     <Compile Include="Transport\ITransport.cs" />
     <Compile Include="Services\IEncryptionServices.cs" />
@@ -102,7 +103,6 @@
     <Compile Include="Services\MessageIdGenerator.cs" />
     <Compile Include="MTProtoClient.cs" />
     <Compile Include="MTProtoConnection.cs" />
-    <Compile Include="MTProtoSchema.cs" />
     <Compile Include="Services\NonceGenerator.cs" />
     <Compile Include="Properties\Annotations.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

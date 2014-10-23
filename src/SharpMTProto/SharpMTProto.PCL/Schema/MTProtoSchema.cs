@@ -8,12 +8,12 @@
 // </auto-generated>
 // ------------------------------------------------------------------------------
 
-#pragma warning disable 1591
-namespace MTProtoSchema
-{
-    using SharpTL;
-    using System.Threading.Tasks;
+using System.Threading.Tasks;
+using SharpTL;
 
+#pragma warning disable 1591
+namespace SharpMTProto.Schema
+{
     // TL constructors.
 
     [TLObject(0x05162463)]

@@ -18,7 +18,7 @@ using BigMath.Utils;
 using Catel;
 using Catel.Logging;
 using Catel.Reflection;
-using MTProtoSchema;
+using SharpMTProto.Schema;
 using Nito.AsyncEx;
 using SharpMTProto.Annotations;
 using SharpMTProto.Messages;

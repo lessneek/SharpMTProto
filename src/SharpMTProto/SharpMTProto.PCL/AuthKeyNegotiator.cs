@@ -14,7 +14,7 @@ using BigMath;
 using BigMath.Utils;
 using Catel;
 using Catel.Logging;
-using MTProtoSchema;
+using SharpMTProto.Schema;
 using SharpMTProto.Annotations;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;

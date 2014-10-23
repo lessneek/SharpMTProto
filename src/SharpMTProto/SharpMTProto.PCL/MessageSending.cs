@@ -5,7 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
-using MTProtoSchema;
+using SharpMTProto.Schema;
 
 namespace SharpMTProto
 {

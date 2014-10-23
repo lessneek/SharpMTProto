@@ -8,7 +8,7 @@ using System;
 using BigMath.Utils;
 using Catel.IoC;
 using FluentAssertions;
-using MTProtoSchema;
+using SharpMTProto.Schema;
 using NUnit.Framework;
 using SharpMTProto.Messages;
 using SharpMTProto.Services;

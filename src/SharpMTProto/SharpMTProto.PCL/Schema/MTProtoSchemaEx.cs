@@ -13,7 +13,7 @@ using SharpTL;
 
 // ReSharper disable once CheckNamespace
 
-namespace MTProtoSchema
+namespace SharpMTProto.Schema
 {
     [TLObject(typeof (MessageSerializer))]
     public class Message : IMessage, IEquatable<Message>

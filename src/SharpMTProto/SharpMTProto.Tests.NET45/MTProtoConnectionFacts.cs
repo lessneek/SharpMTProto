@@ -16,7 +16,7 @@ using Catel.IoC;
 using Catel.Logging;
 using FluentAssertions;
 using Moq;
-using MTProtoSchema;
+using SharpMTProto.Schema;
 using NUnit.Framework;
 using SharpMTProto.Messages;
 using SharpMTProto.Transport;
