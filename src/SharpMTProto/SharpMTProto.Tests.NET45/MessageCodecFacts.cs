@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MessageProcessorFacts.cs">
+// <copyright file="MessageCodecFacts.cs">
 //   Copyright (c) 2013 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -16,13 +16,13 @@ using SharpMTProto.Services;
 namespace SharpMTProto.Tests
 {
     [TestFixture]
-    public class MessageProcessorFacts
+    public class MessageCodecFacts
     {
-        private IMessageProcessor GetMessageProcessor()
+        private IMessageCodec GetMessageCodec()
         {
             IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
             serviceLocator.RegisterInstance<IRandomGenerator>(new RandomGenerator(9));
-            return serviceLocator.ResolveType<IMessageProcessor>();
+            return serviceLocator.ResolveType<IMessageCodec>();
         }
 
         private static readonly byte[] TestPlainMessageBytes =
@@ -39,33 +39,33 @@ namespace SharpMTProto.Tests
         [Test]
         public void Should_throw_on_unwrap_plain_message_with_wrong_body_length()
         {
-            IMessageProcessor messageProcessor = GetMessageProcessor();
+            IMessageCodec messageCodec = GetMessageCodec();
             byte[] messageBytes = ("0000000000000000" + "0807060504030201" + "11000000" + "9EB6EFEB" + "09" + "000102030405060708" + "0000").HexToBytes();
-            var action = new Action(() => messageProcessor.UnwrapPlainMessage(messageBytes));
+            var action = new Action(() => messageCodec.UnwrapPlainMessage(messageBytes));
             action.ShouldThrow<InvalidMessageException>();
         }
 
         [Test]
         public void Should_unwrap_plain_message()
         {
-            IMessageProcessor messageProcessor = GetMessageProcessor();
-            IMessage message = messageProcessor.UnwrapPlainMessage(TestPlainMessageBytes);
+            IMessageCodec messageCodec = GetMessageCodec();
+            IMessage message = messageCodec.UnwrapPlainMessage(TestPlainMessageBytes);
             message.ShouldBeEquivalentTo(TestMessage);
         }
 
         [Test]
         public void Should_wrap_plain_message()
         {
-            IMessageProcessor messageProcessor = GetMessageProcessor();
-            byte[] wrappedMessageBytes = messageProcessor.WrapPlainMessage(TestMessage);
+            IMessageCodec messageCodec = GetMessageCodec();
+            byte[] wrappedMessageBytes = messageCodec.WrapPlainMessage(TestMessage);
             wrappedMessageBytes.ShouldBeEquivalentTo(TestPlainMessageBytes);
         }
 
         [Test]
         public void Should_unwrap_encrypted_message()
         {
-            IMessageProcessor messageProcessor = GetMessageProcessor();
-            IMessage message = messageProcessor.UnwrapPlainMessage(TestPlainMessageBytes);
+            IMessageCodec messageCodec = GetMessageCodec();
+            IMessage message = messageCodec.UnwrapPlainMessage(TestPlainMessageBytes);
             message.ShouldBeEquivalentTo(TestMessage);
         }
 
@@ -73,8 +73,8 @@ namespace SharpMTProto.Tests
         [TestCase(Sender.Server)]
         public void Should_wrap_encrypted_message(Sender sender)
         {
-            IMessageProcessor messageProcessor = GetMessageProcessor();
-            byte[] wrappedMessageBytes = messageProcessor.WrapEncryptedMessage(TestMessage, TestRig.AuthKey, 0x999UL, 0x777UL, sender);
+            IMessageCodec messageCodec = GetMessageCodec();
+            byte[] wrappedMessageBytes = messageCodec.WrapEncryptedMessage(TestMessage, TestRig.AuthKey, 0x999UL, 0x777UL, sender);
             byte[] expectedMessageBytes;
             switch (sender)
             {

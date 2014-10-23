@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MessageProcessor.cs">
+// <copyright file="MessageCodec.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ using SharpTL;
 
 namespace SharpMTProto.Messages
 {
-    public interface IMessageProcessor
+    public interface IMessageCodec
     {
         /// <summary>
         ///     Wrap as plain message.
@@ -77,7 +77,7 @@ namespace SharpMTProto.Messages
         IMessage UnwrapEncryptedMessage([NotNull] byte[] messageBytes, [NotNull] byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId);
     }
 
-    public class MessageProcessor : IMessageProcessor
+    public class MessageCodec : IMessageCodec
     {
         /// <summary>
         ///     Message header length in bytes.
@@ -105,12 +105,12 @@ namespace SharpMTProto.Messages
         private readonly TLRig _tlRig;
 
         /// <summary>
-        ///     Initializes a new instance of the <see cref="MessageProcessor" /> class.
+        ///     Initializes a new instance of the <see cref="MessageCodec" /> class.
         /// </summary>
         /// <exception cref="System.ArgumentNullException">The <paramref name="tlRig" /> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException">The <paramref name="hashServices" /> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException">The <paramref name="encryptionServices" /> is <c>null</c>.</exception>
-        public MessageProcessor([NotNull] TLRig tlRig, [NotNull] IHashServices hashServices, [NotNull] IEncryptionServices encryptionServices,
+        public MessageCodec([NotNull] TLRig tlRig, [NotNull] IHashServices hashServices, [NotNull] IEncryptionServices encryptionServices,
             IRandomGenerator randomGenerator)
         {
             Argument.IsNotNull(() => tlRig);

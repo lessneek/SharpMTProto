@@ -153,7 +153,7 @@ namespace SharpMTProto
 
         private readonly AsyncLock _connectionLock = new AsyncLock();
         private readonly IMessageIdGenerator _messageIdGenerator;
-        private readonly IMessageProcessor _messageProcessor;
+        private readonly IMessageCodec _messageCodec;
         private readonly Dictionary<int, Rpc> _rpcCalls = new Dictionary<int, Rpc>();
         private readonly ITransport _transport;
         private ConnectionConfig _config;
@@ -165,16 +165,16 @@ namespace SharpMTProto
         private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
 
         public MTProtoConnection([NotNull] TransportConfig transportConfig, [NotNull] ITransportFactory transportFactory, [NotNull] TLRig tlRig,
-            [NotNull] IMessageIdGenerator messageIdGenerator, [NotNull] IMessageProcessor messageProcessor)
+            [NotNull] IMessageIdGenerator messageIdGenerator, [NotNull] IMessageCodec messageCodec)
         {
             Argument.IsNotNull(() => transportConfig);
             Argument.IsNotNull(() => transportFactory);
             Argument.IsNotNull(() => tlRig);
             Argument.IsNotNull(() => messageIdGenerator);
-            Argument.IsNotNull(() => messageProcessor);
+            Argument.IsNotNull(() => messageCodec);
 
             _messageIdGenerator = messageIdGenerator;
-            _messageProcessor = messageProcessor;
+            _messageCodec = messageCodec;
 
             DefaultRpcTimeout = Defaults.RpcTimeout;
             DefaultConnectTimeout = Defaults.ConnectTimeout;
@@ -492,7 +492,7 @@ namespace SharpMTProto
                     // Assume the message bytes has a plain (unencrypted) message.
                     Log.Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", authKeyId));
 
-                    message = _messageProcessor.UnwrapPlainMessage(messageBytes);
+                    message = _messageCodec.UnwrapPlainMessage(messageBytes);
 
                     if (!IsIncomingMessageIdValid(message.MsgId))
                     {
@@ -510,7 +510,7 @@ namespace SharpMTProto
                     }
 
                     ulong salt, sessionId;
-                    message = _messageProcessor.UnwrapEncryptedMessage(messageBytes, _config.AuthKey, Sender.Server, out salt, out sessionId);
+                    message = _messageCodec.UnwrapEncryptedMessage(messageBytes, _config.AuthKey, Sender.Server, out salt, out sessionId);
                     // TODO: check salt.
                     if (sessionId != _config.SessionId)
                     {
@@ -729,8 +729,8 @@ namespace SharpMTProto
             }
 
             byte[] messageBytes = isEncrypted
-                ? _messageProcessor.WrapEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, Sender.Client)
-                : _messageProcessor.WrapPlainMessage(message);
+                ? _messageCodec.WrapEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, Sender.Client)
+                : _messageCodec.WrapPlainMessage(message);
 
             return messageBytes;
         }

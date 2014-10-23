@@ -47,7 +47,7 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterType<IHashServices, HashServices>();
             serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
             serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
-            serviceLocator.RegisterType<IMessageProcessor, MessageProcessor>();
+            serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
             serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
             serviceLocator.RegisterType<IMTProtoConnectionFactory, MTProtoConnectionFactory>();
             serviceLocator.RegisterType<IKeyChain, KeyChain>();

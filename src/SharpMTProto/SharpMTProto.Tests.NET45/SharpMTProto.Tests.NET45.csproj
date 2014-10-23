@@ -110,7 +110,7 @@
     <Compile Include="TcpTransportFacts.cs" />
     <Compile Include="TestData.cs" />
     <Compile Include="TestObjects.cs" />
-    <Compile Include="MessageProcessorFacts.cs" />
+    <Compile Include="MessageCodecFacts.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

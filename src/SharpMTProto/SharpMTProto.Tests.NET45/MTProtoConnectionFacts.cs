@@ -82,7 +82,7 @@ namespace SharpMTProto.Tests
 
             var config = new ConnectionConfig(TestRig.AuthKey, 100500) {SessionId = 2};
 
-            var messageProcessor = serviceLocator.ResolveType<IMessageProcessor>();
+            var messageProcessor = serviceLocator.ResolveType<IMessageCodec>();
 
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
@@ -124,7 +124,7 @@ namespace SharpMTProto.Tests
         {
             IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
-            var messageProcessor = serviceLocator.ResolveType<IMessageProcessor>();
+            var messageProcessor = serviceLocator.ResolveType<IMessageCodec>();
 
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
