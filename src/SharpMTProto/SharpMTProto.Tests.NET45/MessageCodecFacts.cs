@@ -41,7 +41,7 @@ namespace SharpMTProto.Tests
         {
             IMessageCodec messageCodec = GetMessageCodec();
             byte[] messageBytes = ("0000000000000000" + "0807060504030201" + "11000000" + "9EB6EFEB" + "09" + "000102030405060708" + "0000").HexToBytes();
-            var action = new Action(() => messageCodec.UnwrapPlainMessage(messageBytes));
+            var action = new Action(() => messageCodec.DecodePlainMessage(messageBytes));
             action.ShouldThrow<InvalidMessageException>();
         }
 
@@ -49,7 +49,7 @@ namespace SharpMTProto.Tests
         public void Should_unwrap_plain_message()
         {
             IMessageCodec messageCodec = GetMessageCodec();
-            IMessage message = messageCodec.UnwrapPlainMessage(TestPlainMessageBytes);
+            IMessage message = messageCodec.DecodePlainMessage(TestPlainMessageBytes);
             message.ShouldBeEquivalentTo(TestMessage);
         }
 
@@ -57,7 +57,7 @@ namespace SharpMTProto.Tests
         public void Should_wrap_plain_message()
         {
             IMessageCodec messageCodec = GetMessageCodec();
-            byte[] wrappedMessageBytes = messageCodec.WrapPlainMessage(TestMessage);
+            byte[] wrappedMessageBytes = messageCodec.EncodePlainMessage(TestMessage);
             wrappedMessageBytes.ShouldBeEquivalentTo(TestPlainMessageBytes);
         }
 
@@ -65,7 +65,7 @@ namespace SharpMTProto.Tests
         public void Should_unwrap_encrypted_message()
         {
             IMessageCodec messageCodec = GetMessageCodec();
-            IMessage message = messageCodec.UnwrapPlainMessage(TestPlainMessageBytes);
+            IMessage message = messageCodec.DecodePlainMessage(TestPlainMessageBytes);
             message.ShouldBeEquivalentTo(TestMessage);
         }
 
@@ -74,7 +74,7 @@ namespace SharpMTProto.Tests
         public void Should_wrap_encrypted_message(Sender sender)
         {
             IMessageCodec messageCodec = GetMessageCodec();
-            byte[] wrappedMessageBytes = messageCodec.WrapEncryptedMessage(TestMessage, TestRig.AuthKey, 0x999UL, 0x777UL, sender);
+            byte[] wrappedMessageBytes = messageCodec.EncodeEncryptedMessage(TestMessage, TestRig.AuthKey, 0x999UL, 0x777UL, sender);
             byte[] expectedMessageBytes;
             switch (sender)
             {

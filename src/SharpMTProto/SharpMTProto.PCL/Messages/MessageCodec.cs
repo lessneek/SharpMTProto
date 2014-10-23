@@ -19,21 +19,21 @@ namespace SharpMTProto.Messages
     public interface IMessageCodec
     {
         /// <summary>
-        ///     Wrap as plain message.
+        ///     Encode as plain message.
         /// </summary>
         /// <param name="message">Message.</param>
         /// <returns>Serialized plain message.</returns>
-        byte[] WrapPlainMessage([NotNull] IMessage message);
+        byte[] EncodePlainMessage([NotNull] IMessage message);
 
         /// <summary>
-        ///     Unwrap plain message.
+        ///     Decode plain message.
         /// </summary>
         /// <param name="messageBytes">Serialized message bytes.</param>
         /// <returns>Message.</returns>
-        IMessage UnwrapPlainMessage(byte[] messageBytes);
+        IMessage DecodePlainMessage(byte[] messageBytes);
 
         /// <summary>
-        ///     Wrap as encrypted message.
+        ///     Encode as encrypted message.
         /// </summary>
         /// <param name="message">A message.</param>
         /// <param name="authKey">
@@ -58,10 +58,10 @@ namespace SharpMTProto.Messages
         /// </param>
         /// <param name="sender">Sender of the message.</param>
         /// <returns>Serialized encrypted message.</returns>
-        byte[] WrapEncryptedMessage([NotNull] IMessage message, [NotNull] byte[] authKey, ulong salt, ulong sessionId, Sender sender);
+        byte[] EncodeEncryptedMessage([NotNull] IMessage message, [NotNull] byte[] authKey, ulong salt, ulong sessionId, Sender sender);
 
         /// <summary>
-        ///     Unwrap encrypted message.
+        ///     Decode encrypted message.
         /// </summary>
         /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
         /// <param name="authKey">
@@ -74,7 +74,7 @@ namespace SharpMTProto.Messages
         /// <param name="sender">Sender of the message.</param>
         /// <param name="salt">Salt.</param>
         /// <param name="sessionId">Session ID.</param>
-        IMessage UnwrapEncryptedMessage([NotNull] byte[] messageBytes, [NotNull] byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId);
+        IMessage DecodeEncryptedMessage([NotNull] byte[] messageBytes, [NotNull] byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId);
     }
 
     public class MessageCodec : IMessageCodec
@@ -123,7 +123,7 @@ namespace SharpMTProto.Messages
             _randomGenerator = randomGenerator;
         }
 
-        public byte[] WrapPlainMessage(IMessage message)
+        public byte[] EncodePlainMessage(IMessage message)
         {
             byte[] serBody = _tlRig.Serialize(message.Body, TLSerializationMode.Boxed);
 
@@ -144,7 +144,7 @@ namespace SharpMTProto.Messages
             return messageBytes;
         }
 
-        public IMessage UnwrapPlainMessage(byte[] messageBytes)
+        public IMessage DecodePlainMessage(byte[] messageBytes)
         {
             using (var streamer = new TLStreamer(messageBytes))
             {
@@ -165,7 +165,7 @@ namespace SharpMTProto.Messages
             }
         }
 
-        public byte[] WrapEncryptedMessage(IMessage message, byte[] authKey, ulong salt, ulong sessionId, Sender sender)
+        public byte[] EncodeEncryptedMessage(IMessage message, byte[] authKey, ulong salt, ulong sessionId, Sender sender)
         {
             Argument.IsNotNull(() => authKey);
             Argument.IsNotNull(() => message);
@@ -217,7 +217,7 @@ namespace SharpMTProto.Messages
             return messageBytes;
         }
 
-        public IMessage UnwrapEncryptedMessage(byte[] messageBytes, byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId)
+        public IMessage DecodeEncryptedMessage(byte[] messageBytes, byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId)
         {
             Argument.IsNotNull(() => authKey);
             Argument.IsNotNull(() => messageBytes);

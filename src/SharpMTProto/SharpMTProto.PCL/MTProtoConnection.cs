@@ -492,7 +492,7 @@ namespace SharpMTProto
                     // Assume the message bytes has a plain (unencrypted) message.
                     Log.Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", authKeyId));
 
-                    message = _messageCodec.UnwrapPlainMessage(messageBytes);
+                    message = _messageCodec.DecodePlainMessage(messageBytes);
 
                     if (!IsIncomingMessageIdValid(message.MsgId))
                     {
@@ -510,7 +510,7 @@ namespace SharpMTProto
                     }
 
                     ulong salt, sessionId;
-                    message = _messageCodec.UnwrapEncryptedMessage(messageBytes, _config.AuthKey, Sender.Server, out salt, out sessionId);
+                    message = _messageCodec.DecodeEncryptedMessage(messageBytes, _config.AuthKey, Sender.Server, out salt, out sessionId);
                     // TODO: check salt.
                     if (sessionId != _config.SessionId)
                     {
@@ -729,8 +729,8 @@ namespace SharpMTProto
             }
 
             byte[] messageBytes = isEncrypted
-                ? _messageCodec.WrapEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, Sender.Client)
-                : _messageCodec.WrapPlainMessage(message);
+                ? _messageCodec.EncodeEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, Sender.Client)
+                : _messageCodec.EncodePlainMessage(message);
 
             return messageBytes;
         }

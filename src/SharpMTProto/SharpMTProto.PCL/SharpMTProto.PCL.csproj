@@ -82,7 +82,7 @@
     <Compile Include="MessageSending.cs" />
     <Compile Include="ErrorCode.cs" />
     <Compile Include="Exceptions.cs" />
-    <Compile Include="Messages\MessageProcessor.cs" />
+    <Compile Include="Messages\MessageCodec.cs" />
     <Compile Include="Messages\MessageSerializer.cs" />
     <Compile Include="MTProtoSchemaEx.cs" />
     <Compile Include="Messages\Sender.cs" />

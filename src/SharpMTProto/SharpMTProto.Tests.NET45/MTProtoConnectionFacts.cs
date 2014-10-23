@@ -87,7 +87,7 @@ namespace SharpMTProto.Tests
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
 
-            byte[] expectedResponseMessageBytes = messageProcessor.WrapEncryptedMessage(new Message(0x0102030405060708, 3, expectedResponse), config.AuthKey, config.Salt,
+            byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(new Message(0x0102030405060708, 3, expectedResponse), config.AuthKey, config.Salt,
                 config.SessionId, Sender.Server);
 
             var inConnector = new Subject<byte[]>();
@@ -129,7 +129,7 @@ namespace SharpMTProto.Tests
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
             var expectedResponseMessage = new Message(0x0102030405060708, 0, expectedResponse);
-            byte[] expectedResponseMessageBytes = messageProcessor.WrapPlainMessage(expectedResponseMessage);
+            byte[] expectedResponseMessageBytes = messageProcessor.EncodePlainMessage(expectedResponseMessage);
 
             var inConnector = new Subject<byte[]>();
 
