@@ -29,7 +29,7 @@ namespace SharpMTProto.Tests
         [SetUp]
         public void SetUp()
         {
-            LogManager.AddDebugListener(false);
+            LogManager.AddDebugListener(true);
         }
 
         [Test]
@@ -199,6 +199,51 @@ namespace SharpMTProto.Tests
                 MTProtoConnectResult result = await connection.Connect();
                 result.ShouldBeEquivalentTo(MTProtoConnectResult.Timeout);
             }
+        }
+
+        [Test]
+        public async Task Should_send_Rpc_and_receive_response()
+        {
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
+
+            var config = new ConnectionConfig(TestRig.AuthKey, 100500) { SessionId = 2 };
+
+            var messageProcessor = serviceLocator.ResolveType<IMessageCodec>();
+
+            var request = new TestRequest { TestId = 9 };
+            var expectedResponse = new TestResponse { TestId = 9, TestText = "Number 1" };
+
+            byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(new Message(0x0102030405060708, 3, expectedResponse), config.AuthKey, config.Salt,
+                config.SessionId, Sender.Server);
+
+            var inConnector = new Subject<byte[]>();
+
+            var mockTransport = new Mock<ITransport>();
+            mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
+            mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
+                .Returns(() => Task.FromResult(false));
+
+            var mockTransportFactory = new Mock<ITransportFactory>();
+            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
+
+            serviceLocator.RegisterInstance(mockTransportFactory.Object);
+
+            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            {
+                connection.Configure(config);
+                await connection.Connect();
+
+                var response = await connection.RpcAsync(request);
+                response.Should().NotBeNull();
+                response.Should().BeOfType<TestResponse>();
+                ((TestResponse)response).ShouldBeEquivalentTo(expectedResponse);
+
+                await connection.Disconnect();
+            }
+
+            mockTransport.Verify();
+            mockTransportFactory.Verify();
         }
     }
 }
