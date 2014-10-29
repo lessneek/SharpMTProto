@@ -6,9 +6,8 @@
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
-using SharpMTProto.Messages;
+using SharpMTProto.Messaging;
 using SharpTL;
 
 // ReSharper disable once CheckNamespace
@@ -36,7 +35,6 @@ namespace SharpMTProto.Schema
         public Object Body { get; set; }
 
         #region Equality
-
         public bool Equals(Message other)
         {
             if (ReferenceEquals(null, other))
@@ -47,12 +45,12 @@ namespace SharpMTProto.Schema
             {
                 return true;
             }
-            var equals = MsgId == other.MsgId && Seqno == other.Seqno;
+            bool equals = MsgId == other.MsgId && Seqno == other.Seqno;
             if (Body is IEnumerable && other.Body is IEnumerable)
             {
-                equals &= ((IEnumerable) Body).Cast<object>().SequenceEqual(((IEnumerable) other.Body).Cast<object>());
+                @equals &= ((IEnumerable) Body).Cast<object>().SequenceEqual(((IEnumerable) other.Body).Cast<object>());
             }
-            return equals;
+            return @equals;
         }
 
         public override bool Equals(object obj)

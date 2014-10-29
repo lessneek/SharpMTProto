@@ -6,7 +6,7 @@
 
 using System;
 
-namespace SharpMTProto
+namespace SharpMTProto.Authentication
 {
     /// <summary>
     ///     Auth info contains of auth key and initial salt.

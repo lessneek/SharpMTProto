@@ -8,7 +8,8 @@ using System;
 using BigMath.Utils;
 using Catel.IoC;
 using Moq;
-using SharpMTProto.Messages;
+using SharpMTProto.Authentication;
+using SharpMTProto.Messaging;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
@@ -105,12 +106,17 @@ namespace SharpMTProto.Tests
 
     public class TestMessageIdsGenerator : IMessageIdGenerator
     {
-        private static readonly ulong[] MessageIds = {0x51e57ac42770964aUL, 0x51e57ac917717a27UL, 0x51e57acd2aa32c6dUL};
+        private static readonly ulong[] MessageIdsInternal = {0x51e57ac42770964aUL, 0x51e57ac917717a27UL, 0x51e57acd2aa32c6dUL};
         private int _mi;
+
+        public static ulong[] MessageIds
+        {
+            get { return MessageIdsInternal; }
+        }
 
         public ulong GetNextMessageId()
         {
-            return MessageIds[_mi++];
+            return MessageIdsInternal[_mi++];
         }
     }
 

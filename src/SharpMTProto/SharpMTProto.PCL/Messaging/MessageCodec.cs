@@ -14,7 +14,7 @@ using SharpMTProto.Annotations;
 using SharpMTProto.Services;
 using SharpTL;
 
-namespace SharpMTProto.Messages
+namespace SharpMTProto.Messaging
 {
     public interface IMessageCodec
     {

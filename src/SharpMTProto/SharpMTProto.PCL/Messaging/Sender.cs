@@ -4,7 +4,7 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace SharpMTProto.Messages
+namespace SharpMTProto.Messaging
 {
     /// <summary>
     ///     Type of a message sender.

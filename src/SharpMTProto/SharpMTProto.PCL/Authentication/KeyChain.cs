@@ -13,7 +13,7 @@ using SharpMTProto.Annotations;
 using SharpMTProto.Services;
 using SharpTL;
 
-namespace SharpMTProto
+namespace SharpMTProto.Authentication
 {
     /// <summary>
     ///     Key chain interface.

@@ -9,7 +9,7 @@ using SharpMTProto.Schema;
 using SharpTL;
 using SharpTL.Serializers;
 
-namespace SharpMTProto.Messages
+namespace SharpMTProto.Messaging
 {
     /// <summary>
     ///     TL serializer for a <see cref="Message" /> class.

@@ -7,6 +7,7 @@
 using BigMath.Utils;
 using FluentAssertions;
 using NUnit.Framework;
+using SharpMTProto.Authentication;
 using SharpMTProto.Services;
 
 namespace SharpMTProto.Tests

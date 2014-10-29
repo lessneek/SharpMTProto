@@ -611,6 +611,11 @@ namespace SharpMTProto.Schema
     [TLType(typeof(BadMsgNotification), typeof(BadServerSalt))]
     public interface IBadMsgNotification
     {
+        System.UInt64 BadMsgId { get; set; }
+
+        System.UInt32 BadMsgSeqno { get; set; }
+
+        System.UInt32 ErrorCode { get; set; }
     }
 
     [TLType(typeof(MsgResendReq))]
@@ -642,7 +647,7 @@ namespace SharpMTProto.Schema
     /// <summary>
     ///     TL methods.
     /// </summary>
-    public interface ITLMethods
+    public interface IMTProtoMethods
     {
         IResPQ ReqPq(ReqPqArgs args);
         IServerDHParams ReqDHParams(ReqDHParamsArgs args);
@@ -658,7 +663,7 @@ namespace SharpMTProto.Schema
     /// <summary>
     ///     TL async methods.
     /// </summary>
-    public interface ITLAsyncMethods
+    public interface IMTProtoAsyncMethods
     {
         Task<IResPQ> ReqPqAsync(ReqPqArgs args);
         Task<IServerDHParams> ReqDHParamsAsync(ReqDHParamsArgs args);

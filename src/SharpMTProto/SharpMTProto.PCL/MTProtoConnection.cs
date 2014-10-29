@@ -5,12 +5,9 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
 using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,10 +15,10 @@ using BigMath.Utils;
 using Catel;
 using Catel.Logging;
 using Catel.Reflection;
-using SharpMTProto.Schema;
-using Nito.AsyncEx;
 using SharpMTProto.Annotations;
-using SharpMTProto.Messages;
+using SharpMTProto.Messaging;
+using SharpMTProto.Messaging.Handlers;
+using SharpMTProto.Schema;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
@@ -29,31 +26,11 @@ using AsyncLock = Nito.AsyncEx.AsyncLock;
 
 namespace SharpMTProto
 {
-    public class OutboxRelay
-    {
-        private readonly AsyncProducerConsumerQueue<MessageSending> _queueToSend = new AsyncProducerConsumerQueue<MessageSending>();
-
-        public void EnqueueToSend(MessageSending messageSending)
-        {
-            _queueToSend.Enqueue(messageSending);
-        }
-    }
-
     /// <summary>
     ///     Interface of MTProto connection.
     /// </summary>
-    public interface IMTProtoConnection : ITLAsyncMethods, IDisposable
+    public interface IMTProtoConnection : IMTProtoAsyncMethods, IDisposable
     {
-        /// <summary>
-        ///     In messages history.
-        /// </summary>
-        IObservable<IMessage> InMessagesHistory { get; }
-
-        /// <summary>
-        ///     Out messages history.
-        /// </summary>
-        IObservable<IMessage> OutMessagesHistory { get; }
-
         /// <summary>
         ///     A state.
         /// </summary>
@@ -100,19 +77,15 @@ namespace SharpMTProto
         /// </summary>
         Task<MTProtoConnectResult> Connect(CancellationToken cancellationToken);
 
-        Task SendMessageAsync(IMessage message, bool isEncrypted);
-        Task SendMessageAsync(IMessage message, bool isEncrypted, CancellationToken cancellationToken);
-        Task<object> RpcAsync(object request);
-        Task<object> RpcAsync(object request, TimeSpan timeout);
-        Task<object> RpcAsync(object request, CancellationToken cancellationToken);
-        Task<object> RpcAsync(object request, TimeSpan timeout, CancellationToken cancellationToken);
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags) where TResponse : class;
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout) where TResponse : class;
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken) where TResponse : class;
 
-        Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags);
-        Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags, TimeSpan timeout);
-        Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags, CancellationToken cancellationToken);
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
+            where TResponse : class;
 
-        Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken,
-            Func<TResponse, bool> predicate = null);
+        Task<TResponse> RpcAsync<TResponse>(object requestBody) where TResponse : class;
+        void UpdateSalt(ulong salt);
     }
 
     /// <summary>
@@ -143,29 +116,28 @@ namespace SharpMTProto
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
 
-        #region Messages hubs.
-        private readonly Subject<object> _responses = new Subject<object>();
-        private Subject<IMessage> _inMessages = new Subject<IMessage>();
-        private ReplaySubject<IMessage> _inMessagesHistory = new ReplaySubject<IMessage>(100);
-        private AsyncSubject<IMessage> _outMessages = new AsyncSubject<IMessage>();
-        private ReplaySubject<IMessage> _outMessagesHistory = new ReplaySubject<IMessage>(100);
-        #endregion
-
         private readonly AsyncLock _connectionLock = new AsyncLock();
-        private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly IMessageCodec _messageCodec;
-        private readonly Dictionary<int, Rpc> _rpcCalls = new Dictionary<int, Rpc>();
+        private readonly IMessageIdGenerator _messageIdGenerator;
+        private readonly RequestsManager _requestsManager = new RequestsManager();
+        private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
+
         private readonly ITransport _transport;
         private ConnectionConfig _config;
         private CancellationToken _connectionCancellationToken;
         private CancellationTokenSource _connectionCts;
         private bool _isDisposed;
         private uint _messageSeqNumber;
-        private volatile int _rpcCall;
+
         private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
 
-        public MTProtoConnection([NotNull] TransportConfig transportConfig, [NotNull] ITransportFactory transportFactory, [NotNull] TLRig tlRig,
-            [NotNull] IMessageIdGenerator messageIdGenerator, [NotNull] IMessageCodec messageCodec)
+
+        public MTProtoConnection(
+            [NotNull] TransportConfig transportConfig,
+            [NotNull] ITransportFactory transportFactory,
+            [NotNull] TLRig tlRig,
+            [NotNull] IMessageIdGenerator messageIdGenerator,
+            [NotNull] IMessageCodec messageCodec)
         {
             Argument.IsNotNull(() => transportConfig);
             Argument.IsNotNull(() => transportFactory);
@@ -179,20 +151,14 @@ namespace SharpMTProto
             DefaultRpcTimeout = Defaults.RpcTimeout;
             DefaultConnectTimeout = Defaults.ConnectTimeout;
 
-            tlRig.PrepareSerializersForAllTLObjectsInAssembly(typeof (ITLAsyncMethods).GetAssemblyEx());
+            InitTLRig(tlRig);
+            InitResponseDispatcher(_responseDispatcher);
 
             // Init transport.
             _transport = transportFactory.CreateTransport(transportConfig);
 
-            // History of messages in/out.
-            _inMessages.ObserveOn(DefaultScheduler.Instance).Subscribe(_inMessagesHistory);
-            _outMessages.ObserveOn(DefaultScheduler.Instance).Subscribe(_outMessagesHistory);
-
             // Connector in/out.
             _transport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
-//            _outMessages.ObserveOn(DefaultScheduler.Instance).Subscribe(ProcessOutMessage);
-
-            _inMessages.ObserveOn(DefaultScheduler.Instance).Subscribe(ProcessIncomingMessage);
         }
 
         public TimeSpan DefaultRpcTimeout { get; set; }
@@ -213,16 +179,6 @@ namespace SharpMTProto
             get { return _config.AuthKey != null; }
         }
 
-        public IObservable<IMessage> InMessagesHistory
-        {
-            get { return _inMessagesHistory; }
-        }
-
-        public IObservable<IMessage> OutMessagesHistory
-        {
-            get { return _outMessagesHistory; }
-        }
-
         /// <summary>
         ///     Start sender and receiver tasks.
         /// </summary>
@@ -238,82 +194,86 @@ namespace SharpMTProto
         {
             var result = MTProtoConnectResult.Other;
 
-            await Task.Run(async () =>
-            {
-                using (await _connectionLock.LockAsync(cancellationToken))
+            await Task.Run(
+                async () =>
                 {
-                    if (_state == MTProtoConnectionState.Connected)
+                    using (await _connectionLock.LockAsync(cancellationToken))
                     {
-                        result = MTProtoConnectResult.Success;
-                        return;
-                    }
-                    Debug.Assert(_state == MTProtoConnectionState.Disconnected);
-                    try
-                    {
-                        _state = MTProtoConnectionState.Connecting;
-                        Log.Debug("Connecting...");
-
-                        await _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
-
-                        _connectionCts = new CancellationTokenSource();
-                        _connectionCancellationToken = _connectionCts.Token;
-
-                        Log.Debug("Connected.");
-                        result = MTProtoConnectResult.Success;
-                    }
-                    catch (TimeoutException)
-                    {
-                        result = MTProtoConnectResult.Timeout;
-                        Log.Debug(string.Format("Failed to connect due to timeout ({0}s).", DefaultConnectTimeout.TotalSeconds));
-                    }
-                    catch (Exception e)
-                    {
-                        result = MTProtoConnectResult.Other;
-                        Log.Debug(e, "Failed to connect.");
-                    }
-                    finally
-                    {
-                        switch (result)
+                        if (_state == MTProtoConnectionState.Connected)
                         {
-                            case MTProtoConnectResult.Success:
-                                _state = MTProtoConnectionState.Connected;
-                                break;
-                            case MTProtoConnectResult.Timeout:
-                            case MTProtoConnectResult.Other:
-                                _state = MTProtoConnectionState.Disconnected;
-                                break;
-                            default:
-                                throw new ArgumentOutOfRangeException();
+                            result = MTProtoConnectResult.Success;
+                            return;
+                        }
+                        Debug.Assert(_state == MTProtoConnectionState.Disconnected);
+                        try
+                        {
+                            _state = MTProtoConnectionState.Connecting;
+                            Log.Debug("Connecting...");
+
+                            await _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
+
+                            _connectionCts = new CancellationTokenSource();
+                            _connectionCancellationToken = _connectionCts.Token;
+
+                            Log.Debug("Connected.");
+                            result = MTProtoConnectResult.Success;
+                        }
+                        catch (TimeoutException)
+                        {
+                            result = MTProtoConnectResult.Timeout;
+                            Log.Debug(string.Format("Failed to connect due to timeout ({0}s).", DefaultConnectTimeout.TotalSeconds));
+                        }
+                        catch (Exception e)
+                        {
+                            result = MTProtoConnectResult.Other;
+                            Log.Debug(e, "Failed to connect.");
+                        }
+                        finally
+                        {
+                            switch (result)
+                            {
+                                case MTProtoConnectResult.Success:
+                                    _state = MTProtoConnectionState.Connected;
+                                    break;
+                                case MTProtoConnectResult.Timeout:
+                                case MTProtoConnectResult.Other:
+                                    _state = MTProtoConnectionState.Disconnected;
+                                    break;
+                                default:
+                                    throw new ArgumentOutOfRangeException();
+                            }
                         }
                     }
-                }
-            }, cancellationToken).ConfigureAwait(false);
+                },
+                cancellationToken).ConfigureAwait(false);
 
             return result;
         }
 
         public async Task Disconnect()
         {
-            await Task.Run(async () =>
-            {
-                using (await _connectionLock.LockAsync(CancellationToken.None))
+            await Task.Run(
+                async () =>
                 {
-                    if (_state == MTProtoConnectionState.Disconnected)
+                    using (await _connectionLock.LockAsync(CancellationToken.None))
                     {
-                        return;
-                    }
-                    _state = MTProtoConnectionState.Disconnected;
+                        if (_state == MTProtoConnectionState.Disconnected)
+                        {
+                            return;
+                        }
+                        _state = MTProtoConnectionState.Disconnected;
 
-                    if (_connectionCts != null)
-                    {
-                        _connectionCts.Cancel();
-                        _connectionCts.Dispose();
-                        _connectionCts = null;
-                    }
+                        if (_connectionCts != null)
+                        {
+                            _connectionCts.Cancel();
+                            _connectionCts.Dispose();
+                            _connectionCts = null;
+                        }
 
-                    await _transport.DisconnectAsync(CancellationToken.None);
-                }
-            }, CancellationToken.None).ConfigureAwait(false);
+                        await _transport.DisconnectAsync(CancellationToken.None);
+                    }
+                },
+                CancellationToken.None).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -330,132 +290,96 @@ namespace SharpMTProto
             }
         }
 
-        public async Task<object> RpcAsync(object request)
+        public void UpdateSalt(ulong salt)
         {
-            return await RpcAsync(request, DefaultRpcTimeout, CancellationToken.None);
+            _config.Salt = salt;
         }
 
-        public async Task<object> RpcAsync(object request, TimeSpan timeout)
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags) where TResponse : class
         {
-            return await RpcAsync(request, timeout, CancellationToken.None);
+            return await RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
         }
 
-        public async Task<object> RpcAsync(object request, CancellationToken cancellationToken)
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout) where TResponse : class
         {
-            return await RpcAsync(request, DefaultRpcTimeout, cancellationToken);
+            return await RequestAsync<TResponse>(requestBody, flags, timeout, CancellationToken.None);
         }
 
-        public async Task<object> RpcAsync(object request, TimeSpan timeout, CancellationToken cancellationToken)
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken) where TResponse : class
         {
-            Argument.IsNotNull(() => request);
-            cancellationToken.ThrowIfCancellationRequested();
-            ThrowIfDiconnected();
-            ThrowIfEncryptionIsNotSupported();
-
-            Rpc rpc = CreateRpc(request);
-
-            MessageSending messageSending = CreateNextMessageSending(request, MessageSendingFlags.EncryptedAndContentRelated);
-            IRpcResult result =
-                await
-                    SendMessageAsync<IRpcResult>(messageSending, MessageSendingFlags.EncryptedAndContentRelated, timeout, cancellationToken,
-                        r => r.ReqMsgId == messageSending.Message.MsgId);
-            return result.Result;
+            return await RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, cancellationToken);
         }
 
-        public async Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags)
+        public Task<TResponse> RpcAsync<TResponse>(object requestBody) where TResponse : class
         {
-            return await SendRequestAsync<TResponse>(request, flags, DefaultRpcTimeout, CancellationToken.None);
+            return RequestAsync<TResponse>(requestBody, MessageSendingFlags.EncryptedAndContentRelated);
         }
 
-        public async Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags, TimeSpan timeout)
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
+            where TResponse : class
         {
-            return await SendRequestAsync<TResponse>(request, flags, timeout, CancellationToken.None);
-        }
-
-        public async Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags, CancellationToken cancellationToken)
-        {
-            return await SendRequestAsync<TResponse>(request, flags, DefaultRpcTimeout, cancellationToken);
-        }
-
-        public async Task<TResponse> SendRequestAsync<TResponse>(object request, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken,
-            Func<TResponse, bool> predicate = null)
-        {
-            Argument.IsNotNull(() => request);
+            Argument.IsNotNull(() => requestBody);
             cancellationToken.ThrowIfCancellationRequested();
             ThrowIfDiconnected();
 
-            MessageSending messageSending = CreateNextMessageSending(request, flags);
-            return await SendMessageAsync(messageSending, flags, timeout, cancellationToken, predicate);
-        }
-
-        public async Task SendMessageAsync(IMessage message, bool isEncrypted)
-        {
-            await SendMessageAsync(message, isEncrypted, CancellationToken.None);
-        }
-
-        public async Task SendMessageAsync(IMessage message, bool isEncrypted, CancellationToken cancellationToken)
-        {
-            Argument.IsNotNull(() => message);
-            cancellationToken.ThrowIfCancellationRequested();
-            ThrowIfDiconnected();
-
-            using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _connectionCancellationToken))
+            var timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
+            using (
+                CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(
+                    timeoutCancellationTokenSource.Token,
+                    cancellationToken,
+                    _connectionCancellationToken))
             {
-                await SendAsync(WrapMessage(message, isEncrypted), cts.Token);
+                Request<TResponse> request = CreateRequest<TResponse>(requestBody, flags, cts.Token);
+                await request.SendAsync();
+                return await request.GetResponseAsync();
             }
         }
 
-        private Rpc CreateRpc(object request)
+        private static void InitTLRig(TLRig tlRig)
         {
-            MessageSending messageSending = CreateNextMessageSending(request, MessageSendingFlags.EncryptedAndContentRelated);
-            lock (_rpcCalls)
-            {
-                var rpc = new Rpc(++_rpcCall, messageSending);
-                _rpcCalls.Add(rpc.Id, rpc);
-                return rpc;
-            }
+            tlRig.PrepareSerializersForAllTLObjectsInAssembly(typeof (IMTProtoAsyncMethods).GetAssemblyEx());
         }
 
-        private async Task<TResponse> SendMessageAsync<TResponse>(MessageSending messageSending, MessageSendingFlags flags, TimeSpan timeout,
-            CancellationToken cancellationToken, Func<TResponse, bool> predicate = null)
+        private void InitResponseDispatcher(IResponseDispatcher responseDispatcher)
         {
-            Argument.IsNotNull(() => messageSending);
-            cancellationToken.ThrowIfCancellationRequested();
-            ThrowIfDiconnected();
-
-            //return await SendRequestAsync(WrapMessage(message, isEncrypted), timeout, cancellationToken, predicate);
-
-            byte[] messageBytes = WrapMessage(messageSending.Message, flags.HasFlag(MessageSendingFlags.Encrypted));
-
-            predicate = predicate ?? (response => true);
-
-            using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _connectionCancellationToken))
-            {
-                Task<TResponse> resultTask =
-                    _responses.Where(o => o is TResponse).Select(o => (TResponse) o).Where(predicate).FirstAsync().Timeout(timeout).ToTask(cts.Token);
-                await SendAsync(messageBytes, cts.Token);
-                return await resultTask;
-            }
+            responseDispatcher.FallbackHandler = new FirstRequestResponseHandler(_requestsManager);
+            responseDispatcher.AddHandler(new BadMsgNotificationHandler(this, _requestsManager));
+            responseDispatcher.AddHandler(new MessageContainerHandler(_responseDispatcher));
+            responseDispatcher.AddHandler(new RpcResultHandler(_requestsManager));
         }
 
-        private async Task<TResponse> PlainRpcAsync<TResponse>(object request)
+        private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)
         {
-            return await PlainRpcAsync<TResponse>(request, DefaultRpcTimeout);
+            return Task.Run(
+                async () =>
+                {
+                    byte[] messageBytes = EncodeMessage(request.Message, request.Flags.HasFlag(MessageSendingFlags.Encrypted));
+                    await SendAsync(messageBytes, cancellationToken);
+                },
+                cancellationToken);
         }
 
-        private async Task<TResponse> PlainRpcAsync<TResponse>(object request, TimeSpan timeout)
+        private Request<TResponse> CreateRequest<TResponse>(object body, MessageSendingFlags flags, CancellationToken cancellationToken) where TResponse : class
         {
-            using (var cts = new CancellationTokenSource(timeout))
-            {
-                return await SendRequestAsync<TResponse>(request, MessageSendingFlags.None, cts.Token);
-            }
+            var request = new Request<TResponse>(
+                new Message(GetNextMsgId(), GetNextMsgSeqno(flags.HasFlag(MessageSendingFlags.ContentRelated)), body),
+                flags,
+                SendRequestAsync,
+                cancellationToken);
+            _requestsManager.Add(request);
+            return request;
         }
 
-        private async Task SendAsync(byte[] data, CancellationToken cancellationToken)
+        private Task<TResponse> PlainSystemRequestAsync<TResponse>(object requestBody) where TResponse : class
+        {
+            return RequestAsync<TResponse>(requestBody, MessageSendingFlags.None);
+        }
+
+        private Task SendAsync(byte[] data, CancellationToken cancellationToken)
         {
             ThrowIfDiconnected();
             LogMessageInOut(data, "OUT");
-            await _transport.SendAsync(data, cancellationToken);
+            return _transport.SendAsync(data, cancellationToken);
         }
 
         /// <summary>
@@ -464,6 +388,8 @@ namespace SharpMTProto
         /// <param name="messageBytes">Incoming bytes.</param>
         private void ProcessIncomingMessageBytes(byte[] messageBytes)
         {
+            ThrowIfDisposed();
+
             try
             {
                 Log.Debug("Processing incoming message.");
@@ -479,7 +405,8 @@ namespace SharpMTProto
                     if (messageBytes.Length < 20)
                     {
                         throw new InvalidMessageException(
-                            string.Format("Invalid message length: {0} bytes. Expected to be at least 20 bytes for message or 4 bytes for error code.",
+                            string.Format(
+                                "Invalid message length: {0} bytes. Expected to be at least 20 bytes for message or 4 bytes for error code.",
                                 messageBytes.Length));
                     }
                     authKeyId = streamer.ReadUInt64();
@@ -518,8 +445,7 @@ namespace SharpMTProto
                     }
                     Log.Debug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", message.MsgId));
                 }
-
-                _inMessages.OnNext(message);
+                ProcessIncomingMessage(message);
             }
             catch (Exception e)
             {
@@ -529,166 +455,17 @@ namespace SharpMTProto
 
         private async void ProcessIncomingMessage(IMessage message)
         {
+            ThrowIfDisposed();
+
             try
             {
-                object msgBody = message.Body;
+                Log.Debug("Incoming message data of type = {0}.", message.Body.GetType());
 
-                Log.Debug("Incoming message data of type = {0}.", msgBody.GetType());
-
-                var body = msgBody as IBadMsgNotification;
-                if (body != null)
-                {
-                    await ProcessBadMsgNotificationAsync(body);
-                }
-                else if (msgBody is IMessageContainer)
-                {
-                    #region Description
-                    /* 
-                     * All messages in a container must have msg_id lower than that of the container itself.
-                     * A container does not require an acknowledgment and may not carry other simple containers.
-                     * When messages are re-sent, they may be combined into a container in a different manner or sent individually.
-                     * 
-                     * Empty containers are also allowed. They are used by the server, for example,
-                     * to respond to an HTTP request when the timeout specified in hhtp_wait expires, and there are no messages to transmit.
-                     * 
-                     * https://core.telegram.org/mtproto/service_messages#containers
-                     */
-                    #endregion
-
-                    var msgContainer = msgBody as MsgContainer;
-                    if (msgContainer != null)
-                    {
-                        if (msgContainer.Messages.Any(msg => msg.MsgId >= message.MsgId || msg.Seqno >= message.Seqno))
-                        {
-                            throw new InvalidMessageException("Container MessageId must be greater than all MsgIds of inner messages.");
-                        }
-                        foreach (Message msg in msgContainer.Messages)
-                        {
-                            ProcessIncomingMessage(msg);
-                        }
-                    }
-                    else
-                    {
-                        Log.Debug("Unsupported message container of type: {0}.", msgBody.GetType());
-                    }
-                }
-                else
-                {
-                    _responses.OnNext(msgBody);
-                }
+                await _responseDispatcher.DispatchAsync(message);
             }
             catch (Exception e)
             {
                 Log.Debug(e, "Error while processing incoming message.");
-            }
-        }
-
-        /// <summary>
-        ///     Process bad message notification.
-        /// </summary>
-        /// <param name="notification">Notification.</param>
-        private async Task ProcessBadMsgNotificationAsync(IBadMsgNotification notification)
-        {
-            #region Notice of Ignored Error Message
-            /* In certain cases, a server may notify a client that its incoming message was ignored for whatever reason.
-             * Note that such a notification cannot be generated unless a message is correctly decoded by the server.
-             * 
-             * bad_msg_notification#a7eff811 bad_msg_id:long bad_msg_seqno:int error_code:int = BadMsgNotification;
-             * bad_server_salt#edab447b bad_msg_id:long bad_msg_seqno:int error_code:int new_server_salt:long = BadMsgNotification;
-             * 
-             * Here, error_code can also take on the following values:
-             * 
-             * 16: msg_id too low (most likely, client time is wrong; it would be worthwhile to synchronize it using msg_id notifications
-             *     and re-send the original message with the “correct” msg_id or wrap it in a container with a new msg_id if the original
-             *     message had waited too long on the client to be transmitted)
-             * 17: msg_id too high (similar to the previous case, the client time has to be synchronized, and the message re-sent with the correct msg_id)
-             * 18: incorrect two lower order msg_id bits (the server expects client message msg_id to be divisible by 4)
-             * 19: container msg_id is the same as msg_id of a previously received message (this must never happen)
-             * 20: message too old, and it cannot be verified whether the server has received a message with this msg_id or not
-             * 32: msg_seqno too low (the server has already received a message with a lower msg_id but with either a higher or an equal and odd seqno)
-             * 33: msg_seqno too high (similarly, there is a message with a higher msg_id but with either a lower or an equal and odd seqno)
-             * 34: an even msg_seqno expected (irrelevant message), but odd received
-             * 35: odd msg_seqno expected (relevant message), but even received
-             * 48: incorrect server salt (in this case, the bad_server_salt response is received with the correct salt, and the message is to be re-sent with it)
-             * 64: invalid container.
-             * The intention is that error_code values are grouped (error_code >> 4): for example, the codes 0x40 - 0x4f correspond to errors in container decomposition.
-             * 
-             * Notifications of an ignored message do not require acknowledgment (i.e., are irrelevant).
-             * 
-             * Important: if server_salt has changed on the server or if client time is incorrect, any query will result in a notification in the above format.
-             * The client must check that it has, in fact, recently sent a message with the specified msg_id, and if that is the case,
-             * update its time correction value (the difference between the client’s and the server’s clocks) and the server salt based on msg_id
-             * and the server_salt notification, so as to use these to (re)send future messages.
-             * In the meantime, the original message (the one that caused the error message to be returned) must also be re-sent with a better msg_id and/or server_salt.
-             * 
-             * In addition, the client can update the server_salt value used to send messages to the server,
-             * based on the values of RPC responses or containers carrying an RPC response,
-             * provided that this RPC response is actually a match for the query sent recently.
-             * (If there is doubt, it is best not to update since there is risk of a replay attack).
-             * 
-             * https://core.telegram.org/mtproto/service_messages_about_messages#notice-of-ignored-error-message
-             */
-            #endregion
-
-            var badServerSalt = notification as BadServerSalt;
-            if (badServerSalt != null)
-            {
-                var errorCode = (ErrorCode) badServerSalt.ErrorCode;
-                Debug.Assert(errorCode == ErrorCode.IncorrectServerSalt);
-
-                Log.Debug(string.Format("Bad server salt in message (MessageId = 0x{0:X}, Seqno = {1}). Error code = {2}.", badServerSalt.BadMsgId,
-                    badServerSalt.BadMsgSeqno, errorCode));
-
-                Log.Debug("Searching for bad message in out history...");
-
-                IMessage badMessage = await _outMessagesHistory.FirstOrDefaultAsync(m => m.MsgId == badServerSalt.BadMsgId);
-                if (badMessage == null || badMessage.Seqno != badServerSalt.BadMsgSeqno)
-                {
-                    Log.Info("Bad message not found in the out history.");
-                    return;
-                }
-
-                Log.Debug("Message found. Setting new salt.");
-
-                _config.Salt = badServerSalt.NewServerSalt;
-
-                Log.Debug("Resending bad message with the new salt.");
-
-                throw new NotImplementedException();
-                //EncryptedMessage(badMessage.Body);
-            }
-
-            var badMsgNotification = notification as BadMsgNotification;
-            if (badMsgNotification != null)
-            {
-                var errorCode = (ErrorCode) badMsgNotification.ErrorCode;
-                switch (errorCode)
-                {
-                    case ErrorCode.MsgIdIsTooSmall:
-                        break;
-                    case ErrorCode.MsgIdIsTooBig:
-                        break;
-                    case ErrorCode.MsgIdBadTwoLowBytes:
-                        break;
-                    case ErrorCode.MsgIdDuplicate:
-                        break;
-                    case ErrorCode.MsgTooOld:
-                        break;
-                    case ErrorCode.MsgSeqnoIsTooLow:
-                        break;
-                    case ErrorCode.MsgSeqnoIsTooBig:
-                        break;
-                    case ErrorCode.MsgSeqnoNotEven:
-                        break;
-                    case ErrorCode.MsgSeqnoNotOdd:
-                        break;
-                    case ErrorCode.IncorrectServerSalt:
-                        break;
-                    case ErrorCode.InvalidContainer:
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
-                }
             }
         }
 
@@ -721,7 +498,7 @@ namespace SharpMTProto
             return true;
         }
 
-        private byte[] WrapMessage(IMessage message, bool isEncrypted)
+        private byte[] EncodeMessage(IMessage message, bool isEncrypted)
         {
             if (isEncrypted)
             {
@@ -733,11 +510,6 @@ namespace SharpMTProto
                 : _messageCodec.EncodePlainMessage(message);
 
             return messageBytes;
-        }
-
-        private MessageSending CreateNextMessageSending(object body, MessageSendingFlags flags)
-        {
-            return new MessageSending(new Message(GetNextMsgId(), GetNextMsgSeqno(flags.HasFlag(MessageSendingFlags.ContentRelated)), body), flags);
         }
 
         [DebuggerStepThrough]
@@ -758,27 +530,36 @@ namespace SharpMTProto
             }
         }
 
-        #region TL methods
+        [DebuggerStepThrough]
+        private void ThrowIfDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException("Connection was disposed.");
+            }
+        }
+
+        #region MTProto methods
         /// <summary>
         ///     Request pq.
         /// </summary>
         /// <returns>Response with pq.</returns>
-        public async Task<IResPQ> ReqPqAsync(ReqPqArgs args)
+        public Task<IResPQ> ReqPqAsync(ReqPqArgs args)
         {
-            return await PlainRpcAsync<IResPQ>(args);
+            return PlainSystemRequestAsync<IResPQ>(args);
         }
 
-        public async Task<IServerDHParams> ReqDHParamsAsync(ReqDHParamsArgs args)
+        public Task<IServerDHParams> ReqDHParamsAsync(ReqDHParamsArgs args)
         {
-            return await PlainRpcAsync<IServerDHParams>(args);
+            return PlainSystemRequestAsync<IServerDHParams>(args);
         }
 
-        public async Task<ISetClientDHParamsAnswer> SetClientDHParamsAsync(SetClientDHParamsArgs args)
+        public Task<ISetClientDHParamsAnswer> SetClientDHParamsAsync(SetClientDHParamsArgs args)
         {
-            return await PlainRpcAsync<ISetClientDHParamsAnswer>(args);
+            return PlainSystemRequestAsync<ISetClientDHParamsAnswer>(args);
         }
 
-        public async Task<IRpcDropAnswer> RpcDropAnswerAsync(RpcDropAnswerArgs args)
+        public Task<IRpcDropAnswer> RpcDropAnswerAsync(RpcDropAnswerArgs args)
         {
             throw new NotImplementedException();
         }
@@ -826,18 +607,6 @@ namespace SharpMTProto
             if (isDisposing)
             {
                 Disconnect().Wait(5000);
-
-                _outMessages.Dispose();
-                _outMessages = null;
-
-                _inMessages.Dispose();
-                _inMessages = null;
-
-                _inMessagesHistory.Dispose();
-                _inMessagesHistory = null;
-
-                _outMessagesHistory.Dispose();
-                _outMessagesHistory = null;
             }
         }
         #endregion

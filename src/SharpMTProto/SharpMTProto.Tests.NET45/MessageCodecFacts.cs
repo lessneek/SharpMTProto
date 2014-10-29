@@ -10,7 +10,7 @@ using Catel.IoC;
 using FluentAssertions;
 using SharpMTProto.Schema;
 using NUnit.Framework;
-using SharpMTProto.Messages;
+using SharpMTProto.Messaging;
 using SharpMTProto.Services;
 
 namespace SharpMTProto.Tests
