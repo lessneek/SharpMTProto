@@ -9,7 +9,7 @@ using System;
 namespace SharpMTProto
 {
     [Flags]
-    internal enum ErrorCode : uint
+    public enum ErrorCode : uint
     {
         /// <summary>
         ///     Message Identifier too low (most likely, client time is wrong; it would be worthwhile to synchronize it using
