@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using BigMath;
 using Raksha.Crypto.Engines;
 using Raksha.Crypto.Parameters;
+using SharpMTProto.Authentication;
 
 namespace SharpMTProto.Services
 {

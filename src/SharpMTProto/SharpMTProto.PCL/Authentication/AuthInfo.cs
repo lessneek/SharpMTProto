@@ -6,20 +6,20 @@
 
 using System;
 
-namespace SharpMTProto
+namespace SharpMTProto.Authentication
 {
     /// <summary>
     ///     Auth info contains of auth key and initial salt.
     /// </summary>
-    public struct AuthInfo
+    public class AuthInfo
     {
         private readonly byte[] _authKey;
-        private readonly UInt64 _initialSalt;
+        private readonly UInt64 _salt;
 
-        public AuthInfo(byte[] authKey, ulong initialSalt)
+        public AuthInfo(byte[] authKey, ulong salt)
         {
             _authKey = authKey;
-            _initialSalt = initialSalt;
+            _salt = salt;
         }
 
         public byte[] AuthKey
@@ -27,9 +27,9 @@ namespace SharpMTProto
             get { return _authKey; }
         }
 
-        public ulong InitialSalt
+        public ulong Salt
         {
-            get { return _initialSalt; }
+            get { return _salt; }
         }
     }
 }

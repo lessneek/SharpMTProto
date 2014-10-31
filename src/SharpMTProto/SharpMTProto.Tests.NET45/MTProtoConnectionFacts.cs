@@ -5,21 +5,18 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
-using System.Linq;
-using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Reactive.Threading.Tasks;
 using System.Threading;
 using System.Threading.Tasks;
-using BigMath.Utils;
 using Catel.IoC;
 using Catel.Logging;
 using FluentAssertions;
 using Moq;
+using Nito.AsyncEx;
 using NUnit.Framework;
-using SharpMTProto.Services;
+using SharpMTProto.Messaging;
+using SharpMTProto.Schema;
 using SharpMTProto.Transport;
-using SharpTL;
 
 namespace SharpMTProto.Tests
 {
@@ -33,142 +30,135 @@ namespace SharpMTProto.Tests
         }
 
         [Test]
-        public async Task Should_send_and_receive_plain_message()
+        public async Task Should_send_Rpc_and_receive_response()
         {
-            IServiceLocator serviceLocator = new ServiceLocator();
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
-            byte[] messageData = Enumerable.Range(0, 255).Select(i => (byte) i).ToArray();
-            byte[] expectedMessageBytes = "00000000000000000807060504030201FF000000".HexToBytes().Concat(messageData).ToArray();
+            var config = new ConnectionConfig(TestRig.AuthKey, 100500) {SessionId = 2};
 
-            var inConnector = new Subject<byte[]>();
-
-            var mockTransport = new Mock<ITransport>();
-            mockTransport.Setup(connector => connector.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
-
-            var mockTransportFactory = new Mock<ITransportFactory>();
-            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
-
-            serviceLocator.RegisterInstance(mockTransportFactory.Object);
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
-
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
-            {
-                await connection.Connect();
-
-                // Testing sending.
-                var message = new PlainMessage(0x0102030405060708UL, messageData);
-                connection.SendMessage(message);
-
-                await Task.Delay(100); // Wait while internal sender processes the message.
-                mockTransport.Verify(connector => connector.Send(expectedMessageBytes), Times.Once);
-
-                // Testing receiving.
-                mockTransport.Verify(connector => connector.Subscribe(It.IsAny<IObserver<byte[]>>()), Times.AtLeastOnce());
-
-                inConnector.OnNext(expectedMessageBytes);
-
-                await Task.Delay(100); // Wait while internal receiver processes the message.
-                IMessage actualMessage = await connection.InMessagesHistory.FirstAsync().ToTask();
-                actualMessage.MessageBytes.ShouldAllBeEquivalentTo(expectedMessageBytes);
-
-                await connection.Disconnect();
-            }
-        }
-
-        [Test]
-        public async Task Should_send_plain_message_and_wait_for_response()
-        {
-            IServiceLocator serviceLocator = new ServiceLocator();
+            var messageProcessor = serviceLocator.ResolveType<IMessageCodec>();
 
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
-            var expectedResponseMessage = new PlainMessage(0x0102030405060708, TLRig.Default.Serialize(expectedResponse));
+            var rpcResult = new RpcResult {ReqMsgId = TestMessageIdsGenerator.MessageIds[0], Result = expectedResponse};
+
+            byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(
+                new Message(0x0102030405060708, 3, rpcResult),
+                config.AuthKey,
+                config.Salt,
+                config.SessionId,
+                Sender.Server);
 
             var inConnector = new Subject<byte[]>();
 
             var mockTransport = new Mock<ITransport>();
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
-            mockTransport.Setup(transport => transport.Send(It.IsAny<byte[]>())).Callback(() => inConnector.OnNext(expectedResponseMessage.MessageBytes));
+            mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
+                .Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
 
             serviceLocator.RegisterInstance(mockTransportFactory.Object);
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
 
             using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
             {
+                connection.Configure(config);
                 await connection.Connect();
 
-                // Testing sending a plain message.
-                TestResponse response = await connection.SendPlainMessage<TestResponse>(request, TimeSpan.FromSeconds(5));
+                TestResponse response = await connection.RpcAsync<TestResponse>(request);
                 response.Should().NotBeNull();
                 response.ShouldBeEquivalentTo(expectedResponse);
 
-                await Task.Delay(100); // Wait while internal sender processes the message.
-                IMessage inMessageTask = await connection.OutMessagesHistory.FirstAsync().ToTask();
-                mockTransport.Verify(transport => transport.Send(inMessageTask.MessageBytes), Times.Once);
-
                 await connection.Disconnect();
             }
+
+            mockTransport.Verify();
+            mockTransportFactory.Verify();
         }
 
         [Test]
         public async Task Should_send_encrypted_message_and_wait_for_response()
         {
-            byte[] authKey =
-                "752BC8FC163832CB2606F7F3DC444D39A6D725761CA2FC984958E20EB7FDCE2AA1A65EB92D224CEC47EE8339AA44DF3906D79A01148CB6AACF70D53F98767EBD7EADA5A63C4229117EFBDB50DA4399C9E1A5D8B2550F263F3D43B936EF9259289647E7AAC8737C4E007C0C9108631E2B53C8900C372AD3CCA25E314FBD99AFFD1B5BCB29C5E40BB8366F1DFD07B053F1FBBBE0AA302EEEE5CF69C5A6EA7DEECDD965E0411E3F00FE112428330EBD432F228149FD2EC9B5775050F079C69CED280FE7E13B968783E3582B9C58CEAC2149039B3EF5A4265905D661879A41AF81098FBCA6D0B91D5B595E1E27E166867C155A3496CACA9FD6CF5D16DB2ADEBB2D3E"
-                    .HexToBytes();
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
-            ulong salt = 100500;
+            var config = new ConnectionConfig(TestRig.AuthKey, 100500) {SessionId = 2};
 
-            IServiceLocator serviceLocator = new ServiceLocator();
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
+            var messageProcessor = serviceLocator.ResolveType<IMessageCodec>();
 
-            var request = new TestRequest { TestId = 9 };
-            var expectedResponse = new TestResponse { TestId = 9, TestText = "Number 1" };
-            var expectedResponseMessage = new EncryptedMessage(authKey, salt, 2, 0x0102030405060708, 3, TLRig.Default.Serialize(expectedResponse), Sender.Server,
-                serviceLocator.ResolveType<IHashServices>(), serviceLocator.ResolveType<IEncryptionServices>());
+            var request = new TestRequest {TestId = 9};
+            var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
+
+            byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(
+                new Message(0x0102030405060708, 3, expectedResponse),
+                config.AuthKey,
+                config.Salt,
+                config.SessionId,
+                Sender.Server);
 
             var inConnector = new Subject<byte[]>();
 
             var mockTransport = new Mock<ITransport>();
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
-            mockTransport.Setup(transport => transport.Send(It.IsAny<byte[]>())).Callback(() => inConnector.OnNext(expectedResponseMessage.MessageBytes));
+            mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
+                .Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
 
             serviceLocator.RegisterInstance(mockTransportFactory.Object);
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
 
             using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
             {
-                connection.SetupEncryption(authKey, salt);
+                connection.Configure(config);
                 await connection.Connect();
 
-                // Testing sending a plain message.
-                TestResponse response = await connection.SendEncryptedMessage<TestResponse>(request, TimeSpan.FromSeconds(5));
+                TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.EncryptedAndContentRelated, TimeSpan.FromSeconds(5));
                 response.Should().NotBeNull();
                 response.ShouldBeEquivalentTo(expectedResponse);
 
-                await Task.Delay(100); // Wait while internal sender processes the message.
-                IMessage inMessageTask = await connection.OutMessagesHistory.FirstAsync().ToTask();
-                mockTransport.Verify(transport => transport.Send(inMessageTask.MessageBytes), Times.Once);
+                await connection.Disconnect();
+            }
+
+            mockTransport.Verify();
+            mockTransportFactory.Verify();
+        }
+
+        [Test]
+        public async Task Should_send_plain_message_and_wait_for_response()
+        {
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
+
+            var messageProcessor = serviceLocator.ResolveType<IMessageCodec>();
+
+            var request = new TestRequest {TestId = 9};
+            var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
+            var expectedResponseMessage = new Message(0x0102030405060708, 0, expectedResponse);
+            byte[] expectedResponseMessageBytes = messageProcessor.EncodePlainMessage(expectedResponseMessage);
+
+            var inConnector = new Subject<byte[]>();
+
+            var mockTransport = new Mock<ITransport>();
+            mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
+            mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
+                .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
+                .Returns(() => TaskConstants.Completed);
+
+            var mockTransportFactory = new Mock<ITransportFactory>();
+            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
+
+            serviceLocator.RegisterInstance(mockTransportFactory.Object);
+
+            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            {
+                await connection.Connect();
+
+                // Testing sending a plain message.
+                TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.None, TimeSpan.FromSeconds(5));
+                response.Should().NotBeNull();
+                response.ShouldBeEquivalentTo(expectedResponse);
 
                 await connection.Disconnect();
             }
@@ -177,7 +167,7 @@ namespace SharpMTProto.Tests
         [Test]
         public void Should_throw_on_response_timeout()
         {
-            IServiceLocator serviceLocator = new ServiceLocator();
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
             var mockTransport = new Mock<ITransport>();
 
@@ -185,28 +175,23 @@ namespace SharpMTProto.Tests
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
 
             serviceLocator.RegisterInstance(mockTransportFactory.Object);
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
 
-            var testAction = new Func<Task>(async () =>
-            {
-                using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            var testAction = new Func<Task>(
+                async () =>
                 {
-                    await connection.Connect();
-                    await connection.SendPlainMessage<TestResponse>(new TestRequest(), TimeSpan.FromSeconds(1));
-                }
-            });
-            testAction.ShouldThrow<TimeoutException>();
+                    using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+                    {
+                        await connection.Connect();
+                        await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
+                    }
+                });
+            testAction.ShouldThrow<TaskCanceledException>();
         }
 
         [Test]
         public async Task Should_timeout_on_connect()
         {
-            IServiceLocator serviceLocator = new ServiceLocator();
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
             var mockTransport = new Mock<ITransport>();
             mockTransport.Setup(transport => transport.ConnectAsync(It.IsAny<CancellationToken>())).Returns(() => Task.Delay(1000));
@@ -215,12 +200,6 @@ namespace SharpMTProto.Tests
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
 
             serviceLocator.RegisterInstance(mockTransportFactory.Object);
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
 
             using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
             {

@@ -14,13 +14,13 @@ using BigMath;
 using BigMath.Utils;
 using Catel;
 using Catel.Logging;
-using MTProtoSchema;
 using SharpMTProto.Annotations;
+using SharpMTProto.Schema;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
 
-namespace SharpMTProto
+namespace SharpMTProto.Authentication
 {
     /// <summary>
     ///     Auth key negotiator.

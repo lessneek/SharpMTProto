@@ -7,7 +7,7 @@
 using BigMath.Utils;
 using SharpTL;
 
-namespace SharpMTProto
+namespace SharpMTProto.Authentication
 {
     /// <summary>
     ///     Contains public key, exponent and fingerprint.

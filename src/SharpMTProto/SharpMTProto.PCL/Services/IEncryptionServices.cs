@@ -4,6 +4,8 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
+using SharpMTProto.Authentication;
+
 namespace SharpMTProto.Services
 {
     public class DHOutParams

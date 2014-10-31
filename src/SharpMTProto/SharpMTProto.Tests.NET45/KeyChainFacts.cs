@@ -6,6 +6,7 @@
 
 using FluentAssertions;
 using NUnit.Framework;
+using SharpMTProto.Authentication;
 using SharpMTProto.Services;
 using SharpTL;
 

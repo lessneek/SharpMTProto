@@ -128,7 +128,7 @@ namespace SharpMTProto.Tests
             clientSocket.Send(packet.Data);
 
             byte[] receivedData = await receiveTask;
-            receivedData.Should().BeEquivalentTo(payload);
+            receivedData.Should().Equal(payload);
 
             await transport.DisconnectAsync();
             clientSocket.Close();
@@ -150,7 +150,7 @@ namespace SharpMTProto.Tests
             clientSocket.Send(packet.Data);
 
             byte[] receivedData = await receiveTask;
-            receivedData.Should().BeEquivalentTo(payload);
+            receivedData.Should().Equal(payload);
 
             await transport.DisconnectAsync();
             clientSocket.Close();
@@ -189,13 +189,13 @@ namespace SharpMTProto.Tests
             await Task.Delay(100);
 
             byte[] receivedData1 = await receivedMessages.DequeueAsync(CancellationTokenHelpers.Timeout(1000).Token);
-            receivedData1.Should().BeEquivalentTo(payload1);
+            receivedData1.Should().Equal(payload1);
 
             byte[] receivedData2 = await receivedMessages.DequeueAsync(CancellationTokenHelpers.Timeout(1000).Token);
-            receivedData2.Should().BeEquivalentTo(payload2);
+            receivedData2.Should().Equal(payload2);
 
             byte[] receivedData3 = await receivedMessages.DequeueAsync(CancellationTokenHelpers.Timeout(1000).Token);
-            receivedData3.Should().BeEquivalentTo(payload3);
+            receivedData3.Should().Equal(payload3);
 
             await transport.DisconnectAsync();
             clientSocket.Close();
@@ -229,7 +229,7 @@ namespace SharpMTProto.Tests
             await Task.Delay(50);
 
             byte[] receivedData = await receiveTask;
-            receivedData.Should().BeEquivalentTo(payload);
+            receivedData.Should().Equal(payload);
 
             await transport.DisconnectAsync();
             clientSocket.Close();
