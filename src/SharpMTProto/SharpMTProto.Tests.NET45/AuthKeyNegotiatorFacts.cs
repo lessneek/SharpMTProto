@@ -14,6 +14,7 @@ using Catel.IoC;
 using Catel.Logging;
 using FluentAssertions;
 using Moq;
+using Nito.AsyncEx;
 using NUnit.Framework;
 using SharpMTProto.Authentication;
 using SharpMTProto.Messaging;
@@ -56,9 +57,9 @@ namespace SharpMTProto.Tests
             var inTransport = new Subject<byte[]>();
             var mockTransport = new Mock<ITransport>();
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inTransport.Subscribe(observer));
-            mockTransport.Setup(transport => transport.SendAsync(TestData.ReqPQ, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.ResPQ)).Returns(() => Task.FromResult(false));
-            mockTransport.Setup(transport => transport.SendAsync(TestData.ReqDHParams, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.ServerDHParams)).Returns(() => Task.FromResult(false));
-            mockTransport.Setup(transport => transport.SendAsync(TestData.SetClientDHParams, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.DhGenOk)).Returns(() => Task.FromResult(false));
+            mockTransport.Setup(transport => transport.SendAsync(TestData.ReqPQ, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.ResPQ)).Returns(() => TaskConstants.Completed);
+            mockTransport.Setup(transport => transport.SendAsync(TestData.ReqDHParams, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.ServerDHParams)).Returns(() => TaskConstants.Completed);
+            mockTransport.Setup(transport => transport.SendAsync(TestData.SetClientDHParams, It.IsAny<CancellationToken>())).Callback(() => inTransport.OnNext(TestData.DhGenOk)).Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<TransportConfig>())).Returns(mockTransport.Object);

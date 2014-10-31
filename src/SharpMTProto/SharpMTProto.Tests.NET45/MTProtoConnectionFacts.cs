@@ -12,6 +12,7 @@ using Catel.IoC;
 using Catel.Logging;
 using FluentAssertions;
 using Moq;
+using Nito.AsyncEx;
 using NUnit.Framework;
 using SharpMTProto.Messaging;
 using SharpMTProto.Schema;
@@ -54,7 +55,7 @@ namespace SharpMTProto.Tests
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
             mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                 .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
-                .Returns(() => Task.FromResult(false));
+                .Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
@@ -102,7 +103,7 @@ namespace SharpMTProto.Tests
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
             mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                 .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
-                .Returns(() => Task.FromResult(false));
+                .Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
@@ -143,7 +144,7 @@ namespace SharpMTProto.Tests
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
             mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                 .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
-                .Returns(() => Task.FromResult(false));
+                .Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<ITransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => mockTransport.Object).Verifiable();
