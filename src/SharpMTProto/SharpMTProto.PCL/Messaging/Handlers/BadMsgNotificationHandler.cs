@@ -101,7 +101,7 @@ namespace SharpMTProto.Messaging.Handlers
 
                 Log.Debug(
                     string.Format(
-                        "Bad server salt in message (MsgId = 0x{0:X}, Seqno = {1}). Error code = {2}.",
+                        "Bad server salt was in outgoing message (MsgId = 0x{0:X}, Seqno = {1}). Error code = {2}.",
                         badServerSalt.BadMsgId,
                         badServerSalt.BadMsgSeqno,
                         errorCode));
@@ -123,26 +123,37 @@ namespace SharpMTProto.Messaging.Handlers
                 switch (errorCode)
                 {
                     case ErrorCode.MsgIdIsTooSmall:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgIdIsTooBig:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgIdBadTwoLowBytes:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgIdDuplicate:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgTooOld:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgSeqnoIsTooLow:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgSeqnoIsTooBig:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgSeqnoNotEven:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.MsgSeqnoNotOdd:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.IncorrectServerSalt:
+                        throw new NotImplementedException();
                         break;
                     case ErrorCode.InvalidContainer:
+                        throw new NotImplementedException();
                         break;
                     default:
                         throw new ArgumentOutOfRangeException();
