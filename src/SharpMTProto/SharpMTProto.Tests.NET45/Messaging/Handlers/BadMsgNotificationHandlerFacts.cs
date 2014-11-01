@@ -11,7 +11,7 @@ using SharpMTProto.Messaging;
 using SharpMTProto.Messaging.Handlers;
 using SharpMTProto.Schema;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Messaging.Handlers
 {
     [TestFixture]
     public class BadMsgNotificationHandlerFacts

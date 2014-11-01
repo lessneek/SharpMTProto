@@ -19,7 +19,7 @@ using NUnit.Framework;
 using SharpMTProto.Transport;
 using SharpMTProto.Utils;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Transport
 {
     [TestFixture]
     public class TcpTransportFacts
