@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using SharpMTProto.Messaging;
@@ -17,7 +18,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
     public class BadMsgNotificationHandlerFacts
     {
         [Test]
-        public void Should_update_salt_and_resend_message_on_bad_server_salt_notification()
+        public async Task Should_update_salt_and_resend_message_on_bad_server_salt_notification()
         {
             const ulong newSalt = 9;
 
@@ -34,7 +35,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 
             var handler = new BadMsgNotificationHandler(connection.Object, requestsManager.Object);
-            handler.HandleAsync(resMsg);
+            await handler.HandleAsync(resMsg);
 
             connection.Verify(c => c.UpdateSalt(It.IsAny<ulong>()), Times.Once);
             connection.Verify(c => c.UpdateSalt(newSalt), Times.Once);
