@@ -110,6 +110,7 @@
     <Compile Include="Authentication\AuthKeyNegotiatorFacts.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Messaging\Handlers\BadMsgNotificationHandlerFacts.cs" />
+    <Compile Include="Messaging\Handlers\FirstRequestResponseHandlerFacts.cs" />
     <Compile Include="Messaging\Handlers\MessageContainerHandlerFacts.cs" />
     <Compile Include="Messaging\ResponseDispatcherFacts.cs" />
     <Compile Include="Services\EncryptionServicesFacts.cs" />
