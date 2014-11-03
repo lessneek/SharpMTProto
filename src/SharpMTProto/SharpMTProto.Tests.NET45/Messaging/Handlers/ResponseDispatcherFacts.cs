@@ -13,7 +13,7 @@ using SharpMTProto.Messaging.Handlers;
 using SharpMTProto.Schema;
 using SharpMTProto.Tests.TestObjects;
 
-namespace SharpMTProto.Tests.Messaging
+namespace SharpMTProto.Tests.Messaging.Handlers
 {
     [TestFixture]
     public class ResponseDispatcherFacts
