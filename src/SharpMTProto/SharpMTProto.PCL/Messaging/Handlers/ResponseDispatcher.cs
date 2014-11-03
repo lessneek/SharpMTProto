@@ -58,7 +58,10 @@ namespace SharpMTProto.Messaging.Handlers
         /// <param name="overwriteExisted">Overwrite existed.</param>
         void AddHandler(IResponseHandler handler, Type responseType, bool overwriteExisted = false);
     }
-
+    
+    /// <summary>
+    ///     Response dispatcher routes messages to proper response handler.
+    /// </summary>
     public class ResponseDispatcher : IResponseDispatcher
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
