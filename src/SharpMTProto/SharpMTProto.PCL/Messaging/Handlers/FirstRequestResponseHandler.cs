@@ -14,9 +14,9 @@ namespace SharpMTProto.Messaging.Handlers
     public class FirstRequestResponseHandler : IResponseHandler
     {
         private static readonly Type ResponseTypeInternal = typeof (object);
-        private readonly RequestsManager _requestsManager;
+        private readonly IRequestsManager _requestsManager;
 
-        public FirstRequestResponseHandler(RequestsManager requestsManager)
+        public FirstRequestResponseHandler(IRequestsManager requestsManager)
         {
             _requestsManager = requestsManager;
         }
