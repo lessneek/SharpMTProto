@@ -16,6 +16,7 @@ using Nito.AsyncEx;
 using NUnit.Framework;
 using SharpMTProto.Messaging;
 using SharpMTProto.Schema;
+using SharpMTProto.Tests.TestObjects;
 using SharpMTProto.Transport;
 
 namespace SharpMTProto.Tests

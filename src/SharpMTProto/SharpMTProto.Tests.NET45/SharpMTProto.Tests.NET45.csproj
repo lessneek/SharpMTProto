@@ -117,7 +117,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Transport\TcpTransportFacts.cs" />
     <Compile Include="TestData.cs" />
-    <Compile Include="TestObjects.cs" />
+    <Compile Include="TestObjects\TestSchema.cs" />
     <Compile Include="Messaging\MessageCodecFacts.cs" />
   </ItemGroup>
   <ItemGroup>
