@@ -5,7 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
-using NSubstitute;
+using Moq;
 using NUnit.Framework;
 using SharpMTProto.Messaging;
 using SharpMTProto.Messaging.Handlers;
@@ -22,26 +22,27 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             const ulong newSalt = 9;
 
             var reqMsg = new Message(0x100500, 1, new Object());
-            var req = Substitute.For<IRequest>();
-            req.Message.Returns(reqMsg);
+            var request = new Mock<IRequest>();
+            request.SetupGet(r => r.Message).Returns(reqMsg);
             var resMsg = new Message(
                 0x200600,
                 2,
                 new BadServerSalt {BadMsgId = reqMsg.MsgId, BadMsgSeqno = reqMsg.Seqno, ErrorCode = (uint) ErrorCode.IncorrectServerSalt, NewServerSalt = newSalt});
 
-            var connection = Substitute.For<IMTProtoConnection>();
-            var requestsManager = Substitute.For<IRequestsManager>();
-            requestsManager.Get(reqMsg.MsgId).Returns(req);
+            var connection = new Mock<IMTProtoConnection>();
+            var requestsManager = new Mock<IRequestsManager>();
+            requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 
-            var handler = new BadMsgNotificationHandler(connection, requestsManager);
-
+            var handler = new BadMsgNotificationHandler(connection.Object, requestsManager.Object);
             handler.HandleAsync(resMsg);
 
-            connection.Received(1).UpdateSalt(Arg.Any<ulong>());
-            connection.Received(1).UpdateSalt(newSalt);
+            connection.Verify(c => c.UpdateSalt(It.IsAny<ulong>()), Times.Once);
+            connection.Verify(c => c.UpdateSalt(newSalt), Times.Once);
 
-            requestsManager.Received(1).Get(Arg.Any<ulong>());
-            requestsManager.Received(1).Get(reqMsg.MsgId);
+            requestsManager.Verify(manager => manager.Get(It.IsAny<ulong>()), Times.Once);
+            requestsManager.Verify(manager => manager.Get(reqMsg.MsgId), Times.Once);
+
+            request.Verify(r => r.SendAsync(), Times.Once);
         }
     }
 }
