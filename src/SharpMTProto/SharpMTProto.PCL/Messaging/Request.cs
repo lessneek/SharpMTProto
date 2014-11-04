@@ -31,6 +31,11 @@ namespace SharpMTProto.Messaging
         /// </summary>
         DateTime? AcknowledgeTime { get; }
 
+        /// <summary>
+        ///     Response UTC date time.
+        /// </summary>
+        DateTime? ResponseTime { get; }
+
         void Acknowledge();
 
         void SetResponse(object response);
@@ -39,7 +44,7 @@ namespace SharpMTProto.Messaging
         Task SendAsync();
     }
 
-    public class Request<TResponse> : IRequest where TResponse : class
+    public class Request<TResponse> : IRequest
     {
         private readonly CancellationToken _cancellationToken;
         private readonly Func<IRequest, CancellationToken, Task> _sendAsync;
@@ -54,9 +59,6 @@ namespace SharpMTProto.Messaging
             cancellationToken.Register(() => _taskCompletionSource.TrySetCanceled());
         }
 
-        /// <summary>
-        ///     Response UTC date time.
-        /// </summary>
         public DateTime? ResponseTime { get; private set; }
 
         public IMessage Message { get; private set; }
@@ -89,7 +91,7 @@ namespace SharpMTProto.Messaging
 
             Acknowledge();
             ResponseTime = DateTime.UtcNow;
-            _taskCompletionSource.TrySetResult(response as TResponse);
+            _taskCompletionSource.TrySetResult((TResponse) response);
         }
 
         public bool CanSetResponse(object response)

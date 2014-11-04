@@ -42,7 +42,7 @@ namespace SharpMTProto.Messaging.Handlers
         void AddHandler(IResponseHandler handler, bool overwriteExisted = false);
 
         /// <summary>
-        ///     Add handler for a response of <see cref="TResponse" /> type.
+        ///     Add handler for a response of specified type.
         ///     Handler's <see cref="IResponseHandler.ResponseType" /> property do not affect anything.
         /// </summary>
         /// <param name="handler">Handler.</param>
@@ -58,7 +58,10 @@ namespace SharpMTProto.Messaging.Handlers
         /// <param name="overwriteExisted">Overwrite existed.</param>
         void AddHandler(IResponseHandler handler, Type responseType, bool overwriteExisted = false);
     }
-
+    
+    /// <summary>
+    ///     Response dispatcher routes messages to proper response handler.
+    /// </summary>
     public class ResponseDispatcher : IResponseDispatcher
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();

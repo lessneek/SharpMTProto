@@ -8,14 +8,15 @@ using System;
 using BigMath.Utils;
 using Catel.IoC;
 using FluentAssertions;
-using SharpMTProto.Schema;
 using NUnit.Framework;
 using SharpMTProto.Messaging;
+using SharpMTProto.Schema;
 using SharpMTProto.Services;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Messaging
 {
     [TestFixture]
+    [Category("Messaging")]
     public class MessageCodecFacts
     {
         private IMessageCodec GetMessageCodec()

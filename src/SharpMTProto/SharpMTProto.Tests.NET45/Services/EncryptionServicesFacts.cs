@@ -10,9 +10,10 @@ using NUnit.Framework;
 using SharpMTProto.Authentication;
 using SharpMTProto.Services;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Services
 {
     [TestFixture]
+    [Category("Services")]
     public class EncryptionServicesFacts
     {
         [Test]

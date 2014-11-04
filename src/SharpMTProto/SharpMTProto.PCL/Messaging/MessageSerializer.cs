@@ -70,6 +70,8 @@ namespace SharpMTProto.Messaging
 
             // Write a body length.
             streamer.WriteInt32((int)bodyLength);
+
+            streamer.Position = bodyEndPosition;
         }
     }
 }

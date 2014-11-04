@@ -77,14 +77,58 @@ namespace SharpMTProto
         /// </summary>
         Task<MTProtoConnectResult> Connect(CancellationToken cancellationToken);
 
-        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags) where TResponse : class;
-        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout) where TResponse : class;
-        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken) where TResponse : class;
+        /// <summary>
+        ///     Sends request and wait for a response asynchronously.
+        /// </summary>
+        /// <typeparam name="TResponse">Type of a response.</typeparam>
+        /// <param name="requestBody">Request body.</param>
+        /// <param name="flags">Request message sending flags.</param>
+        /// <returns>Response.</returns>
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags);
 
-        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
-            where TResponse : class;
+        /// <summary>
+        ///     Sends request and wait for a response asynchronously.
+        /// </summary>
+        /// <typeparam name="TResponse">Type of a response.</typeparam>
+        /// <param name="requestBody">Request body.</param>
+        /// <param name="flags">Request message sending flags.</param>
+        /// <param name="timeout">Timeout.</param>
+        /// <returns>Response.</returns>
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout);
 
-        Task<TResponse> RpcAsync<TResponse>(object requestBody) where TResponse : class;
+        /// <summary>
+        ///     Sends request and wait for a response asynchronously.
+        /// </summary>
+        /// <typeparam name="TResponse">Type of a response.</typeparam>
+        /// <param name="requestBody">Request body.</param>
+        /// <param name="flags">Request message sending flags.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken);
+
+        /// <summary>
+        ///     Sends request and wait for a response asynchronously.
+        /// </summary>
+        /// <typeparam name="TResponse">Type of a response.</typeparam>
+        /// <param name="requestBody">Request body.</param>
+        /// <param name="flags">Request message sending flags.</param>
+        /// <param name="timeout">Timeout.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Response.</returns>
+        Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken);
+
+        /// <summary>
+        ///     Sends RPC and wait for result response asynchronously.
+        /// </summary>
+        /// <typeparam name="TResponse">Type of a result response.</typeparam>
+        /// <param name="requestBody">Request body.</param>
+        /// <returns>Response.</returns>
+        Task<TResponse> RpcAsync<TResponse>(object requestBody);
+
+        /// <summary>
+        ///     Updates salt.
+        /// </summary>
+        /// <param name="salt">New salt.</param>
         void UpdateSalt(ulong salt);
     }
 
@@ -295,28 +339,22 @@ namespace SharpMTProto
             _config.Salt = salt;
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags) where TResponse : class
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)
         {
             return await RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout) where TResponse : class
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
         {
             return await RequestAsync<TResponse>(requestBody, flags, timeout, CancellationToken.None);
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken) where TResponse : class
+        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
             return await RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, cancellationToken);
         }
 
-        public Task<TResponse> RpcAsync<TResponse>(object requestBody) where TResponse : class
-        {
-            return RequestAsync<TResponse>(requestBody, MessageSendingFlags.EncryptedAndContentRelated);
-        }
-
         public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
-            where TResponse : class
         {
             Argument.IsNotNull(() => requestBody);
             cancellationToken.ThrowIfCancellationRequested();
@@ -333,6 +371,11 @@ namespace SharpMTProto
                 await request.SendAsync();
                 return await request.GetResponseAsync();
             }
+        }
+
+        public Task<TResponse> RpcAsync<TResponse>(object requestBody)
+        {
+            return RequestAsync<TResponse>(requestBody, MessageSendingFlags.EncryptedAndContentRelated);
         }
 
         private static void InitTLRig(TLRig tlRig)
@@ -359,7 +402,7 @@ namespace SharpMTProto
                 cancellationToken);
         }
 
-        private Request<TResponse> CreateRequest<TResponse>(object body, MessageSendingFlags flags, CancellationToken cancellationToken) where TResponse : class
+        private Request<TResponse> CreateRequest<TResponse>(object body, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
             var request = new Request<TResponse>(
                 new Message(GetNextMsgId(), GetNextMsgSeqno(flags.HasFlag(MessageSendingFlags.ContentRelated)), body),
@@ -370,7 +413,7 @@ namespace SharpMTProto
             return request;
         }
 
-        private Task<TResponse> PlainSystemRequestAsync<TResponse>(object requestBody) where TResponse : class
+        private Task<TResponse> PlainSystemRequestAsync<TResponse>(object requestBody)
         {
             return RequestAsync<TResponse>(requestBody, MessageSendingFlags.None);
         }

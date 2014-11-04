@@ -19,9 +19,10 @@ using NUnit.Framework;
 using SharpMTProto.Transport;
 using SharpMTProto.Utils;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Transport
 {
     [TestFixture]
+    [Category("Transport")]
     public class TcpTransportFacts
     {
         [SetUp]

@@ -50,6 +50,10 @@ namespace SharpMTProto.Schema
             {
                 @equals &= ((IEnumerable) Body).Cast<object>().SequenceEqual(((IEnumerable) other.Body).Cast<object>());
             }
+            else
+            {
+                @equals &= Body.Equals(other.Body);
+            }
             return @equals;
         }
 

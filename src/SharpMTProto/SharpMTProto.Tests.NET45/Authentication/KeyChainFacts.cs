@@ -10,9 +10,10 @@ using SharpMTProto.Authentication;
 using SharpMTProto.Services;
 using SharpTL;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Authentication
 {
     [TestFixture]
+    [Category("Authentication")]
     public class KeyChainFacts
     {
         [Test]

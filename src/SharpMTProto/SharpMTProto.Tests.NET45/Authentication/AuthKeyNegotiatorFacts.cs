@@ -22,9 +22,10 @@ using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Authentication
 {
     [TestFixture]
+    [Category("Authentication")]
     public class AuthKeyNegotiatorFacts
     {
         [SetUp]
