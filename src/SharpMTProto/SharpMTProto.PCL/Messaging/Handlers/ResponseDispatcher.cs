@@ -42,7 +42,7 @@ namespace SharpMTProto.Messaging.Handlers
         void AddHandler(IResponseHandler handler, bool overwriteExisted = false);
 
         /// <summary>
-        ///     Add handler for a response of <see cref="TResponse" /> type.
+        ///     Add handler for a response of specified type.
         ///     Handler's <see cref="IResponseHandler.ResponseType" /> property do not affect anything.
         /// </summary>
         /// <param name="handler">Handler.</param>
