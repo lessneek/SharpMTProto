@@ -16,6 +16,7 @@ using SharpMTProto.Schema;
 namespace SharpMTProto.Tests.Messaging.Handlers
 {
     [TestFixture]
+    [Category("Messaging.Handlers")]
     public class MessageContainerHandlerFacts
     {
         [Test]

@@ -13,6 +13,7 @@ using SharpMTProto.Services;
 namespace SharpMTProto.Tests.Services
 {
     [TestFixture]
+    [Category("Services")]
     public class EncryptionServicesFacts
     {
         [Test]

@@ -16,6 +16,7 @@ using SharpMTProto.Services;
 namespace SharpMTProto.Tests.Messaging
 {
     [TestFixture]
+    [Category("Messaging")]
     public class MessageCodecFacts
     {
         private IMessageCodec GetMessageCodec()

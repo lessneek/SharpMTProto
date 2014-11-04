@@ -22,6 +22,7 @@ using SharpMTProto.Transport;
 namespace SharpMTProto.Tests
 {
     [TestFixture]
+    [Category("Core")]
     public class MTProtoConnectionFacts
     {
         [SetUp]

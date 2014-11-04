@@ -22,6 +22,7 @@ using SharpMTProto.Utils;
 namespace SharpMTProto.Tests.Transport
 {
     [TestFixture]
+    [Category("Transport")]
     public class TcpTransportFacts
     {
         [SetUp]

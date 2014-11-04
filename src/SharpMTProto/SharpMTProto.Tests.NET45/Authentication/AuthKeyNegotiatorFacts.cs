@@ -25,6 +25,7 @@ using SharpTL;
 namespace SharpMTProto.Tests.Authentication
 {
     [TestFixture]
+    [Category("Authentication")]
     public class AuthKeyNegotiatorFacts
     {
         [SetUp]
