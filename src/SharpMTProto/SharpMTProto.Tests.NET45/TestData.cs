@@ -154,7 +154,6 @@ namespace SharpMTProto.Tests
         {
             IServiceLocator serviceLocator = ServiceLocator.Default;
 
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
             serviceLocator.RegisterInstance(TLRig.Default);
             serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
             serviceLocator.RegisterType<IHashServices, HashServices>();
@@ -162,6 +161,7 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
             serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
             serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
+            serviceLocator.RegisterInstance(Mock.Of<ITransportFactory>(factory => factory.CreateTransport(It.IsAny<TransportConfig>()) == Mock.Of<ITransport>()));
 
             return serviceLocator;
         }
