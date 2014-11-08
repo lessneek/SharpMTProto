@@ -81,6 +81,7 @@
     <Compile Include="Authentication\AuthKeyNegotiator.cs" />
     <Compile Include="ConnectionConfig.cs" />
     <Compile Include="Defaults.cs" />
+    <Compile Include="IMTProtoConnection.cs" />
     <Compile Include="Messaging\Handlers\BadMsgNotificationHandler.cs" />
     <Compile Include="Messaging\Handlers\FirstRequestResponseHandler.cs" />
     <Compile Include="Messaging\Handlers\IResponseHandler.cs" />
