@@ -20,7 +20,7 @@
       Portable Class Libraries
     </description>
     <dependencies>
-      <dependency id="SharpTL" version="0.7.0" />
+      <dependency id="SharpTL" version="0.7.2" />
       <dependency id="Catel.Core" version="3.9.0" />
       <dependency id="Rx-Main" version="2.2.5" />
       <dependency id="Nito.AsyncEx" version="3.0.0" />
