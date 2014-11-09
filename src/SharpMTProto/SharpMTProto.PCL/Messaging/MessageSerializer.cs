@@ -19,16 +19,17 @@ namespace SharpMTProto.Messaging
     /// </remarks>
     public class MessageSerializer : TLSerializer<Message>
     {
+        public const int DefaultConstructorNumber = 0x5BB8E511;
         private static readonly Type MessageType = typeof (Message);
+
+        public MessageSerializer()
+            : base(DefaultConstructorNumber)
+        {
+        }
 
         public override Type SupportedType
         {
             get { return MessageType; }
-        }
-
-        public override uint ConstructorNumber
-        {
-            get { return 0x5BB8E511; }
         }
 
         protected override Message ReadTypedBody(TLSerializationContext context)

@@ -14,8 +14,8 @@ using SharpTL;
 
 namespace SharpMTProto.Schema
 {
-    [TLObject(typeof (MessageSerializer))]
-    public class Message : IMessage, IEquatable<Message>
+    [TLObjectWithCustomSerializer(typeof (MessageSerializer))]
+    public partial class Message: IEquatable<Message>
     {
         public Message()
         {
@@ -27,12 +27,6 @@ namespace SharpMTProto.Schema
             Seqno = seqno;
             Body = body;
         }
-
-        public UInt64 MsgId { get; set; }
-
-        public UInt32 Seqno { get; set; }
-
-        public Object Body { get; set; }
 
         #region Equality
         public bool Equals(Message other)
@@ -125,5 +119,14 @@ namespace SharpMTProto.Schema
         UInt64 ReqMsgId { get; set; }
 
         Object Result { get; set; }
+    }
+
+    public partial interface IBadMsgNotification
+    {
+        UInt64 BadMsgId { get; set; }
+
+        UInt32 BadMsgSeqno { get; set; }
+
+        UInt32 ErrorCode { get; set; }
     }
 }
