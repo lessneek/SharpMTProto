@@ -1,0 +1,55 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>d83b361a-f228-43f4-b6de-1d3f8a552df9</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>SharpMTProto.Shared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)Annotations.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Authentication\AuthInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Authentication\AuthKeyNegotiator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Authentication\KeyChain.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Authentication\PublicKey.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CommonAssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ConnectionConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Defaults.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IMTProtoConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\BadMsgNotificationHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\FirstRequestResponseHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\IResponseHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageContainerHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseDispatcher.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodec.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Request.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\RequestsManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Sender.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoConnectionFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\MTProtoSchema.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\MTProtoSchemaEx.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.PCL.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\IEncryptionServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\IHashServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\MessageIdGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\NonceGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\RandomGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransportConfigProvider.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransportFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportPacket.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\TransportConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />
+  </ItemGroup>
+</Project>

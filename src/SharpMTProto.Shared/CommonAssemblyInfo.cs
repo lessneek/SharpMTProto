@@ -7,6 +7,8 @@
 using System.Reflection;
 using System.Resources;
 
+[assembly: AssemblyTitle("SharpMTProto")]
+[assembly: AssemblyDescription("Library for MTProto protocol.")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("SharpMTProto")]
 [assembly: AssemblyCopyright("Copyright © 2013-2014 Alexander Logger.")]

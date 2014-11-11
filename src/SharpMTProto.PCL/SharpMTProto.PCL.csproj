@@ -23,7 +23,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;PCL</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <CodeContractsEnableRuntimeChecking>False</CodeContractsEnableRuntimeChecking>
@@ -61,63 +61,18 @@
     <CodeContractsReferenceAssembly>%28none%29</CodeContractsReferenceAssembly>
     <CodeContractsAnalysisWarningLevel>0</CodeContractsAnalysisWarningLevel>
     <DocumentationFile>bin\Debug\SharpMTProto.XML</DocumentationFile>
-    <NoWarn>1591</NoWarn>
+    <NoWarn>1591;162</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;PCL</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\SharpMTProto.XML</DocumentationFile>
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Include="..\CommonAssemblyInfo.cs">
-      <Link>Properties\CommonAssemblyInfo.cs</Link>
-    </Compile>
-    <Compile Include="Authentication\AuthInfo.cs" />
-    <Compile Include="Authentication\AuthKeyNegotiator.cs" />
-    <Compile Include="ConnectionConfig.cs" />
-    <Compile Include="Defaults.cs" />
-    <Compile Include="IMTProtoConnection.cs" />
-    <Compile Include="Messaging\Handlers\BadMsgNotificationHandler.cs" />
-    <Compile Include="Messaging\Handlers\FirstRequestResponseHandler.cs" />
-    <Compile Include="Messaging\Handlers\IResponseHandler.cs" />
-    <Compile Include="Messaging\Handlers\MessageContainerHandler.cs" />
-    <Compile Include="Messaging\Handlers\ResponseDispatcher.cs" />
-    <Compile Include="Messaging\Handlers\ResponseHandler.cs" />
-    <Compile Include="Messaging\Handlers\RpcResultHandler.cs" />
-    <Compile Include="Messaging\Request.cs" />
-    <Compile Include="ErrorCode.cs" />
-    <Compile Include="Exceptions.cs" />
-    <Compile Include="Messaging\MessageCodec.cs" />
-    <Compile Include="Messaging\MessageSerializer.cs" />
-    <Compile Include="Messaging\RequestsManager.cs" />
-    <Compile Include="Schema\MTProtoSchemaEx.cs" />
-    <Compile Include="Messaging\Sender.cs" />
-    <Compile Include="Schema\MTProtoSchema.cs" />
-    <Compile Include="Services\RandomGenerator.cs" />
-    <Compile Include="Transport\ITransport.cs" />
-    <Compile Include="Services\IEncryptionServices.cs" />
-    <Compile Include="Services\IHashServices.cs" />
-    <Compile Include="Transport\ITransportConfigProvider.cs" />
-    <Compile Include="Transport\TcpTransportConfig.cs" />
-    <Compile Include="Transport\TcpTransportPacket.cs" />
-    <Compile Include="Transport\TransportConfig.cs" />
-    <Compile Include="Transport\ITransportFactory.cs" />
-    <Compile Include="MTProtoConnectionFactory.cs" />
-    <Compile Include="Authentication\PublicKey.cs" />
-    <Compile Include="Authentication\KeyChain.cs" />
-    <Compile Include="Services\MessageIdGenerator.cs" />
-    <Compile Include="MTProtoClient.cs" />
-    <Compile Include="MTProtoConnection.cs" />
-    <Compile Include="Services\NonceGenerator.cs" />
-    <Compile Include="Properties\Annotations.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utils\UnixTimeUtils.cs" />
-  </ItemGroup>
   <ItemGroup>
     <Reference Include="BigMath">
       <HintPath>..\packages\BigMath.0.4.3\lib\portable-net45+wp8+win8\BigMath.dll</HintPath>
@@ -130,6 +85,9 @@
     </Reference>
     <Reference Include="Nito.AsyncEx">
       <HintPath>..\packages\Nito.AsyncEx.3.0.0\lib\portable-net45+netcore45+wp8+wpa81+MonoTouch+MonoAndroid\Nito.AsyncEx.dll</HintPath>
+    </Reference>
+    <Reference Include="Raksha">
+      <HintPath>..\packages\Raksha.0.1.1.0\lib\portable-net45+wp8+win8\Raksha.dll</HintPath>
     </Reference>
     <Reference Include="SharpTL">
       <HintPath>..\packages\SharpTL.0.8.0\lib\portable-net45+wp8+win8\SharpTL.dll</HintPath>
@@ -151,6 +109,10 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+  <Import Project="..\SharpMTProto.Shared\SharpMTProto.Shared.projitems" Label="Shared" Condition="Exists('..\SharpMTProto.Shared\SharpMTProto.Shared.projitems')" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

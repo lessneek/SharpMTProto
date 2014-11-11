@@ -104,9 +104,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\CommonAssemblyInfo.cs">
-      <Link>Properties\CommonAssemblyInfo.cs</Link>
-    </Compile>
     <Compile Include="Authentication\AuthKeyNegotiatorFacts.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="Messaging\Handlers\BadMsgNotificationHandlerFacts.cs" />
@@ -129,13 +126,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\SharpMTProto.Extra.NET45\SharpMTProto.Extra.NET45.csproj">
-      <Project>{40d0389a-10fa-4709-a8b6-7074d929f72b}</Project>
-      <Name>SharpMTProto.Extra.NET45</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\SharpMTProto.PCL\SharpMTProto.PCL.csproj">
-      <Project>{01CF01F4-7C2A-4A92-AF21-EE35A90B36F8}</Project>
-      <Name>SharpMTProto.PCL</Name>
+    <ProjectReference Include="..\SharpMTProto.NET45\SharpMTProto.NET45.csproj">
+      <Project>{88d36342-f958-484d-a393-71523bbfb9e5}</Project>
+      <Name>SharpMTProto.NET45</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

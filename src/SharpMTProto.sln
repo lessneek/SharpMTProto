@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpMTProto.Tests.NET45", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{9B5984F6-8763-4FE9-8242-8E00CA05BCF4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpMTProto.Extra.NET45", "SharpMTProto.Extra.NET45\SharpMTProto.Extra.NET45.csproj", "{40D0389A-10FA-4709-A8B6-7074D929F72B}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NuGet", "NuGet", "{793CB452-A029-4465-8414-7B0A2D44CBF4}"
 	ProjectSection(SolutionItems) = preProject
 		SharpMTProto.nuspec = SharpMTProto.nuspec
@@ -23,7 +21,16 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{BDDAEF
 		.nuget\NuGet.targets = .nuget\NuGet.targets
 	EndProjectSection
 EndProject
+Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "SharpMTProto.Shared", "SharpMTProto.Shared\SharpMTProto.Shared.shproj", "{D83B361A-F228-43F4-B6DE-1D3F8A552DF9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SharpMTProto.NET45", "SharpMTProto.NET45\SharpMTProto.NET45.csproj", "{88D36342-F958-484D-A393-71523BBFB9E5}"
+EndProject
 Global
+	GlobalSection(SharedMSBuildProjectFiles) = preSolution
+		SharpMTProto.Shared\SharpMTProto.Shared.projitems*{01cf01f4-7c2a-4a92-af21-ee35a90b36f8}*SharedItemsImports = 4
+		SharpMTProto.Shared\SharpMTProto.Shared.projitems*{88d36342-f958-484d-a393-71523bbfb9e5}*SharedItemsImports = 4
+		SharpMTProto.Shared\SharpMTProto.Shared.projitems*{d83b361a-f228-43f4-b6de-1d3f8a552df9}*SharedItemsImports = 13
+	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
@@ -37,10 +44,10 @@ Global
 		{A6080AC8-861F-42A2-9EC5-FB9F5AF19ED3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6080AC8-861F-42A2-9EC5-FB9F5AF19ED3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6080AC8-861F-42A2-9EC5-FB9F5AF19ED3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{40D0389A-10FA-4709-A8B6-7074D929F72B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{40D0389A-10FA-4709-A8B6-7074D929F72B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{40D0389A-10FA-4709-A8B6-7074D929F72B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{40D0389A-10FA-4709-A8B6-7074D929F72B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88D36342-F958-484D-A393-71523BBFB9E5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88D36342-F958-484D-A393-71523BBFB9E5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88D36342-F958-484D-A393-71523BBFB9E5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88D36342-F958-484D-A393-71523BBFB9E5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
