@@ -21,7 +21,7 @@ namespace SharpMTProto.Tests.Services
         {
             var es = new EncryptionServices();
             byte[] decryptedData = es.Aes256IgeDecrypt(TestData.ServerDHParamsOkEncryptedAnswer, TestData.TmpAesKey, TestData.TmpAesIV);
-            decryptedData.ShouldAllBeEquivalentTo(TestData.ServerDHInnerDataWithHash);
+            decryptedData.Should().Equal(TestData.ServerDHInnerDataWithHash);
         }
 
         [Test]
@@ -29,7 +29,7 @@ namespace SharpMTProto.Tests.Services
         {
             var es = new EncryptionServices();
             byte[] encryptedData = es.Aes256IgeEncrypt(TestData.ServerDHInnerDataWithHash, TestData.TmpAesKey, TestData.TmpAesIV);
-            encryptedData.ShouldAllBeEquivalentTo(TestData.ServerDHParamsOkEncryptedAnswer);
+            encryptedData.Should().Equal(TestData.ServerDHParamsOkEncryptedAnswer);
         }
 
         [Test]
@@ -37,7 +37,7 @@ namespace SharpMTProto.Tests.Services
         {
             var es = new EncryptionServices();
             var encryptedData = es.RSAEncrypt(DataWithHash, RSAKey);
-            encryptedData.ShouldBeEquivalentTo(EncryptedData);
+            encryptedData.Should().Equal(EncryptedData);
         }
 
         public static readonly byte[] DataWithHash =
