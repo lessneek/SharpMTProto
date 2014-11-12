@@ -24,13 +24,13 @@
       <dependency id="Catel.Core" version="3.9.0" />
       <dependency id="Rx-Main" version="2.2.5" />
       <dependency id="Nito.AsyncEx" version="3.0.0" />
-      <dependency id="Raksha" version="0.1.1" />
+      <dependency id="Raksha" version="0.3" />
     </dependencies>
   </metadata>
   <files>
-    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.dll" target="lib\portable-net45+wp8+win8\" />
-    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.pdb" target="lib\portable-net45+wp8+win8\" />
-    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.XML" target="lib\portable-net45+wp8+win8\" />
+    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.dll" target="lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\" />
+    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.pdb" target="lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\" />
+    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.XML" target="lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\" />
     <file src="SharpMTProto.PCL\**\*.cs" target="src\SharpMTProto.PCL\" exclude="**\obj\**" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.dll" target="lib\net45\" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.pdb" target="lib\net45\" />
