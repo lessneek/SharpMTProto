@@ -34,6 +34,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Sender.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoConnectionFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\MTProtoSchema.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\MTProtoSchemaEx.cs" />
