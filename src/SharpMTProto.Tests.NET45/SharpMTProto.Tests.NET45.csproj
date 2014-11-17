@@ -114,7 +114,6 @@
     <Compile Include="Messaging\Handlers\ResponseDispatcherFacts.cs" />
     <Compile Include="Messaging\Handlers\RpcResultHandlerFacts.cs" />
     <Compile Include="MTProtoBuilderFacts.cs" />
-    <Compile Include="MTProtoConnectionFactoryFacts.cs" />
     <Compile Include="Services\EncryptionServicesFacts.cs" />
     <Compile Include="Authentication\KeyChainFacts.cs" />
     <Compile Include="MTProtoConnectionFacts.cs" />

@@ -30,33 +30,38 @@ namespace SharpMTProto.Authentication
         private const int HashLength = 20;
         private const int AuthRetryCount = 5;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly IMTProtoConnectionFactory _connectionFactory;
+        private readonly TransportConfig _transportConfig;
+        private readonly IMTProtoBuilder _mtProtoBuilder;
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
         private readonly IKeyChain _keyChain;
         private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
-        private readonly ITransportConfigProvider _transportConfigProvider;
-
-        public AuthKeyNegotiator([NotNull] IMTProtoConnectionFactory connectionFactory, [NotNull] TLRig tlRig, [NotNull] INonceGenerator nonceGenerator,
-            [NotNull] IHashServices hashServices, [NotNull] IEncryptionServices encryptionServices, [NotNull] IKeyChain keyChain,
-            [NotNull] ITransportConfigProvider transportConfigProvider)
+        
+        public AuthKeyNegotiator(
+            [NotNull] TransportConfig transportConfig,
+            [NotNull] IMTProtoBuilder mtProtoBuilder,
+            [NotNull] TLRig tlRig,
+            [NotNull] INonceGenerator nonceGenerator,
+            [NotNull] IHashServices hashServices,
+            [NotNull] IEncryptionServices encryptionServices,
+            [NotNull] IKeyChain keyChain)
         {
-            Argument.IsNotNull(() => connectionFactory);
+            Argument.IsNotNull(() => transportConfig);
+            Argument.IsNotNull(() => mtProtoBuilder);
             Argument.IsNotNull(() => tlRig);
             Argument.IsNotNull(() => nonceGenerator);
             Argument.IsNotNull(() => hashServices);
             Argument.IsNotNull(() => encryptionServices);
             Argument.IsNotNull(() => keyChain);
-            Argument.IsNotNull(() => transportConfigProvider);
 
-            _connectionFactory = connectionFactory;
+            _transportConfig = transportConfig;
+            _mtProtoBuilder = mtProtoBuilder;
             _tlRig = tlRig;
             _nonceGenerator = nonceGenerator;
             _hashServices = hashServices;
             _encryptionServices = encryptionServices;
             _keyChain = keyChain;
-            _transportConfigProvider = transportConfigProvider;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -72,7 +77,7 @@ namespace SharpMTProto.Authentication
 
         public async Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken)
         {
-            IMTProtoConnection connection = _connectionFactory.Create(_transportConfigProvider.DefaultTransportConfig);
+            IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_transportConfig);
 
             try
             {

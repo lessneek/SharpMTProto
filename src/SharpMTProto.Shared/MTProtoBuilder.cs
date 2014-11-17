@@ -4,13 +4,14 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-// ReSharper disable MemberCanBePrivate.Global
-
 using SharpMTProto.Annotations;
+using SharpMTProto.Authentication;
 using SharpMTProto.Messaging;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
+
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace SharpMTProto
 {
@@ -18,6 +19,9 @@ namespace SharpMTProto
     {
         [NotNull]
         IMTProtoConnection BuildConnection([NotNull] TransportConfig transportConfig);
+
+        [NotNull]
+        AuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] TransportConfig transportConfig);
     }
 
     public partial class MTProtoBuilder : IMTProtoBuilder
@@ -26,9 +30,10 @@ namespace SharpMTProto
 
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
+        private readonly IKeyChain _keyChain;
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
-        private readonly IRandomGenerator _randomGenerator;
+        private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
         private readonly ITransportFactory _transportFactory;
 
@@ -44,7 +49,8 @@ namespace SharpMTProto
             [NotNull] IMessageCodec messageCodec,
             [NotNull] IHashServices hashServices,
             [NotNull] IEncryptionServices encryptionServices,
-            [NotNull] IRandomGenerator randomGenerator)
+            [NotNull] INonceGenerator nonceGenerator,
+            [NotNull] IKeyChain keyChain)
         {
             _transportFactory = transportFactory;
             _tlRig = tlRig;
@@ -52,12 +58,36 @@ namespace SharpMTProto
             _messageCodec = messageCodec;
             _hashServices = hashServices;
             _encryptionServices = encryptionServices;
-            _randomGenerator = randomGenerator;
+            _nonceGenerator = nonceGenerator;
+            _keyChain = keyChain;
         }
 
-        public IMTProtoConnection BuildConnection(TransportConfig transportConfig)
+        IMTProtoConnection IMTProtoBuilder.BuildConnection(TransportConfig transportConfig)
         {
             return new MTProtoConnection(transportConfig, _transportFactory, _tlRig, _messageIdGenerator, _messageCodec);
+        }
+
+        AuthKeyNegotiator IMTProtoBuilder.BuildAuthKeyNegotiator(TransportConfig transportConfig)
+        {
+            return new AuthKeyNegotiator(transportConfig,
+                this,
+                _tlRig,
+                _nonceGenerator,
+                _hashServices,
+                _encryptionServices,
+                _keyChain);
+        }
+
+        [NotNull]
+        public static IMTProtoConnection BuildConnection([NotNull] TransportConfig transportConfig)
+        {
+            return Default.BuildConnection(transportConfig);
+        }
+
+        [NotNull]
+        public static AuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] TransportConfig transportConfig)
+        {
+            return Default.BuildAuthKeyNegotiator(transportConfig);
         }
     }
 }

@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using SharpMTProto.Annotations;
+using SharpMTProto.Authentication;
 using SharpMTProto.Messaging;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
@@ -24,6 +25,8 @@ namespace SharpMTProto
             var encryptionServices = new EncryptionServices();
             var randomGenerator = new RandomGenerator();
             var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);
+            var keyChain = new KeyChain(tlRig, hashServices);
+            var nonceGenerator = new NonceGenerator();
 
             return new MTProtoBuilder(transportFactory,
                 tlRig,
@@ -31,7 +34,8 @@ namespace SharpMTProto
                 messageCodec,
                 hashServices,
                 encryptionServices,
-                randomGenerator);
+                nonceGenerator,
+                keyChain);
         }
     }
 }
