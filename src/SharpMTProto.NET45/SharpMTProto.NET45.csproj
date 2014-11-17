@@ -92,6 +92,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MTProtoBuilder.cs" />
     <Compile Include="Services\EncryptionServices.cs" />
     <Compile Include="Services\HashServices.cs" />
     <Compile Include="Transport\TcpTransport.cs" />

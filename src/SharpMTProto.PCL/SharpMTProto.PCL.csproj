@@ -112,6 +112,9 @@
       <HintPath>..\packages\Rx-PlatformServices.2.2.5\lib\portable-windows8+net45+wp8\System.Reactive.PlatformServices.dll</HintPath>
     </Reference>
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="MTProtoBuilder.cs" />
+  </ItemGroup>
   <Import Project="..\SharpMTProto.Shared\SharpMTProto.Shared.projitems" Label="Shared" Condition="Exists('..\SharpMTProto.Shared\SharpMTProto.Shared.projitems')" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
