@@ -4,17 +4,16 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
 using SharpMTProto.Annotations;
 using SharpMTProto.Messaging;
 using SharpMTProto.Services;
 using SharpMTProto.Transport;
 using SharpTL;
 
-// ReSharper disable once MemberCanBePrivate.Global
-
 namespace SharpMTProto
 {
+    // ReSharper disable once MemberCanBePrivate.Global
+
     public class MTProtoBuilder
     {
         public static readonly MTProtoBuilder Default;
@@ -77,7 +76,8 @@ namespace SharpMTProto
         }
 #endif
 
-        public IMTProtoConnection BuildConnection(TransportConfig transportConfig)
+        [NotNull]
+        public IMTProtoConnection BuildConnection([NotNull] TransportConfig transportConfig)
         {
             return new MTProtoConnection(transportConfig, _transportFactory, _tlRig, _messageIdGenerator, _messageCodec);
         }
