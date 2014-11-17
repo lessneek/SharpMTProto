@@ -181,7 +181,7 @@ namespace SharpMTProto.Tests
         private static ITransportFactory CreateMockTransportFactory(ITransport transport)
         {
             var mockTransportFactory = new Mock<ITransportFactory>();
-            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<TransportConfig>())).Returns(() => transport);
+            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<ITransportConfig>())).Returns(() => transport);
             return mockTransportFactory.Object;
         }
     }

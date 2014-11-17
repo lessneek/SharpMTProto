@@ -30,7 +30,7 @@ namespace SharpMTProto.Authentication
         private const int HashLength = 20;
         private const int AuthRetryCount = 5;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly TransportConfig _transportConfig;
+        private readonly ITransportConfig _transportConfig;
         private readonly IMTProtoBuilder _mtProtoBuilder;
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
@@ -39,7 +39,7 @@ namespace SharpMTProto.Authentication
         private readonly TLRig _tlRig;
         
         public AuthKeyNegotiator(
-            [NotNull] TransportConfig transportConfig,
+            [NotNull] ITransportConfig transportConfig,
             [NotNull] IMTProtoBuilder mtProtoBuilder,
             [NotNull] TLRig tlRig,
             [NotNull] INonceGenerator nonceGenerator,

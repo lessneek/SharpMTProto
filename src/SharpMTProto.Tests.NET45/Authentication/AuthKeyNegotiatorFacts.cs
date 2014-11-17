@@ -39,7 +39,7 @@ namespace SharpMTProto.Tests.Authentication
         {
             IServiceLocator serviceLocator = ServiceLocator.Default;
 
-            serviceLocator.RegisterInstance(Mock.Of<TransportConfig>());
+            serviceLocator.RegisterInstance(Mock.Of<ITransportConfig>());
             serviceLocator.RegisterInstance(TLRig.Default);
             serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
             serviceLocator.RegisterInstance<INonceGenerator>(new TestNonceGenerator());
@@ -73,7 +73,7 @@ namespace SharpMTProto.Tests.Authentication
                     .Returns(() => TaskConstants.Completed);
 
                 var mockTransportFactory = new Mock<ITransportFactory>();
-                mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<TransportConfig>()))
+                mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<ITransportConfig>()))
                     .Returns(mockTransport.Object);
 
                 serviceLocator.RegisterInstance(mockTransportFactory.Object);
@@ -109,7 +109,7 @@ namespace SharpMTProto.Tests.Authentication
             keyChain.AddKeys(TestData.TestPublicKeys);
 
             var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoBuilder>();
-            AuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<TransportConfig>());
+            AuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<ITransportConfig>());
 
             AuthInfo authInfo = await authKeyNegotiator.CreateAuthKey();
 

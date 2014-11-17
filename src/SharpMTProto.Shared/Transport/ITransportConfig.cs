@@ -6,8 +6,8 @@
 
 namespace SharpMTProto.Transport
 {
-    public abstract class TransportConfig
+    public interface ITransportConfig
     {
-        public abstract string TransportName { get; }
+        string TransportName { get; }
     }
 }

@@ -71,7 +71,7 @@ namespace SharpMTProto
 
 
         public MTProtoConnection(
-            [NotNull] TransportConfig transportConfig,
+            [NotNull] ITransportConfig transportConfig,
             [NotNull] ITransportFactory transportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,

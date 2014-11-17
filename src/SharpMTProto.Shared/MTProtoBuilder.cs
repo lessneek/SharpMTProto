@@ -18,10 +18,10 @@ namespace SharpMTProto
     public interface IMTProtoBuilder
     {
         [NotNull]
-        IMTProtoConnection BuildConnection([NotNull] TransportConfig transportConfig);
+        IMTProtoConnection BuildConnection([NotNull] ITransportConfig transportConfig);
 
         [NotNull]
-        AuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] TransportConfig transportConfig);
+        AuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] ITransportConfig transportConfig);
     }
 
     public partial class MTProtoBuilder : IMTProtoBuilder
@@ -62,12 +62,12 @@ namespace SharpMTProto
             _keyChain = keyChain;
         }
 
-        IMTProtoConnection IMTProtoBuilder.BuildConnection(TransportConfig transportConfig)
+        IMTProtoConnection IMTProtoBuilder.BuildConnection(ITransportConfig transportConfig)
         {
             return new MTProtoConnection(transportConfig, _transportFactory, _tlRig, _messageIdGenerator, _messageCodec);
         }
 
-        AuthKeyNegotiator IMTProtoBuilder.BuildAuthKeyNegotiator(TransportConfig transportConfig)
+        AuthKeyNegotiator IMTProtoBuilder.BuildAuthKeyNegotiator(ITransportConfig transportConfig)
         {
             return new AuthKeyNegotiator(transportConfig,
                 this,
@@ -79,13 +79,13 @@ namespace SharpMTProto
         }
 
         [NotNull]
-        public static IMTProtoConnection BuildConnection([NotNull] TransportConfig transportConfig)
+        public static IMTProtoConnection BuildConnection([NotNull] ITransportConfig transportConfig)
         {
             return Default.BuildConnection(transportConfig);
         }
 
         [NotNull]
-        public static AuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] TransportConfig transportConfig)
+        public static AuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] ITransportConfig transportConfig)
         {
             return Default.BuildAuthKeyNegotiator(transportConfig);
         }

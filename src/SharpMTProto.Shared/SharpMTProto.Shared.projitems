@@ -48,7 +48,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransportFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportPacket.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Transport\TransportConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />
   </ItemGroup>
 </Project>

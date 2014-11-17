@@ -10,7 +10,7 @@ namespace SharpMTProto.Transport
 {
     public class TransportFactory : ITransportFactory
     {
-        public ITransport CreateTransport(TransportConfig transportConfig)
+        public ITransport CreateTransport(ITransportConfig transportConfig)
         {
             // TCP.
             var tcpTransportConfig = transportConfig as TcpTransportConfig;

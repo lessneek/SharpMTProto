@@ -8,7 +8,7 @@ using System;
 
 namespace SharpMTProto.Transport
 {
-    public class TcpTransportConfig : TransportConfig
+    public class TcpTransportConfig : ITransportConfig
     {
         public TcpTransportConfig(string ipAddress, int port)
         {
@@ -26,7 +26,7 @@ namespace SharpMTProto.Transport
         public TimeSpan ConnectTimeout { get; set; }
 
 
-        public override string TransportName
+        public string TransportName
         {
             get { return "TCP"; }
         }
