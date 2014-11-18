@@ -22,7 +22,7 @@ Task ValidateConfig {
 
 Task Build -depends ValidateConfig -description "Builds outdated artifacts." {
     Write-Host "Building soulution..." -ForegroundColor Green
-    Exec { msbuild "$solution_path" /t:Build /p:Configuration=$config /v:quiet } 
+    Exec { msbuild "$solution_path" /t:Build /p:Configuration=$config /v:quiet }
 }
 
 Task Clean -depends ValidateConfig -description "Deletes all build artifacts." {
