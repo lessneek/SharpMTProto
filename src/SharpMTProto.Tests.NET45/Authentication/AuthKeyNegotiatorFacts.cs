@@ -109,7 +109,7 @@ namespace SharpMTProto.Tests.Authentication
             keyChain.AddKeys(TestData.TestPublicKeys);
 
             var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoBuilder>();
-            AuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<ITransportConfig>());
+            IAuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<ITransportConfig>());
 
             AuthInfo authInfo = await authKeyNegotiator.CreateAuthKey();
 

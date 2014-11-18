@@ -25,7 +25,22 @@ namespace SharpMTProto.Authentication
     /// <summary>
     ///     Auth key negotiator.
     /// </summary>
-    public class AuthKeyNegotiator
+    public interface IAuthKeyNegotiator
+    {
+        Task<AuthInfo> CreateAuthKey();
+
+        /// <summary>
+        ///     Create authentication key.
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>Authentication info.</returns>
+        Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken);
+    }
+
+    /// <summary>
+    ///     Auth key negotiator default implementation.
+    /// </summary>
+    public class AuthKeyNegotiator : IAuthKeyNegotiator
     {
         private const int HashLength = 20;
         private const int AuthRetryCount = 5;
