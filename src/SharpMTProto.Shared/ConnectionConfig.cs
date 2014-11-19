@@ -4,9 +4,6 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using Catel;
-using SharpMTProto.Annotations;
-
 namespace SharpMTProto
 {
     /// <summary>
