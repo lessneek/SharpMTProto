@@ -21,6 +21,10 @@ PM> Install-Package SharpMTProto
 
 ## Change log
 
+#### SharpMTProto v0.5.1
+
+- Changed target framework .NET 4.5 <- 4.5.1.
+
 #### SharpMTProto v0.5
 
 - Added `MTProtoBuilder`. It allows easily building of `IMTProtoConnection` and `IAuthKeyNegotiator`.
