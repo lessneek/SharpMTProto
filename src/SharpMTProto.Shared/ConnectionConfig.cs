@@ -24,10 +24,8 @@ namespace SharpMTProto
         /// <param name="authKey">Auth key.</param>
         /// <param name="salt">Salt.</param>
         /// <exception cref="System.ArgumentException">The <paramref name="authKey" /> is <c>null</c> or an empty array.</exception>
-        public ConnectionConfig([NotNull] byte[] authKey, ulong salt)
+        public ConnectionConfig(byte[] authKey, ulong salt)
         {
-            Argument.IsNotNullOrEmptyArray(() => authKey);
-
             _authKey = authKey;
             _salt = salt;
         }

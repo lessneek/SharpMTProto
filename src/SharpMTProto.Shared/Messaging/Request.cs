@@ -11,15 +11,6 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Messaging
 {
-    [Flags]
-    public enum MessageSendingFlags
-    {
-        None = 0,
-        Encrypted = 1,
-        ContentRelated = 1 << 1,
-        EncryptedAndContentRelated = Encrypted | ContentRelated
-    }
-
     public interface IRequest
     {
         IMessage Message { get; }

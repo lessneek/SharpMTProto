@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
@@ -13,6 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using BigMath.Utils;
 using Catel;
+using Catel.Collections;
 using Catel.Logging;
 using Catel.Reflection;
 using SharpMTProto.Annotations;
@@ -61,11 +63,13 @@ namespace SharpMTProto
         private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
 
         private readonly ITransport _transport;
-        private ConnectionConfig _config;
+        private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private CancellationToken _connectionCancellationToken;
         private CancellationTokenSource _connectionCts;
         private bool _isDisposed;
         private uint _messageSeqNumber;
+
+        private readonly Dictionary<Type, MessageSendingFlags> _messageSendingFlags = new Dictionary<Type, MessageSendingFlags>();
 
         private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
 
@@ -233,19 +237,19 @@ namespace SharpMTProto
             _config.Salt = salt;
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)
+        public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)
         {
-            return await RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
+            return RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
+        public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
         {
-            return await RequestAsync<TResponse>(requestBody, flags, timeout, CancellationToken.None);
+            return RequestAsync<TResponse>(requestBody, flags, timeout, CancellationToken.None);
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
+        public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
-            return await RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, cancellationToken);
+            return RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, cancellationToken);
         }
 
         public async Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
@@ -269,7 +273,47 @@ namespace SharpMTProto
 
         public Task<TResponse> RpcAsync<TResponse>(object requestBody)
         {
-            return RequestAsync<TResponse>(requestBody, MessageSendingFlags.EncryptedAndContentRelated);
+            return RequestAsync<TResponse>(requestBody, GetMessageSendingFlags(requestBody));
+        }
+
+        public Task SendAsync(object requestBody)
+        {
+            return SendAsync(requestBody, GetMessageSendingFlags(requestBody), DefaultRpcTimeout, CancellationToken.None);
+        }
+
+        public void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags)
+        {
+            _messageSendingFlags.AddRange(flags);
+        }
+
+        public Task SendAsync(object requestBody, MessageSendingFlags flags)
+        {
+            return SendAsync(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
+        }
+
+        public Task SendAsync(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
+        {
+            return SendAsync(requestBody, flags, timeout, CancellationToken.None);
+        }
+
+        public Task SendAsync(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
+        {
+            return SendAsync(requestBody, flags, DefaultRpcTimeout, cancellationToken);
+        }
+
+        public async Task SendAsync(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            byte[] messageBytes = EncodeMessage(CreateMessage(requestBody, flags.HasFlag(MessageSendingFlags.ContentRelated)), flags.HasFlag(MessageSendingFlags.Encrypted));
+            
+            var timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
+            using (
+                CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(
+                    timeoutCancellationTokenSource.Token,
+                    cancellationToken,
+                    _connectionCancellationToken))
+            {
+                await SendAsync(messageBytes, cts.Token);
+            }
         }
 
         private static void InitTLRig(TLRig tlRig)
@@ -299,7 +343,7 @@ namespace SharpMTProto
         private Request<TResponse> CreateRequest<TResponse>(object body, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
             var request = new Request<TResponse>(
-                new Message(GetNextMsgId(), GetNextMsgSeqno(flags.HasFlag(MessageSendingFlags.ContentRelated)), body),
+                CreateMessage(body, flags.HasFlag(MessageSendingFlags.ContentRelated)),
                 flags,
                 SendRequestAsync,
                 cancellationToken);
@@ -307,9 +351,9 @@ namespace SharpMTProto
             return request;
         }
 
-        private Task<TResponse> PlainSystemRequestAsync<TResponse>(object requestBody)
+        private Message CreateMessage(object body, bool isContentRelated)
         {
-            return RequestAsync<TResponse>(requestBody, MessageSendingFlags.None);
+            return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
         }
 
         private Task SendAsync(byte[] data, CancellationToken cancellationToken)
@@ -424,6 +468,20 @@ namespace SharpMTProto
             return _messageIdGenerator.GetNextMessageId();
         }
 
+        private MessageSendingFlags GetMessageSendingFlags(
+            object requestBody,
+            MessageSendingFlags defaultSendingFlags = MessageSendingFlags.EncryptedAndContentRelated)
+        {
+            MessageSendingFlags flags;
+            Type requestBodyType = requestBody.GetType();
+
+            if (!_messageSendingFlags.TryGetValue(requestBodyType, out flags))
+            {
+                flags = defaultSendingFlags;
+            }
+            return flags;
+        }
+
         private static void LogMessageInOut(byte[] messageBytes, string inOrOut)
         {
             Log.Debug(string.Format("{0} ({1} bytes): {2}", inOrOut, messageBytes.Length, messageBytes.ToHexString()));
@@ -475,58 +533,7 @@ namespace SharpMTProto
                 throw new ObjectDisposedException("Connection was disposed.");
             }
         }
-
-        #region MTProto methods
-        /// <summary>
-        ///     Request pq.
-        /// </summary>
-        /// <returns>Response with pq.</returns>
-        public Task<IResPQ> ReqPqAsync(ReqPqArgs args)
-        {
-            return PlainSystemRequestAsync<IResPQ>(args);
-        }
-
-        public Task<IServerDHParams> ReqDHParamsAsync(ReqDHParamsArgs args)
-        {
-            return PlainSystemRequestAsync<IServerDHParams>(args);
-        }
-
-        public Task<ISetClientDHParamsAnswer> SetClientDHParamsAsync(SetClientDHParamsArgs args)
-        {
-            return PlainSystemRequestAsync<ISetClientDHParamsAnswer>(args);
-        }
-
-        public Task<IRpcDropAnswer> RpcDropAnswerAsync(RpcDropAnswerArgs args)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IFutureSalts> GetFutureSaltsAsync(GetFutureSaltsArgs args)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IPong> PingAsync(PingArgs args)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IPong> PingDelayDisconnectAsync(PingDelayDisconnectArgs args)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IDestroySessionRes> DestroySessionAsync(DestroySessionArgs args)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task HttpWaitAsync(HttpWaitArgs args)
-        {
-            throw new NotImplementedException();
-        }
-        #endregion
-
+        
         #region Disposable
         public void Dispose()
         {

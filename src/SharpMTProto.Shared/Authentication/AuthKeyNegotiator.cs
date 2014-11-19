@@ -93,6 +93,7 @@ namespace SharpMTProto.Authentication
         public async Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken)
         {
             IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_transportConfig);
+            var methods = new MTProtoAsyncMethods(connection);
 
             try
             {
@@ -110,7 +111,7 @@ namespace SharpMTProto.Authentication
 
                 // Requesting PQ.
                 Log.Debug("Requesting PQ...");
-                var resPQ = await connection.ReqPqAsync(new ReqPqArgs {Nonce = nonce}) as ResPQ;
+                var resPQ = await methods.ReqPqAsync(new ReqPqArgs { Nonce = nonce }) as ResPQ;
                 if (resPQ == null)
                 {
                     throw new InvalidResponseException();
@@ -131,7 +132,7 @@ namespace SharpMTProto.Authentication
 
                 Log.Debug(string.Format("Requesting DH params with the new nonce: {0:X32}...", newNonce));
 
-                IServerDHParams serverDHParams = await connection.ReqDHParamsAsync(reqDhParamsArgs);
+                IServerDHParams serverDHParams = await methods.ReqDHParamsAsync(reqDhParamsArgs);
                 if (serverDHParams == null)
                 {
                     throw new InvalidResponseException();
@@ -236,7 +237,7 @@ namespace SharpMTProto.Authentication
 
                     Log.Debug("Setting client DH params...");
 
-                    ISetClientDHParamsAnswer setClientDHParamsAnswer = await connection.SetClientDHParamsAsync(setClientDHParamsArgs);
+                    ISetClientDHParamsAnswer setClientDHParamsAnswer = await methods.SetClientDHParamsAsync(setClientDHParamsArgs);
                     var dhGenOk = setClientDHParamsAnswer as DhGenOk;
                     if (dhGenOk != null)
                     {

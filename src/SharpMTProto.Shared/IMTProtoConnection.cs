@@ -7,7 +7,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpMTProto.Messaging;
 using SharpMTProto.Schema;
 
 namespace SharpMTProto
@@ -15,7 +14,7 @@ namespace SharpMTProto
     /// <summary>
     ///     Interface of MTProto connection.
     /// </summary>
-    public interface IMTProtoConnection : IMTProtoAsyncMethods, IDisposable
+    public interface IMTProtoConnection : IDisposable, IRemoteProcedureCaller
     {
         /// <summary>
         ///     A state.
@@ -102,14 +101,6 @@ namespace SharpMTProto
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Response.</returns>
         Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken);
-
-        /// <summary>
-        ///     Sends RPC and wait for result response asynchronously.
-        /// </summary>
-        /// <typeparam name="TResponse">Type of a result response.</typeparam>
-        /// <param name="requestBody">Request body.</param>
-        /// <returns>Response.</returns>
-        Task<TResponse> RpcAsync<TResponse>(object requestBody);
 
         /// <summary>
         ///     Updates salt.

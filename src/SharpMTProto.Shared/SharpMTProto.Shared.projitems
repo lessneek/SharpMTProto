@@ -35,8 +35,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoConnection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoBuilder.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Schema\MTProtoSchema.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Schema\MTProtoSchemaEx.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.Ex.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.PCL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\IEncryptionServices.cs" />
