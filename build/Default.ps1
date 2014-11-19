@@ -3,9 +3,9 @@
     $config = 'Debug'
     $packageVersion = $null
     $build_dir = Split-Path $psake.build_script_file
-    $code_dir = "$build_dir\..\src\$solution_name"
+    $code_dir = "$build_dir\..\src"
     $solution_path = "$code_dir\$solution_name.sln"
-    $assembly_info_path = "$code_dir\CommonAssemblyInfo.cs"
+    $assembly_info_path = "$code_dir\SharpMTProto.Shared\CommonAssemblyInfo.cs"
     $nuspec_path = "$code_dir\$solution_name.nuspec"
 }
 
@@ -22,7 +22,7 @@ Task ValidateConfig {
 
 Task Build -depends ValidateConfig -description "Builds outdated artifacts." {
     Write-Host "Building soulution..." -ForegroundColor Green
-    Exec { msbuild "$solution_path" /t:Build /p:Configuration=$config /v:quiet } 
+    Exec { msbuild "$solution_path" /t:Build /p:Configuration=$config /v:quiet }
 }
 
 Task Clean -depends ValidateConfig -description "Deletes all build artifacts." {
