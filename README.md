@@ -21,6 +21,13 @@ PM> Install-Package SharpMTProto
 
 ## Change log
 
+#### SharpMTProto v0.5
+
+- Added `MTProtoBuilder`. It allows easily building of `IMTProtoConnection` and `IAuthKeyNegotiator`.
+- Renamed `TransportConfig` to `ITransportConfig`.
+- Extracted `IAuthKeyNegotiator` from `AuthKeyNegotiator`.
+- Added `HashServices` for PCL.
+
 #### SharpMTProto v0.4.3
 
 - Updated ref to SharpTL v0.7.2.
