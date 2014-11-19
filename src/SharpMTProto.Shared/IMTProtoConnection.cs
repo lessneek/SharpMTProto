@@ -7,7 +7,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using SharpMTProto.Schema;
+using SharpMTProto.Messaging;
 
 namespace SharpMTProto
 {

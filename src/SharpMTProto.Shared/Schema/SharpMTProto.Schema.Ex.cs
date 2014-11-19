@@ -140,6 +140,7 @@ namespace SharpMTProto.Schema
                 {typeof (ReqPqArgs), MessageSendingFlags.None},
                 {typeof (ReqDHParamsArgs), MessageSendingFlags.None},
                 {typeof (SetClientDHParamsArgs), MessageSendingFlags.None},
+                {typeof (HttpWaitArgs), MessageSendingFlags.Encrypted},
             };
             remoteProcedureCaller.SetMessageSendingFlags(flags);
         }

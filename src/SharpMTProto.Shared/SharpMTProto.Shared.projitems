@@ -20,6 +20,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IMTProtoConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IRemoteProcedureCaller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\BadMsgNotificationHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\FirstRequestResponseHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\IResponseHandler.cs" />
@@ -28,6 +29,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodec.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSendingFlags.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Request.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\RequestsManager.cs" />
