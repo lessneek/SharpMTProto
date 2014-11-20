@@ -122,6 +122,13 @@ namespace SharpMTProto.Schema
         Object Result { get; set; }
     }
 
+    public partial interface IRpcError
+    {
+        UInt32 ErrorCode { get; set; }
+
+        String ErrorMessage { get; set; }
+    }
+
     public partial interface IBadMsgNotification
     {
         UInt64 BadMsgId { get; set; }

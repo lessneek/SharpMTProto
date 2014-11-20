@@ -36,7 +36,7 @@ namespace SharpMTProto.Messaging.Handlers
                     IRequest request = _requestsManager.GetFirstOrDefault(responseMessage.Body);
                     if (request == null)
                     {
-                        throw new MTProtoException(string.Format("Request for response of type '{0}' not found.", responseMessage.GetType()));
+                        throw new MTProtoException(string.Format("Request for response of type '{0}' not found.", responseMessage.Body.GetType()));
                     }
 
                     request.SetResponse(responseMessage.Body);

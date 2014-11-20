@@ -128,7 +128,7 @@ namespace SharpMTProto
 
     public class RpcErrorException : MTProtoException
     {
-        public RpcErrorException(IRpcError error)
+        public RpcErrorException(IRpcError error) : base(string.Format("Error [{0}]: '{1}'.", error.ErrorCode, error.ErrorMessage))
         {
             Error = error;
         }

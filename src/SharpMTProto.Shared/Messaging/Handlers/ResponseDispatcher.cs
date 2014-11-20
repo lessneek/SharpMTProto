@@ -70,7 +70,7 @@ namespace SharpMTProto.Messaging.Handlers
 
         public IResponseHandler FallbackHandler { get; set; }
 
-        public Task DispatchAsync(IMessage responseMessage)
+        public async Task DispatchAsync(IMessage responseMessage)
         {
             Type responseType = responseMessage.Body.GetType();
 
@@ -85,11 +85,18 @@ namespace SharpMTProto.Messaging.Handlers
                 {
                     Log.WarningWithData(
                         string.Format("No handler found for response of type '{0}' and there is no fallback handler. Message was ignored.", responseType.Name));
-                    return TaskConstants.Completed;
+                    return;
                 }
             }
 
-            return handler.HandleAsync(responseMessage);
+            try
+            {
+                await handler.HandleAsync(responseMessage);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Error while handling a message.");
+            }
         }
 
         public void AddHandler(IResponseHandler handler, bool overwriteExisted = false)
