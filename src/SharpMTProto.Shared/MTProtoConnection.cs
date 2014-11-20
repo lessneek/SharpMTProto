@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BigMath.Utils;
@@ -58,6 +59,7 @@ namespace SharpMTProto
 
         private readonly AsyncLock _connectionLock = new AsyncLock();
         private readonly IMessageCodec _messageCodec;
+        private readonly TLRig _tlRig;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly RequestsManager _requestsManager = new RequestsManager();
         private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
@@ -72,6 +74,7 @@ namespace SharpMTProto
         private readonly Dictionary<Type, MessageSendingFlags> _messageSendingFlags = new Dictionary<Type, MessageSendingFlags>();
 
         private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
+        private MTProtoAsyncMethods _methods;
 
 
         public MTProtoConnection(
@@ -87,13 +90,15 @@ namespace SharpMTProto
             Argument.IsNotNull(() => messageIdGenerator);
             Argument.IsNotNull(() => messageCodec);
 
+            _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
 
             DefaultRpcTimeout = Defaults.RpcTimeout;
             DefaultConnectTimeout = Defaults.ConnectTimeout;
 
-            InitTLRig(tlRig);
+            _methods = new MTProtoAsyncMethods(this);
+
             InitResponseDispatcher(_responseDispatcher);
 
             // Init transport.
@@ -105,6 +110,11 @@ namespace SharpMTProto
 
         public TimeSpan DefaultRpcTimeout { get; set; }
         public TimeSpan DefaultConnectTimeout { get; set; }
+
+        public IMTProtoAsyncMethods Methods
+        {
+            get { return _methods; }
+        }
 
         public MTProtoConnectionState State
         {
@@ -319,9 +329,9 @@ namespace SharpMTProto
             }
         }
 
-        private static void InitTLRig(TLRig tlRig)
+        public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
         {
-            tlRig.PrepareSerializersForAllTLObjectsInAssembly(typeof (IMTProtoAsyncMethods).GetAssemblyEx());
+            _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
         private void InitResponseDispatcher(IResponseDispatcher responseDispatcher)

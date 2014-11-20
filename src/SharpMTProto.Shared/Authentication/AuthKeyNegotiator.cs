@@ -97,7 +97,7 @@ namespace SharpMTProto.Authentication
         public async Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken)
         {
             IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_transportConfig);
-            var methods = new MTProtoAsyncMethods(connection);
+            var methods = connection.Methods;
 
             try
             {

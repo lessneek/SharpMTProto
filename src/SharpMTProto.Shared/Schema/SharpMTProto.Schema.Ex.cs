@@ -8,6 +8,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Catel.Reflection;
 using SharpMTProto.Messaging;
 using SharpTL;
 
@@ -142,6 +143,9 @@ namespace SharpMTProto.Schema
     {
         partial void SetupRemoteProcedureCaller(IRemoteProcedureCaller remoteProcedureCaller)
         {
+            remoteProcedureCaller.PrepareSerializersForAllTLObjectsInAssembly(
+                typeof (IMTProtoAsyncMethods).GetAssemblyEx());
+
             var flags = new Dictionary<Type, MessageSendingFlags>
             {
                 {typeof (ReqPqArgs), MessageSendingFlags.None},
