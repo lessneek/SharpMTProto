@@ -132,19 +132,19 @@ namespace SharpMTProto
         /// <summary>
         ///     Connect.
         /// </summary>
-        public async Task<MTProtoConnectResult> Connect(CancellationToken cancellationToken)
+        public Task<MTProtoConnectResult> Connect(CancellationToken cancellationToken)
         {
-            var result = MTProtoConnectResult.Other;
-
-            await Task.Run(
+            return Task.Run(
                 async () =>
                 {
+                    var result = MTProtoConnectResult.Other;
+
                     using (await _connectionLock.LockAsync(cancellationToken))
                     {
                         if (_state == MTProtoConnectionState.Connected)
                         {
                             result = MTProtoConnectResult.Success;
-                            return;
+                            return result;
                         }
                         Debug.Assert(_state == MTProtoConnectionState.Disconnected);
                         try
@@ -152,7 +152,8 @@ namespace SharpMTProto
                             _state = MTProtoConnectionState.Connecting;
                             Log.Debug("Connecting...");
 
-                            await _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
+                            await
+                                _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
 
                             _connectionCts = new CancellationTokenSource();
                             _connectionCancellationToken = _connectionCts.Token;
@@ -163,7 +164,10 @@ namespace SharpMTProto
                         catch (TimeoutException)
                         {
                             result = MTProtoConnectResult.Timeout;
-                            Log.Debug(string.Format("Failed to connect due to timeout ({0}s).", DefaultConnectTimeout.TotalSeconds));
+                            Log.Debug(
+                                string.Format(
+                                    "Failed to connect due to timeout ({0}s).",
+                                    DefaultConnectTimeout.TotalSeconds));
                         }
                         catch (Exception e)
                         {
@@ -186,15 +190,14 @@ namespace SharpMTProto
                             }
                         }
                     }
+                    return result;
                 },
-                cancellationToken).ConfigureAwait(false);
-
-            return result;
+                cancellationToken);
         }
 
-        public async Task Disconnect()
+        public Task Disconnect()
         {
-            await Task.Run(
+            return Task.Run(
                 async () =>
                 {
                     using (await _connectionLock.LockAsync(CancellationToken.None))
@@ -215,7 +218,7 @@ namespace SharpMTProto
                         await _transport.DisconnectAsync(CancellationToken.None);
                     }
                 },
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None);
         }
 
         /// <summary>
