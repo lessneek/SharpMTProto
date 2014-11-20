@@ -1,13 +1,13 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="Exceptions.cs">
-//   Copyright (c) 2013 Alexander Logger. All rights reserved.
+//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using SharpMTProto.Schema;
 
 namespace SharpMTProto
 {
@@ -66,14 +66,16 @@ namespace SharpMTProto
         {
         }
 
-        public CouldNotConnectException(string message, MTProtoConnectResult result, Exception innerException) : base(message, innerException)
+        public CouldNotConnectException(string message, MTProtoConnectResult result, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
 
     public class PublicKeyNotFoundException : MTProtoException
     {
-        public PublicKeyNotFoundException(ulong fingerprint) : base(string.Format("Public key with fingerprint {0:X16} not found.", fingerprint))
+        public PublicKeyNotFoundException(ulong fingerprint)
+            : base(string.Format("Public key with fingerprint {0:X16} not found.", fingerprint))
         {
         }
 
@@ -85,7 +87,7 @@ namespace SharpMTProto
         {
             var sb = new StringBuilder();
             sb.Append("There are no keys found with corresponding fingerprints: ");
-            foreach (var fingerprint in fingerprints)
+            foreach (ulong fingerprint in fingerprints)
             {
                 sb.Append(string.Format("0x{0:X16}", fingerprint));
             }
@@ -122,5 +124,15 @@ namespace SharpMTProto
         public InvalidAuthKey(string message, Exception innerException) : base(message, innerException)
         {
         }
+    }
+
+    public class RpcErrorException : MTProtoException
+    {
+        public RpcErrorException(IRpcError error)
+        {
+            Error = error;
+        }
+
+        public IRpcError Error { get; private set; }
     }
 }

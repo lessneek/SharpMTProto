@@ -25,13 +25,28 @@ namespace SharpMTProto.Messaging.Handlers
         protected override Task HandleInternalAsync(IMessage responseMessage)
         {
             var rpcResult = (IRpcResult) responseMessage.Body;
+            object result = rpcResult.Result;
+
             IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
             if (request == null)
             {
-                Log.Warning(string.Format("Ignored response of type '{1}' for not existed request with MsgId: 0x{0:X8}.", rpcResult.ReqMsgId, rpcResult.Result.GetType()));
+                Log.Warning(
+                    string.Format(
+                        "Ignored response of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
+                        rpcResult.ReqMsgId,
+                        result.GetType()));
                 return TaskConstants.Completed;
             }
-            request.SetResponse(rpcResult.Result);
+
+            var rpcError = result as IRpcError;
+            if (rpcError != null)
+            {
+                request.SetException(new RpcErrorException(rpcError));
+            }
+            else
+            {
+                request.SetResponse(result);
+            }
             return TaskConstants.Completed;
         }
     }

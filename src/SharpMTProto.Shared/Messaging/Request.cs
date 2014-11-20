@@ -33,6 +33,7 @@ namespace SharpMTProto.Messaging
 
         bool CanSetResponse(object response);
         Task SendAsync();
+        void SetException(Exception ex);
     }
 
     public class Request<TResponse> : IRequest
@@ -93,6 +94,14 @@ namespace SharpMTProto.Messaging
         public Task SendAsync()
         {
             return _sendAsync(this, _cancellationToken);
+        }
+
+        public void SetException(Exception ex)
+        {
+            Acknowledge();
+            ResponseTime = DateTime.UtcNow;
+
+            _taskCompletionSource.TrySetException(ex);
         }
 
         public Task<TResponse> GetResponseAsync()
