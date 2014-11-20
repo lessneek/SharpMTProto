@@ -11,6 +11,7 @@ using SharpMTProto.Transport;
 namespace SharpMTProto.Tests
 {
     [TestFixture]
+    [Category("Core")]
     public class MTProtoBuilderFacts
     {
         [Test]
