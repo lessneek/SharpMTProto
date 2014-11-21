@@ -41,6 +41,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.Ex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.Ex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.PCL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\HashServices.cs" />
