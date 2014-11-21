@@ -279,6 +279,7 @@ namespace SharpMTProto
                     _connectionCancellationToken))
             {
                 Request<TResponse> request = CreateRequest<TResponse>(requestBody, flags, cts.Token);
+                Log.Info("Sending request ({0}) '{1}'.", flags, requestBody);
                 await request.SendAsync();
                 return await request.GetResponseAsync();
             }
