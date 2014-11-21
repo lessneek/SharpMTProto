@@ -74,7 +74,7 @@ namespace SharpMTProto
         private readonly Dictionary<Type, MessageSendingFlags> _messageSendingFlags = new Dictionary<Type, MessageSendingFlags>();
 
         private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
-        private MTProtoAsyncMethods _methods;
+        private readonly MTProtoAsyncMethods _methods;
 
 
         public MTProtoConnection(
@@ -485,7 +485,7 @@ namespace SharpMTProto
 
         private MessageSendingFlags GetMessageSendingFlags(
             object requestBody,
-            MessageSendingFlags defaultSendingFlags = MessageSendingFlags.EncryptedAndContentRelated)
+            MessageSendingFlags defaultSendingFlags = MessageSendingFlags.EncryptedAndContentRelatedRPC)
         {
             MessageSendingFlags flags;
             Type requestBodyType = requestBody.GetType();
