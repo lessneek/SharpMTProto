@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Subjects;
@@ -43,6 +44,7 @@ namespace SharpMTProto.Transport
         private volatile TransportState _state = TransportState.Disconnected;
         private int _tempLengthBufferFill;
         private int _packetNumber;
+        private bool _isDisposed;
 
         public TcpTransport(TcpTransportConfig config)
         {
@@ -68,6 +70,7 @@ namespace SharpMTProto.Transport
 
         public IDisposable Subscribe(IObserver<byte[]> observer)
         {
+            ThrowIfDisposed();
             return _in.Subscribe(observer);
         }
 
@@ -93,6 +96,7 @@ namespace SharpMTProto.Transport
 
         public async Task ConnectAsync(CancellationToken token)
         {
+            ThrowIfDisposed();
             using (await _stateAsyncLock.LockAsync(token))
             {
                 if (State == TransportState.Connected)
@@ -151,6 +155,7 @@ namespace SharpMTProto.Transport
 
         public async Task DisconnectAsync(CancellationToken token)
         {
+            ThrowIfDisposed();
             using (await _stateAsyncLock.LockAsync(token))
             {
                 if (_state == TransportState.Disconnected)
@@ -188,6 +193,7 @@ namespace SharpMTProto.Transport
 
         public async Task SendAsync(byte[] payload, CancellationToken token)
         {
+            ThrowIfDisposed();
             await Task.Run(async () =>
             {
                 var packet = new TcpTransportPacket(_packetNumber++, payload);
@@ -334,10 +340,17 @@ namespace SharpMTProto.Transport
 
         protected void Dispose(bool isDisposing)
         {
+            if (_isDisposed)
+            {
+                return;
+            }
+            _isDisposed = true;
+
             if (!isDisposing)
             {
                 return;
             }
+
             if (_connectionCancellationTokenSource != null)
             {
                 _connectionCancellationTokenSource.Cancel();
@@ -374,6 +387,15 @@ namespace SharpMTProto.Transport
                 {
                     _socket = null;
                 }
+            }
+        }
+
+        [DebuggerStepThrough]
+        private void ThrowIfDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException("Connection was disposed.");
             }
         }
         #endregion

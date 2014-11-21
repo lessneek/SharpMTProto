@@ -21,6 +21,16 @@ PM> Install-Package SharpMTProto
 
 ## Change log
 
+#### SharpMTProto v0.6
+
+- `MTProtoConnection`: added MTProto `Methods` property.
+- `RpcResultHandler`: added support for `IRpcError`.
+- Fixed bug with incorrect container `seqno` checking.
+- Added `KeyChain` property to `AuthKeyNegotiator`.
+- `MessageSendingFlags`: added `RPC` value.
+- `TcpTransport`: added a disposable bits.
+- `MTProtoConnection`: `Dispose()` method now calls `Dispose()` of an underlying transport.
+
 #### SharpMTProto v0.5.1
 
 - Changed target framework .NET 4.5 <- 4.5.1.

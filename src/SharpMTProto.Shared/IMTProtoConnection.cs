@@ -8,6 +8,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using SharpMTProto.Messaging;
+using SharpMTProto.Schema;
 
 namespace SharpMTProto
 {
@@ -40,6 +41,11 @@ namespace SharpMTProto
         ///     Is encryption supported.
         /// </summary>
         bool IsEncryptionSupported { get; }
+
+        /// <summary>
+        ///     MTProto async methods.
+        /// </summary>
+        IMTProtoAsyncMethods Methods { get; }
 
         /// <summary>
         ///     Configure connection.

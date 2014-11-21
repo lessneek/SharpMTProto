@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Threading.Tasks;
 using SharpMTProto.Messaging;
 
@@ -35,5 +36,11 @@ namespace SharpMTProto
         /// </summary>
         /// <param name="flags">Dictionary: (Type of request body)-(message sending flags).</param>
         void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags);
+
+        /// <summary>
+        /// Prepares serializers for all TL-objects in assembly.
+        /// </summary>
+        /// <param name="assembly">Assembly.</param>
+        void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
     }
 }

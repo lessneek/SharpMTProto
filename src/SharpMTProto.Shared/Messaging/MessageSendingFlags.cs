@@ -14,6 +14,8 @@ namespace SharpMTProto.Messaging
         None = 0,
         Encrypted = 1,
         ContentRelated = 1 << 1,
-        EncryptedAndContentRelated = Encrypted | ContentRelated
+        EncryptedAndContentRelated = Encrypted | ContentRelated,
+        RPC = 2 << 1,
+        EncryptedAndContentRelatedRPC = EncryptedAndContentRelated | RPC
     }
 }

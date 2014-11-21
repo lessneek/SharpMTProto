@@ -6,7 +6,6 @@
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using SharpMTProto.Messaging;
 using SharpTL;
@@ -122,6 +121,13 @@ namespace SharpMTProto.Schema
         Object Result { get; set; }
     }
 
+    public partial interface IRpcError
+    {
+        UInt32 ErrorCode { get; set; }
+
+        String ErrorMessage { get; set; }
+    }
+
     public partial interface IBadMsgNotification
     {
         UInt64 BadMsgId { get; set; }
@@ -129,20 +135,5 @@ namespace SharpMTProto.Schema
         UInt32 BadMsgSeqno { get; set; }
 
         UInt32 ErrorCode { get; set; }
-    }
-
-    public partial class MTProtoAsyncMethods
-    {
-        partial void SetupRemoteProcedureCaller(IRemoteProcedureCaller remoteProcedureCaller)
-        {
-            var flags = new Dictionary<Type, MessageSendingFlags>
-            {
-                {typeof (ReqPqArgs), MessageSendingFlags.None},
-                {typeof (ReqDHParamsArgs), MessageSendingFlags.None},
-                {typeof (SetClientDHParamsArgs), MessageSendingFlags.None},
-                {typeof (HttpWaitArgs), MessageSendingFlags.Encrypted},
-            };
-            remoteProcedureCaller.SetMessageSendingFlags(flags);
-        }
     }
 }

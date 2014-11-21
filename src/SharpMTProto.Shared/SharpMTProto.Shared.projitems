@@ -28,6 +28,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseDispatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SessionHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodec.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSendingFlags.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
@@ -40,6 +41,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.Ex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.Ex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.PCL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\HashServices.cs" />

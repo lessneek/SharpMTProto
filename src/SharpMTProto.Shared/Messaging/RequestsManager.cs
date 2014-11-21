@@ -13,7 +13,7 @@ namespace SharpMTProto.Messaging
     {
         void Add(IRequest request);
         IRequest Get(ulong messageId);
-        IRequest GetFirstOrDefault(object response);
+        IRequest GetFirstOrDefault(object response, bool includeRpc = false);
         void Change(ulong newMessageId, ulong oldMessageId);
     }
 
@@ -38,9 +38,9 @@ namespace SharpMTProto.Messaging
             return _requests.TryGetValue(messageId, out request) ? request : null;
         }
 
-        public IRequest GetFirstOrDefault(object response)
+        public IRequest GetFirstOrDefault(object response, bool includeRpc = false)
         {
-            return _requests.Values.FirstOrDefault(r => r.CanSetResponse(response));
+            return _requests.Values.FirstOrDefault(r => r.CanSetResponse(response) && (!r.Flags.HasFlag(MessageSendingFlags.RPC) || includeRpc));
         }
 
         public void Remove(ulong messageId)

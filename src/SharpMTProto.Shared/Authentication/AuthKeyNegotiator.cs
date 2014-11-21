@@ -35,6 +35,11 @@ namespace SharpMTProto.Authentication
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>Authentication info.</returns>
         Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken);
+
+        /// <summary>
+        ///     Key chain.
+        /// </summary>
+        IKeyChain KeyChain { get; }
     }
 
     /// <summary>
@@ -79,10 +84,9 @@ namespace SharpMTProto.Authentication
             _keyChain = keyChain;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte[] ComputeSHA1(byte[] data)
+        public IKeyChain KeyChain
         {
-            return _hashServices.ComputeSHA1(data);
+            get { return _keyChain; }
         }
 
         public async Task<AuthInfo> CreateAuthKey()
@@ -93,7 +97,7 @@ namespace SharpMTProto.Authentication
         public async Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken)
         {
             IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_transportConfig);
-            var methods = new MTProtoAsyncMethods(connection);
+            var methods = connection.Methods;
 
             try
             {
@@ -290,6 +294,12 @@ namespace SharpMTProto.Authentication
                     connection.Dispose();
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private byte[] ComputeSHA1(byte[] data)
+        {
+            return _hashServices.ComputeSHA1(data);
         }
 
         private UInt64 ComputeInitialSalt(byte[] newNonceBytes, byte[] serverNonceBytes)

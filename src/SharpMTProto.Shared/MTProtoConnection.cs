@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Reactive.Concurrency;
 using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using BigMath.Utils;
@@ -58,6 +59,7 @@ namespace SharpMTProto
 
         private readonly AsyncLock _connectionLock = new AsyncLock();
         private readonly IMessageCodec _messageCodec;
+        private readonly TLRig _tlRig;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly RequestsManager _requestsManager = new RequestsManager();
         private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
@@ -72,6 +74,7 @@ namespace SharpMTProto
         private readonly Dictionary<Type, MessageSendingFlags> _messageSendingFlags = new Dictionary<Type, MessageSendingFlags>();
 
         private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
+        private readonly MTProtoAsyncMethods _methods;
 
 
         public MTProtoConnection(
@@ -87,13 +90,15 @@ namespace SharpMTProto
             Argument.IsNotNull(() => messageIdGenerator);
             Argument.IsNotNull(() => messageCodec);
 
+            _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
 
             DefaultRpcTimeout = Defaults.RpcTimeout;
             DefaultConnectTimeout = Defaults.ConnectTimeout;
 
-            InitTLRig(tlRig);
+            _methods = new MTProtoAsyncMethods(this);
+
             InitResponseDispatcher(_responseDispatcher);
 
             // Init transport.
@@ -105,6 +110,11 @@ namespace SharpMTProto
 
         public TimeSpan DefaultRpcTimeout { get; set; }
         public TimeSpan DefaultConnectTimeout { get; set; }
+
+        public IMTProtoAsyncMethods Methods
+        {
+            get { return _methods; }
+        }
 
         public MTProtoConnectionState State
         {
@@ -132,19 +142,19 @@ namespace SharpMTProto
         /// <summary>
         ///     Connect.
         /// </summary>
-        public async Task<MTProtoConnectResult> Connect(CancellationToken cancellationToken)
+        public Task<MTProtoConnectResult> Connect(CancellationToken cancellationToken)
         {
-            var result = MTProtoConnectResult.Other;
-
-            await Task.Run(
+            return Task.Run(
                 async () =>
                 {
+                    var result = MTProtoConnectResult.Other;
+
                     using (await _connectionLock.LockAsync(cancellationToken))
                     {
                         if (_state == MTProtoConnectionState.Connected)
                         {
                             result = MTProtoConnectResult.Success;
-                            return;
+                            return result;
                         }
                         Debug.Assert(_state == MTProtoConnectionState.Disconnected);
                         try
@@ -152,7 +162,8 @@ namespace SharpMTProto
                             _state = MTProtoConnectionState.Connecting;
                             Log.Debug("Connecting...");
 
-                            await _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
+                            await
+                                _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
 
                             _connectionCts = new CancellationTokenSource();
                             _connectionCancellationToken = _connectionCts.Token;
@@ -163,7 +174,10 @@ namespace SharpMTProto
                         catch (TimeoutException)
                         {
                             result = MTProtoConnectResult.Timeout;
-                            Log.Debug(string.Format("Failed to connect due to timeout ({0}s).", DefaultConnectTimeout.TotalSeconds));
+                            Log.Debug(
+                                string.Format(
+                                    "Failed to connect due to timeout ({0}s).",
+                                    DefaultConnectTimeout.TotalSeconds));
                         }
                         catch (Exception e)
                         {
@@ -186,15 +200,14 @@ namespace SharpMTProto
                             }
                         }
                     }
+                    return result;
                 },
-                cancellationToken).ConfigureAwait(false);
-
-            return result;
+                cancellationToken);
         }
 
-        public async Task Disconnect()
+        public Task Disconnect()
         {
-            await Task.Run(
+            return Task.Run(
                 async () =>
                 {
                     using (await _connectionLock.LockAsync(CancellationToken.None))
@@ -215,7 +228,7 @@ namespace SharpMTProto
                         await _transport.DisconnectAsync(CancellationToken.None);
                     }
                 },
-                CancellationToken.None).ConfigureAwait(false);
+                CancellationToken.None);
         }
 
         /// <summary>
@@ -266,6 +279,7 @@ namespace SharpMTProto
                     _connectionCancellationToken))
             {
                 Request<TResponse> request = CreateRequest<TResponse>(requestBody, flags, cts.Token);
+                Log.Info("Sending request ({0}) '{1}'.", flags, requestBody);
                 await request.SendAsync();
                 return await request.GetResponseAsync();
             }
@@ -316,9 +330,9 @@ namespace SharpMTProto
             }
         }
 
-        private static void InitTLRig(TLRig tlRig)
+        public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
         {
-            tlRig.PrepareSerializersForAllTLObjectsInAssembly(typeof (IMTProtoAsyncMethods).GetAssemblyEx());
+            _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
         private void InitResponseDispatcher(IResponseDispatcher responseDispatcher)
@@ -327,6 +341,7 @@ namespace SharpMTProto
             responseDispatcher.AddHandler(new BadMsgNotificationHandler(this, _requestsManager));
             responseDispatcher.AddHandler(new MessageContainerHandler(_responseDispatcher));
             responseDispatcher.AddHandler(new RpcResultHandler(_requestsManager));
+            responseDispatcher.AddHandler(new SessionHandler());
         }
 
         private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)
@@ -470,7 +485,7 @@ namespace SharpMTProto
 
         private MessageSendingFlags GetMessageSendingFlags(
             object requestBody,
-            MessageSendingFlags defaultSendingFlags = MessageSendingFlags.EncryptedAndContentRelated)
+            MessageSendingFlags defaultSendingFlags = MessageSendingFlags.EncryptedAndContentRelatedRPC)
         {
             MessageSendingFlags flags;
             Type requestBodyType = requestBody.GetType();
@@ -551,6 +566,7 @@ namespace SharpMTProto
             if (isDisposing)
             {
                 Disconnect().Wait(5000);
+                _transport.Dispose();
             }
         }
         #endregion

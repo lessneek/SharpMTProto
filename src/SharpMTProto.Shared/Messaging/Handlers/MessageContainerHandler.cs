@@ -39,7 +39,7 @@ namespace SharpMTProto.Messaging.Handlers
             var msgContainer = responseMessage.Body as MsgContainer;
             if (msgContainer != null)
             {
-                if (msgContainer.Messages.Any(msg => msg.MsgId >= responseMessage.MsgId || msg.Seqno >= responseMessage.Seqno))
+                if (msgContainer.Messages.Any(msg => msg.MsgId >= responseMessage.MsgId || msg.Seqno > responseMessage.Seqno))
                 {
                     throw new InvalidMessageException("Container MessageId must be greater than all MsgIds of inner messages.");
                 }

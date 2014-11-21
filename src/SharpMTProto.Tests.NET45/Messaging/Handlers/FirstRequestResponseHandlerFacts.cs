@@ -28,7 +28,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             var responseMessage = new Message(1, 1, response);
 
             var requestsManager = new Mock<IRequestsManager>();
-            requestsManager.Setup(manager => manager.GetFirstOrDefault(response)).Returns(request.Object).Verifiable();
+            requestsManager.Setup(manager => manager.GetFirstOrDefault(response, It.IsAny<bool>())).Returns(request.Object).Verifiable();
 
             var handler = new FirstRequestResponseHandler(requestsManager.Object);
             await handler.HandleAsync(responseMessage);
