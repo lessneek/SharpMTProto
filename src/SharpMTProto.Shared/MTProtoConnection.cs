@@ -340,6 +340,7 @@ namespace SharpMTProto
             responseDispatcher.AddHandler(new BadMsgNotificationHandler(this, _requestsManager));
             responseDispatcher.AddHandler(new MessageContainerHandler(_responseDispatcher));
             responseDispatcher.AddHandler(new RpcResultHandler(_requestsManager));
+            responseDispatcher.AddHandler(new SessionHandler());
         }
 
         private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)

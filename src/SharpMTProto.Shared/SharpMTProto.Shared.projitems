@@ -28,6 +28,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseDispatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ResponseHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SessionHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodec.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSendingFlags.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
