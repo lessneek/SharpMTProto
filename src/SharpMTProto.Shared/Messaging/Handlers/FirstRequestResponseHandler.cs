@@ -30,17 +30,16 @@ namespace SharpMTProto.Messaging.Handlers
         public Task HandleAsync(IMessage responseMessage)
         {
             Argument.IsNotNull(() => responseMessage);
-            return Task.Run(
-                () =>
+            return Task.Run(() =>
+            {
+                IRequest request = _requestsManager.GetFirstOrDefault(responseMessage.Body);
+                if (request == null)
                 {
-                    IRequest request = _requestsManager.GetFirstOrDefault(responseMessage.Body);
-                    if (request == null)
-                    {
-                        throw new MTProtoException(string.Format("Request for response of type '{0}' not found.", responseMessage.Body.GetType()));
-                    }
+                    throw new MTProtoException(string.Format("Request for response of type '{0}' not found.", responseMessage.Body.GetType()));
+                }
 
-                    request.SetResponse(responseMessage.Body);
-                });
+                request.SetResponse(responseMessage.Body);
+            });
         }
     }
 }
