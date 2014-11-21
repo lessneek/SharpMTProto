@@ -566,6 +566,7 @@ namespace SharpMTProto
             if (isDisposing)
             {
                 Disconnect().Wait(5000);
+                _transport.Dispose();
             }
         }
         #endregion
