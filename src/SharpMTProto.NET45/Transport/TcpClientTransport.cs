@@ -263,7 +263,7 @@ namespace SharpMTProto.Transport
 
                     try
                     {
-                        await ProcessReceivedData(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
+                        await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
                     }
                     catch (Exception e)
                     {
@@ -275,7 +275,7 @@ namespace SharpMTProto.Transport
             }, token).ConfigureAwait(false);
         }
 
-        private async Task ProcessReceivedData(ArraySegment<byte> buffer)
+        private async Task ProcessReceivedDataAsync(ArraySegment<byte> buffer)
         {
             try
             {
