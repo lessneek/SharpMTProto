@@ -19,6 +19,8 @@ using SharpTL;
 
 namespace SharpMTProto.Transport
 {
+    using Annotations;
+
     /// <summary>
     ///     MTProto TCP clientTransport.
     /// </summary>
@@ -27,8 +29,6 @@ namespace SharpMTProto.Transport
         private const int PacketLengthBytesCount = 4;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private readonly TimeSpan _connectTimeout;
-        private readonly IPAddress _ipAddress;
-        private readonly int _port;
         private readonly byte[] _readerBuffer;
 
         private readonly AsyncLock _stateAsyncLock = new AsyncLock();
@@ -45,6 +45,9 @@ namespace SharpMTProto.Transport
         private int _tempLengthBufferFill;
         private int _packetNumber;
         private bool _isDisposed;
+        private readonly IPEndPoint _remoteEndPoint;
+
+        private readonly bool _isOnServerSide;
 
         public TcpClientTransport(TcpClientTransportConfig config)
         {
@@ -59,13 +62,29 @@ namespace SharpMTProto.Transport
                 throw new ArgumentException(string.Format("IP address [{0}] is incorrect.", config.IPAddress));
             }
 
-            _port = config.Port;
-            _ipAddress = ipAddress;
+            _remoteEndPoint = new IPEndPoint(ipAddress, config.Port);
             _connectTimeout = config.ConnectTimeout;
 
             _readerBuffer = new byte[config.MaxBufferSize];
 
-            _socket = new Socket(_ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        }
+
+        public TcpClientTransport([NotNull] Socket socket, bool isOnServerSide = true)
+        {
+            if (socket == null)
+            {
+                throw new ArgumentNullException("socket");
+            }
+
+            _isOnServerSide = isOnServerSide;
+            _socket = socket;
+            _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
+            _readerBuffer = new byte[_socket.ReceiveBufferSize];
+            if (_socket.IsConnected())
+            {
+                _state = ClientTransportState.Connected;
+            }
         }
 
         public IDisposable Subscribe(IObserver<byte[]> observer)
@@ -86,17 +105,20 @@ namespace SharpMTProto.Transport
 
         public void Connect()
         {
+            ThrowIfDisposed();
+            ThrowIfOnServerSide();
             ConnectAsync().Wait();
         }
 
-        public async Task ConnectAsync()
+        public Task ConnectAsync()
         {
-            await ConnectAsync(CancellationToken.None);
+            return ConnectAsync(CancellationToken.None);
         }
 
         public async Task ConnectAsync(CancellationToken token)
         {
             ThrowIfDisposed();
+            ThrowIfOnServerSide();
             using (await _stateAsyncLock.LockAsync(token))
             {
                 if (State == ClientTransportState.Connected)
@@ -104,7 +126,7 @@ namespace SharpMTProto.Transport
                     return;
                 }
 
-                var args = new SocketAsyncEventArgs {RemoteEndPoint = new IPEndPoint(_ipAddress, _port)};
+                var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
                 
                 var awaitable = new SocketAwaitable(args);
 
@@ -330,6 +352,14 @@ namespace SharpMTProto.Transport
         private async Task ProcessReceivedPacket(TcpTransportPacket packet)
         {
             await Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
+        }
+
+        private void ThrowIfOnServerSide()
+        {
+            if (_isOnServerSide)
+            {
+                throw new NotSupportedException("Not supported in server client mode.");
+            }
         }
 
         #region Disposing
