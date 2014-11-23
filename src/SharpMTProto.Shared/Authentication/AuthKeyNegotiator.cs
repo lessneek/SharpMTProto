@@ -51,7 +51,7 @@ namespace SharpMTProto.Authentication
         private const int AuthRetryCount = 5;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private readonly IClientTransportConfig _clientTransportConfig;
-        private readonly IMTProtoBuilder _mtProtoBuilder;
+        private readonly IMTProtoClientBuilder _mtProtoBuilder;
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
         private readonly IKeyChain _keyChain;
@@ -60,7 +60,7 @@ namespace SharpMTProto.Authentication
         
         public AuthKeyNegotiator(
             [NotNull] IClientTransportConfig clientTransportConfig,
-            [NotNull] IMTProtoBuilder mtProtoBuilder,
+            [NotNull] IMTProtoClientBuilder mtProtoBuilder,
             [NotNull] TLRig tlRig,
             [NotNull] INonceGenerator nonceGenerator,
             [NotNull] IHashServices hashServices,
@@ -96,7 +96,7 @@ namespace SharpMTProto.Authentication
 
         public async Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken)
         {
-            IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_clientTransportConfig);
+            IMTProtoClientConnection connection = _mtProtoBuilder.BuildConnection(_clientTransportConfig);
             var methods = connection.Methods;
 
             try

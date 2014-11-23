@@ -23,7 +23,7 @@ namespace SharpMTProto.Tests
 {
     [TestFixture]
     [Category("Core")]
-    public class MTProtoConnectionFacts
+    public class MTProtoClientConnectionFacts
     {
         [SetUp]
         public void SetUp()
@@ -53,7 +53,7 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 connection.Configure(config);
                 await connection.Connect();
@@ -87,7 +87,7 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 connection.Configure(config);
                 await connection.Connect();
@@ -114,7 +114,7 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 await connection.Connect();
 
@@ -139,7 +139,7 @@ namespace SharpMTProto.Tests
             var testAction = new Func<Task>(
                 async () =>
                 {
-                    using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+                    using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
                     {
                         await connection.Connect();
                         await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
@@ -158,7 +158,7 @@ namespace SharpMTProto.Tests
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 connection.DefaultConnectTimeout = TimeSpan.FromMilliseconds(100);
                 MTProtoConnectResult result = await connection.Connect();

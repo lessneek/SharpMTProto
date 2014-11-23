@@ -47,8 +47,8 @@ namespace SharpMTProto.Tests.Authentication
             serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
             serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
             serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
-            serviceLocator.RegisterType<IMTProtoBuilder, MTProtoBuilder>();
+            serviceLocator.RegisterType<IMTProtoClientConnection, MTProtoClientConnection>(RegistrationType.Transient);
+            serviceLocator.RegisterType<IMTProtoClientBuilder, MTProtoClientBuilder>();
             serviceLocator.RegisterType<IKeyChain, KeyChain>();
 
             // Mock transport.
@@ -108,7 +108,7 @@ namespace SharpMTProto.Tests.Authentication
             var keyChain = serviceLocator.ResolveType<IKeyChain>();
             keyChain.AddKeys(TestData.TestPublicKeys);
 
-            var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoBuilder>();
+            var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
             IAuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<IClientTransportConfig>());
 
             AuthInfo authInfo = await authKeyNegotiator.CreateAuthKey();

@@ -113,7 +113,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="MTProtoBuilder.cs" />
+    <Compile Include="MTProtoClientBuilder.cs" />
   </ItemGroup>
   <Import Project="..\SharpMTProto.Shared\SharpMTProto.Shared.projitems" Label="Shared" Condition="Exists('..\SharpMTProto.Shared\SharpMTProto.Shared.projitems')" />
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />

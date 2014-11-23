@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="TcpTransportFacts.cs">
+// <copyright file="TcpClientTransportFacts.cs">
 //   Copyright (c) 2013 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace SharpMTProto.Tests.Transport
 {
     [TestFixture]
     [Category("Transport")]
-    public class TcpTransportFacts
+    public class TcpClientTransportFacts
     {
         [SetUp]
         public void SetUp()

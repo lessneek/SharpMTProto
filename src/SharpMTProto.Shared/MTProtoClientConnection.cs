@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MTProtoConnection.cs">
+// <copyright file="MTProtoClientConnection.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -28,6 +28,8 @@ using AsyncLock = Nito.AsyncEx.AsyncLock;
 
 namespace SharpMTProto
 {
+    // ReSharper disable ClassWithVirtualMembersNeverInherited.Global
+
     /// <summary>
     ///     MTProto connection state.
     /// </summary>
@@ -51,7 +53,7 @@ namespace SharpMTProto
     /// <summary>
     ///     MTProto connection.
     /// </summary>
-    public class MTProtoConnection : IMTProtoConnection
+    public class MTProtoClientConnection : IMTProtoClientConnection
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
@@ -76,7 +78,7 @@ namespace SharpMTProto
         private readonly MTProtoAsyncMethods _methods;
 
 
-        public MTProtoConnection(
+        public MTProtoClientConnection(
             [NotNull] IClientTransportConfig clientTransportConfig,
             [NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,

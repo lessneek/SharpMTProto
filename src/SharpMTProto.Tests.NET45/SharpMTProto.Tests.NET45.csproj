@@ -119,7 +119,7 @@
     <Compile Include="Authentication\KeyChainFacts.cs" />
     <Compile Include="MTProtoConnectionFacts.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Transport\TcpTransportFacts.cs" />
+    <Compile Include="Transport\TcpClientTransportFacts.cs" />
     <Compile Include="TestData.cs" />
     <Compile Include="TestObjects\TestSchema.cs" />
     <Compile Include="Messaging\MessageCodecFacts.cs" />

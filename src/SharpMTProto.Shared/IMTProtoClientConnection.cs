@@ -1,5 +1,5 @@
 // --------------------------------------------------------------------------------------------------------------------
-// <copyright file="IMTProtoConnection.cs">
+// <copyright file="IMTProtoClientConnection.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ namespace SharpMTProto
     /// <summary>
     ///     Interface of MTProto connection.
     /// </summary>
-    public interface IMTProtoConnection : IDisposable, IRemoteProcedureCaller
+    public interface IMTProtoClientConnection : IDisposable, IRemoteProcedureCaller
     {
         /// <summary>
         ///     A state.

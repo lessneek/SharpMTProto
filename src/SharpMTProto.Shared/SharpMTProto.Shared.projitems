@@ -19,7 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Defaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)IMTProtoConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)IMTProtoClientConnection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IRemoteProcedureCaller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\BadMsgNotificationHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\FirstRequestResponseHandler.cs" />
@@ -36,8 +36,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\RequestsManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Sender.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MTProtoConnection.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MTProtoBuilder.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientConnection.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.Ex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.cs" />
