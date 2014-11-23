@@ -335,10 +335,11 @@ namespace SharpMTProto.Transport
         #region Disposing
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             Dispose(true);
         }
 
-        protected void Dispose(bool isDisposing)
+        protected virtual void Dispose(bool isDisposing)
         {
             if (_isDisposed)
             {
