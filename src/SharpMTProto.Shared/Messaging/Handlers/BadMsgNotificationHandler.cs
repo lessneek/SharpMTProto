@@ -15,10 +15,10 @@ namespace SharpMTProto.Messaging.Handlers
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
-        private readonly IMTProtoConnection _connection;
+        private readonly IMTProtoClientConnection _connection;
         private readonly IRequestsManager _requestsManager;
 
-        public BadMsgNotificationHandler(IMTProtoConnection connection, IRequestsManager requestsManager)
+        public BadMsgNotificationHandler(IMTProtoClientConnection connection, IRequestsManager requestsManager)
         {
             _connection = connection;
             _requestsManager = requestsManager;

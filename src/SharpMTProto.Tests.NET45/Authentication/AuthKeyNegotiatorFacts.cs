@@ -39,7 +39,7 @@ namespace SharpMTProto.Tests.Authentication
         {
             IServiceLocator serviceLocator = ServiceLocator.Default;
 
-            serviceLocator.RegisterInstance(Mock.Of<ITransportConfig>());
+            serviceLocator.RegisterInstance(Mock.Of<IClientTransportConfig>());
             serviceLocator.RegisterInstance(TLRig.Default);
             serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
             serviceLocator.RegisterInstance<INonceGenerator>(new TestNonceGenerator());
@@ -47,14 +47,14 @@ namespace SharpMTProto.Tests.Authentication
             serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
             serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
             serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
-            serviceLocator.RegisterType<IMTProtoBuilder, MTProtoBuilder>();
+            serviceLocator.RegisterType<IMTProtoClientConnection, MTProtoClientConnection>(RegistrationType.Transient);
+            serviceLocator.RegisterType<IMTProtoClientBuilder, MTProtoClientBuilder>();
             serviceLocator.RegisterType<IKeyChain, KeyChain>();
 
             // Mock transport.
             {
                 var inTransport = new Subject<byte[]>();
-                var mockTransport = new Mock<ITransport>();
+                var mockTransport = new Mock<IClientTransport>();
                 mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>()))
                     .Callback<IObserver<byte[]>>(observer => inTransport.Subscribe(observer));
 
@@ -72,8 +72,8 @@ namespace SharpMTProto.Tests.Authentication
                     .Callback(() => inTransport.OnNext(TestData.DhGenOk))
                     .Returns(() => TaskConstants.Completed);
 
-                var mockTransportFactory = new Mock<ITransportFactory>();
-                mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<ITransportConfig>()))
+                var mockTransportFactory = new Mock<IClientTransportFactory>();
+                mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()))
                     .Returns(mockTransport.Object);
 
                 serviceLocator.RegisterInstance(mockTransportFactory.Object);
@@ -108,8 +108,8 @@ namespace SharpMTProto.Tests.Authentication
             var keyChain = serviceLocator.ResolveType<IKeyChain>();
             keyChain.AddKeys(TestData.TestPublicKeys);
 
-            var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoBuilder>();
-            IAuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<ITransportConfig>());
+            var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
+            IAuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<IClientTransportConfig>());
 
             AuthInfo authInfo = await authKeyNegotiator.CreateAuthKey();
 

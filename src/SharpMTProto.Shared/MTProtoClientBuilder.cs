@@ -1,5 +1,5 @@
 // --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MTProtoBuilder.cs">
+// <copyright file="MTProtoClientBuilder.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -15,18 +15,18 @@ using SharpTL;
 
 namespace SharpMTProto
 {
-    public interface IMTProtoBuilder
+    public interface IMTProtoClientBuilder
     {
         [NotNull]
-        IMTProtoConnection BuildConnection([NotNull] ITransportConfig transportConfig);
+        IMTProtoClientConnection BuildConnection([NotNull] IClientTransportConfig clientTransportConfig);
 
         [NotNull]
-        IAuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] ITransportConfig transportConfig);
+        IAuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] IClientTransportConfig clientTransportConfig);
     }
 
-    public partial class MTProtoBuilder : IMTProtoBuilder
+    public partial class MTProtoClientBuilder : IMTProtoClientBuilder
     {
-        public static readonly IMTProtoBuilder Default;
+        public static readonly IMTProtoClientBuilder Default;
 
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
@@ -35,15 +35,15 @@ namespace SharpMTProto
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
-        private readonly ITransportFactory _transportFactory;
+        private readonly IClientTransportFactory _clientTransportFactory;
 
-        static MTProtoBuilder()
+        static MTProtoClientBuilder()
         {
             Default = CreateDefault();
         }
 
-        public MTProtoBuilder(
-            [NotNull] ITransportFactory transportFactory,
+        public MTProtoClientBuilder(
+            [NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec,
@@ -52,7 +52,7 @@ namespace SharpMTProto
             [NotNull] INonceGenerator nonceGenerator,
             [NotNull] IKeyChain keyChain)
         {
-            _transportFactory = transportFactory;
+            _clientTransportFactory = clientTransportFactory;
             _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
@@ -62,14 +62,14 @@ namespace SharpMTProto
             _keyChain = keyChain;
         }
 
-        IMTProtoConnection IMTProtoBuilder.BuildConnection(ITransportConfig transportConfig)
+        IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
-            return new MTProtoConnection(transportConfig, _transportFactory, _tlRig, _messageIdGenerator, _messageCodec);
+            return new MTProtoClientConnection(clientTransportConfig, _clientTransportFactory, _tlRig, _messageIdGenerator, _messageCodec);
         }
 
-        IAuthKeyNegotiator IMTProtoBuilder.BuildAuthKeyNegotiator(ITransportConfig transportConfig)
+        IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)
         {
-            return new AuthKeyNegotiator(transportConfig,
+            return new AuthKeyNegotiator(clientTransportConfig,
                 this,
                 _tlRig,
                 _nonceGenerator,
@@ -79,15 +79,15 @@ namespace SharpMTProto
         }
 
         [NotNull]
-        public static IMTProtoConnection BuildConnection([NotNull] ITransportConfig transportConfig)
+        public static IMTProtoClientConnection BuildConnection([NotNull] IClientTransportConfig clientTransportConfig)
         {
-            return Default.BuildConnection(transportConfig);
+            return Default.BuildConnection(clientTransportConfig);
         }
 
         [NotNull]
-        public static IAuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] ITransportConfig transportConfig)
+        public static IAuthKeyNegotiator BuildAuthKeyNegotiator([NotNull] IClientTransportConfig clientTransportConfig)
         {
-            return Default.BuildAuthKeyNegotiator(transportConfig);
+            return Default.BuildAuthKeyNegotiator(clientTransportConfig);
         }
     }
 }

@@ -1,0 +1,24 @@
+install:
+  - ps: cinst psake
+  - ps: cinst gitversion.portable
+
+build_script:
+  - ps: .\build\Build-Release.ps1
+
+artifacts:
+  - path: build\output\**\*.nupkg
+    name: nupkgfiles
+
+deploy:
+  provider: NuGet
+  api_key:
+    secure: EFJXeRErZk8PLB8qSBBkbREGPbWBvYUxgEQckhGWVZdpAGoKMfK0p7GILNZJjco+
+  skip_symbols: false
+  artifact: nupkgfiles
+
+notifications:
+  # HipChat
+  - provider: HipChat
+    auth_token:
+      secure: S+LbPARjTSUlyBCDqxn0RVX3f60V3OHtjWRwPXBnzGLHYHmoTpW4k0yFZ609YCnt
+    room: Taggersoft

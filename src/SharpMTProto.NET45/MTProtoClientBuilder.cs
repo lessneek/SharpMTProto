@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MTProtoBuilder.cs">
+// <copyright file="MTProtoClientBuilder.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -13,12 +13,12 @@ using SharpTL;
 
 namespace SharpMTProto
 {
-    public partial class MTProtoBuilder
+    public partial class MTProtoClientBuilder
     {
         [NotNull]
-        private static MTProtoBuilder CreateDefault()
+        private static MTProtoClientBuilder CreateDefault()
         {
-            var transportFactory = new TransportFactory();
+            var clientTransportFactory = new ClientTransportFactory();
             var tlRig = new TLRig();
             var messageIdGenerator = new MessageIdGenerator();
             var hashServices = new HashServices();
@@ -28,7 +28,7 @@ namespace SharpMTProto
             var keyChain = new KeyChain(tlRig, hashServices);
             var nonceGenerator = new NonceGenerator();
 
-            return new MTProtoBuilder(transportFactory,
+            return new MTProtoClientBuilder(clientTransportFactory,
                 tlRig,
                 messageIdGenerator,
                 messageCodec,

@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="TcpTransport.cs">
+// <copyright file="TcpClientTransport.cs">
 //   Copyright (c) 2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -19,16 +19,16 @@ using SharpTL;
 
 namespace SharpMTProto.Transport
 {
+    using Annotations;
+
     /// <summary>
-    ///     MTProto TCP transport.
+    ///     MTProto TCP clientTransport.
     /// </summary>
-    public class TcpTransport : ITransport
+    public class TcpClientTransport : IClientTransport
     {
         private const int PacketLengthBytesCount = 4;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private readonly TimeSpan _connectTimeout;
-        private readonly IPAddress _ipAddress;
-        private readonly int _port;
         private readonly byte[] _readerBuffer;
 
         private readonly AsyncLock _stateAsyncLock = new AsyncLock();
@@ -41,31 +41,50 @@ namespace SharpMTProto.Transport
         private TLStreamer _nextPacketStreamer;
         private Task _receiverTask;
         private Socket _socket;
-        private volatile TransportState _state = TransportState.Disconnected;
+        private volatile ClientTransportState _state = ClientTransportState.Disconnected;
         private int _tempLengthBufferFill;
         private int _packetNumber;
         private bool _isDisposed;
+        private readonly IPEndPoint _remoteEndPoint;
 
-        public TcpTransport(TcpTransportConfig config)
+        private readonly bool _isOnServerSide;
+
+        public TcpClientTransport(TcpClientTransportConfig config)
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
             {
-                throw new ArgumentException("Port is incorrect.");
+                throw new ArgumentException(string.Format("Port {0} is incorrect.", config.Port));
             }
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
             {
-                throw new ArgumentException("IP address is incorrect.");
+                throw new ArgumentException(string.Format("IP address [{0}] is incorrect.", config.IPAddress));
             }
 
-            _port = config.Port;
-            _ipAddress = ipAddress;
+            _remoteEndPoint = new IPEndPoint(ipAddress, config.Port);
             _connectTimeout = config.ConnectTimeout;
 
             _readerBuffer = new byte[config.MaxBufferSize];
 
-            _socket = new Socket(_ipAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+        }
+
+        public TcpClientTransport([NotNull] Socket socket, bool isOnServerSide = true)
+        {
+            if (socket == null)
+            {
+                throw new ArgumentNullException("socket");
+            }
+
+            _isOnServerSide = isOnServerSide;
+            _socket = socket;
+            _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
+            _readerBuffer = new byte[_socket.ReceiveBufferSize];
+            if (_socket.IsConnected())
+            {
+                _state = ClientTransportState.Connected;
+            }
         }
 
         public IDisposable Subscribe(IObserver<byte[]> observer)
@@ -76,35 +95,38 @@ namespace SharpMTProto.Transport
 
         public bool IsConnected
         {
-            get { return State == TransportState.Connected; }
+            get { return State == ClientTransportState.Connected; }
         }
 
-        public TransportState State
+        public ClientTransportState State
         {
             get { return _state; }
         }
 
         public void Connect()
         {
+            ThrowIfDisposed();
+            ThrowIfOnServerSide();
             ConnectAsync().Wait();
         }
 
-        public async Task ConnectAsync()
+        public Task ConnectAsync()
         {
-            await ConnectAsync(CancellationToken.None);
+            return ConnectAsync(CancellationToken.None);
         }
 
         public async Task ConnectAsync(CancellationToken token)
         {
             ThrowIfDisposed();
+            ThrowIfOnServerSide();
             using (await _stateAsyncLock.LockAsync(token))
             {
-                if (State == TransportState.Connected)
+                if (State == ClientTransportState.Connected)
                 {
                     return;
                 }
 
-                var args = new SocketAsyncEventArgs {RemoteEndPoint = new IPEndPoint(_ipAddress, _port)};
+                var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
                 
                 var awaitable = new SocketAwaitable(args);
 
@@ -120,7 +142,7 @@ namespace SharpMTProto.Transport
                 catch (Exception e)
                 {
                     Log.Error(e);
-                    _state = TransportState.Disconnected;
+                    _state = ClientTransportState.Disconnected;
                     throw;
                 }
 
@@ -128,13 +150,13 @@ namespace SharpMTProto.Transport
                 {
                     case SocketError.Success:
                     case SocketError.IsConnected:
-                        _state = TransportState.Connected;
+                        _state = ClientTransportState.Connected;
                         break;
                     default:
-                        _state = TransportState.Disconnected;
+                        _state = ClientTransportState.Disconnected;
                         break;
                 }
-                if (_state != TransportState.Connected)
+                if (_state != ClientTransportState.Connected)
                 {
                     return;
                 }
@@ -158,7 +180,7 @@ namespace SharpMTProto.Transport
             ThrowIfDisposed();
             using (await _stateAsyncLock.LockAsync(token))
             {
-                if (_state == TransportState.Disconnected)
+                if (_state == ClientTransportState.Disconnected)
                 {
                     return;
                 }
@@ -177,7 +199,7 @@ namespace SharpMTProto.Transport
                     Log.Debug(e);
                 }
 
-                _state = TransportState.Disconnected;
+                _state = ClientTransportState.Disconnected;
             }
         }
 
@@ -220,7 +242,7 @@ namespace SharpMTProto.Transport
                     {
                         if (_socket.Available == 0)
                         {
-                            await Task.Delay(100, token);
+                            await Task.Delay(1, token);
                             continue;
                         }
                         await _socket.ReceiveAsync(awaitable);
@@ -332,13 +354,22 @@ namespace SharpMTProto.Transport
             await Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
         }
 
+        private void ThrowIfOnServerSide()
+        {
+            if (_isOnServerSide)
+            {
+                throw new NotSupportedException("Not supported in server client mode.");
+            }
+        }
+
         #region Disposing
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
             Dispose(true);
         }
 
-        protected void Dispose(bool isDisposing)
+        protected virtual void Dispose(bool isDisposing)
         {
             if (_isDisposed)
             {

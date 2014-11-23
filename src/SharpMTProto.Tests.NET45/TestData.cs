@@ -160,8 +160,8 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
             serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
             serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
-            serviceLocator.RegisterType<IMTProtoConnection, MTProtoConnection>(RegistrationType.Transient);
-            serviceLocator.RegisterInstance(Mock.Of<ITransportFactory>(factory => factory.CreateTransport(It.IsAny<ITransportConfig>()) == Mock.Of<ITransport>()));
+            serviceLocator.RegisterType<IMTProtoClientConnection, MTProtoClientConnection>(RegistrationType.Transient);
+            serviceLocator.RegisterInstance(Mock.Of<IClientTransportFactory>(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IClientTransport>()));
 
             return serviceLocator;
         }

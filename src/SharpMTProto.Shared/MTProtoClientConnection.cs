@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MTProtoConnection.cs">
+// <copyright file="MTProtoClientConnection.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -17,7 +17,6 @@ using BigMath.Utils;
 using Catel;
 using Catel.Collections;
 using Catel.Logging;
-using Catel.Reflection;
 using SharpMTProto.Annotations;
 using SharpMTProto.Messaging;
 using SharpMTProto.Messaging.Handlers;
@@ -29,6 +28,8 @@ using AsyncLock = Nito.AsyncEx.AsyncLock;
 
 namespace SharpMTProto
 {
+    // ReSharper disable ClassWithVirtualMembersNeverInherited.Global
+
     /// <summary>
     ///     MTProto connection state.
     /// </summary>
@@ -52,7 +53,7 @@ namespace SharpMTProto
     /// <summary>
     ///     MTProto connection.
     /// </summary>
-    public class MTProtoConnection : IMTProtoConnection
+    public class MTProtoClientConnection : IMTProtoClientConnection
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
@@ -64,7 +65,7 @@ namespace SharpMTProto
         private readonly RequestsManager _requestsManager = new RequestsManager();
         private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
 
-        private readonly ITransport _transport;
+        private readonly IClientTransport _clientTransport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private CancellationToken _connectionCancellationToken;
         private CancellationTokenSource _connectionCts;
@@ -77,15 +78,15 @@ namespace SharpMTProto
         private readonly MTProtoAsyncMethods _methods;
 
 
-        public MTProtoConnection(
-            [NotNull] ITransportConfig transportConfig,
-            [NotNull] ITransportFactory transportFactory,
+        public MTProtoClientConnection(
+            [NotNull] IClientTransportConfig clientTransportConfig,
+            [NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec)
         {
-            Argument.IsNotNull(() => transportConfig);
-            Argument.IsNotNull(() => transportFactory);
+            Argument.IsNotNull(() => clientTransportConfig);
+            Argument.IsNotNull(() => clientTransportFactory);
             Argument.IsNotNull(() => tlRig);
             Argument.IsNotNull(() => messageIdGenerator);
             Argument.IsNotNull(() => messageCodec);
@@ -102,10 +103,10 @@ namespace SharpMTProto
             InitResponseDispatcher(_responseDispatcher);
 
             // Init transport.
-            _transport = transportFactory.CreateTransport(transportConfig);
+            _clientTransport = clientTransportFactory.CreateTransport(clientTransportConfig);
 
             // Connector in/out.
-            _transport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
+            _clientTransport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
         }
 
         public TimeSpan DefaultRpcTimeout { get; set; }
@@ -163,7 +164,7 @@ namespace SharpMTProto
                             Log.Debug("Connecting...");
 
                             await
-                                _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
+                                _clientTransport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
 
                             _connectionCts = new CancellationTokenSource();
                             _connectionCancellationToken = _connectionCts.Token;
@@ -225,7 +226,7 @@ namespace SharpMTProto
                             _connectionCts = null;
                         }
 
-                        await _transport.DisconnectAsync(CancellationToken.None);
+                        await _clientTransport.DisconnectAsync();
                     }
                 },
                 CancellationToken.None);
@@ -375,7 +376,7 @@ namespace SharpMTProto
         {
             ThrowIfDiconnected();
             LogMessageInOut(data, "OUT");
-            return _transport.SendAsync(data, cancellationToken);
+            return _clientTransport.SendAsync(data, cancellationToken);
         }
 
         /// <summary>
@@ -566,7 +567,7 @@ namespace SharpMTProto
             if (isDisposing)
             {
                 Disconnect().Wait(5000);
-                _transport.Dispose();
+                _clientTransport.Dispose();
             }
         }
         #endregion

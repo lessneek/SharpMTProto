@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="TransportFactory.cs">
+// <copyright file="IClientTransportFactory.cs">
 //   Copyright (c) 2013 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -7,15 +7,15 @@
 namespace SharpMTProto.Transport
 {
     /// <summary>
-    ///     Interface for a transport factory. Allows to create new transports.
+    ///     Interface for a client transport factory. Allows to create new client transports.
     /// </summary>
-    public interface ITransportFactory
+    public interface IClientTransportFactory
     {
         /// <summary>
-        ///     Creates a new TCP transport.
+        ///     Creates a new client TCP transport.
         /// </summary>
-        /// <param name="transportConfig">Transport info.</param>
-        /// <returns>TCP transport.</returns>
-        ITransport CreateTransport(ITransportConfig transportConfig);
+        /// <param name="clientTransportConfig">Transport info.</param>
+        /// <returns>Cllient TCP transport.</returns>
+        IClientTransport CreateTransport(IClientTransportConfig clientTransportConfig);
     }
 }

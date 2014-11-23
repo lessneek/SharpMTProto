@@ -23,7 +23,7 @@ namespace SharpMTProto.Tests
 {
     [TestFixture]
     [Category("Core")]
-    public class MTProtoConnectionFacts
+    public class MTProtoClientConnectionFacts
     {
         [SetUp]
         public void SetUp()
@@ -53,7 +53,7 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 connection.Configure(config);
                 await connection.Connect();
@@ -87,7 +87,7 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 connection.Configure(config);
                 await connection.Connect();
@@ -114,7 +114,7 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 await connection.Connect();
 
@@ -132,14 +132,14 @@ namespace SharpMTProto.Tests
         {
             IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
-            var mockTransport = new Mock<ITransport>();
+            var mockTransport = new Mock<IClientTransport>();
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
 
             var testAction = new Func<Task>(
                 async () =>
                 {
-                    using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+                    using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
                     {
                         await connection.Connect();
                         await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
@@ -153,12 +153,12 @@ namespace SharpMTProto.Tests
         {
             IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
-            var mockTransport = new Mock<ITransport>();
+            var mockTransport = new Mock<IClientTransport>();
             mockTransport.Setup(transport => transport.ConnectAsync(It.IsAny<CancellationToken>())).Returns(() => Task.Delay(1000));
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoConnection>())
+            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
             {
                 connection.DefaultConnectTimeout = TimeSpan.FromMilliseconds(100);
                 MTProtoConnectResult result = await connection.Connect();
@@ -169,7 +169,7 @@ namespace SharpMTProto.Tests
         private static void SetupMockTransportWhichReturnsBytes(IServiceLocator serviceLocator, byte[] expectedResponseMessageBytes)
         {
             var inConnector = new Subject<byte[]>();
-            var mockTransport = new Mock<ITransport>();
+            var mockTransport = new Mock<IClientTransport>();
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
             mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                 .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
@@ -178,10 +178,10 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
         }
 
-        private static ITransportFactory CreateMockTransportFactory(ITransport transport)
+        private static IClientTransportFactory CreateMockTransportFactory(IClientTransport clientTransport)
         {
-            var mockTransportFactory = new Mock<ITransportFactory>();
-            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<ITransportConfig>())).Returns(() => transport);
+            var mockTransportFactory = new Mock<IClientTransportFactory>();
+            mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<IClientTransportConfig>())).Returns(() => clientTransport);
             return mockTransportFactory.Object;
         }
     }

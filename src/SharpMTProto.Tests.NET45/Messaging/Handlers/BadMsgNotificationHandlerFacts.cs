@@ -31,7 +31,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
                 2,
                 new BadServerSalt {BadMsgId = reqMsg.MsgId, BadMsgSeqno = reqMsg.Seqno, ErrorCode = (uint) ErrorCode.IncorrectServerSalt, NewServerSalt = newSalt});
 
-            var connection = new Mock<IMTProtoConnection>();
+            var connection = new Mock<IMTProtoClientConnection>();
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 

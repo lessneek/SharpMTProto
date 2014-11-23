@@ -8,9 +8,9 @@ using System;
 
 namespace SharpMTProto.Transport
 {
-    public class TcpTransportConfig : ITransportConfig
+    public class TcpClientTransportConfig : IClientTransportConfig
     {
-        public TcpTransportConfig(string ipAddress, int port)
+        public TcpClientTransportConfig(string ipAddress, int port)
         {
             IPAddress = ipAddress;
             Port = port;
