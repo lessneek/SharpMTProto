@@ -52,7 +52,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Services\RandomGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportConfig.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransportFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpClientTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportPacket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />

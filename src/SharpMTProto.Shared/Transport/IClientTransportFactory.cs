@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ClientTransportFactory.cs">
+// <copyright file="IClientTransportFactory.cs">
 //   Copyright (c) 2013 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
