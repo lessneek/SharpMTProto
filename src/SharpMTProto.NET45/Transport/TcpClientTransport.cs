@@ -399,7 +399,7 @@ namespace SharpMTProto.Transport
                 }
                 else
                 {
-                    Log.Warning("Receiver task did not completed on tranpost disposing.");
+                    Log.Warning("Receiver task did not completed on transport disposing.");
                 }
                 _receiverTask = null;
             }
