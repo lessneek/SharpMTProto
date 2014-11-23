@@ -10,6 +10,16 @@ namespace SharpMTProto.Utils
 {
     public static class SocketExtensions
     {
+        public static SocketAwaitable AcceptAsync(this Socket socket, SocketAwaitable awaitable)
+        {
+            awaitable.Reset();
+            if (!socket.AcceptAsync(awaitable.EventArgs))
+            {
+                awaitable.IsCompleted = true;
+            }
+            return awaitable;
+        }
+
         public static SocketAwaitable ConnectAsync(this Socket socket, SocketAwaitable awaitable)
         {
             awaitable.Reset();
