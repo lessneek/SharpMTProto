@@ -389,7 +389,18 @@ namespace SharpMTProto.Transport
             }
             if (_receiverTask != null)
             {
-                _receiverTask.Dispose();
+                if (!_receiverTask.IsCompleted)
+                {
+                    _receiverTask.Wait(1000);
+                }
+                if (_receiverTask.IsCompleted)
+                {
+                    _receiverTask.Dispose();
+                }
+                else
+                {
+                    Log.Warning("Receiver task did not completed on tranpost disposing.");
+                }
                 _receiverTask = null;
             }
             if (_nextPacketStreamer != null)
@@ -399,6 +410,7 @@ namespace SharpMTProto.Transport
             }
             if (_in != null)
             {
+                _in.OnCompleted();
                 _in.Dispose();
                 _in = null;
             }
