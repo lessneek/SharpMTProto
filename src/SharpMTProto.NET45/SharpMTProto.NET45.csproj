@@ -97,7 +97,7 @@
     <Compile Include="Services\EncryptionServices.cs" />
     <Compile Include="Services\HashServices.cs" />
     <Compile Include="Transport\TcpClientTransport.cs" />
-    <Compile Include="Transport\TransportFactory.cs" />
+    <Compile Include="Transport\ClientTransportFactory.cs" />
     <Compile Include="Utils\SocketAwaitable.cs" />
     <Compile Include="Utils\SocketExtensions.cs" />
   </ItemGroup>

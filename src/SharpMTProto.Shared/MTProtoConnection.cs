@@ -78,13 +78,13 @@ namespace SharpMTProto
 
         public MTProtoConnection(
             [NotNull] IClientTransportConfig clientTransportConfig,
-            [NotNull] ITransportFactory transportFactory,
+            [NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec)
         {
             Argument.IsNotNull(() => clientTransportConfig);
-            Argument.IsNotNull(() => transportFactory);
+            Argument.IsNotNull(() => clientTransportFactory);
             Argument.IsNotNull(() => tlRig);
             Argument.IsNotNull(() => messageIdGenerator);
             Argument.IsNotNull(() => messageCodec);
@@ -101,7 +101,7 @@ namespace SharpMTProto
             InitResponseDispatcher(_responseDispatcher);
 
             // Init transport.
-            _clientTransport = transportFactory.CreateTransport(clientTransportConfig);
+            _clientTransport = clientTransportFactory.CreateTransport(clientTransportConfig);
 
             // Connector in/out.
             _clientTransport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);

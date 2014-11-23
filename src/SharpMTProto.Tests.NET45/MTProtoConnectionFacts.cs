@@ -178,9 +178,9 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
         }
 
-        private static ITransportFactory CreateMockTransportFactory(IClientTransport clientTransport)
+        private static IClientTransportFactory CreateMockTransportFactory(IClientTransport clientTransport)
         {
-            var mockTransportFactory = new Mock<ITransportFactory>();
+            var mockTransportFactory = new Mock<IClientTransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<IClientTransportConfig>())).Returns(() => clientTransport);
             return mockTransportFactory.Object;
         }

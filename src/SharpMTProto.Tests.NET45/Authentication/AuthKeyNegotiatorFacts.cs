@@ -72,7 +72,7 @@ namespace SharpMTProto.Tests.Authentication
                     .Callback(() => inTransport.OnNext(TestData.DhGenOk))
                     .Returns(() => TaskConstants.Completed);
 
-                var mockTransportFactory = new Mock<ITransportFactory>();
+                var mockTransportFactory = new Mock<IClientTransportFactory>();
                 mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()))
                     .Returns(mockTransport.Object);
 

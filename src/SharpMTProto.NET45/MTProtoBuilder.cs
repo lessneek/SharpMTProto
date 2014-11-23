@@ -18,7 +18,7 @@ namespace SharpMTProto
         [NotNull]
         private static MTProtoBuilder CreateDefault()
         {
-            var transportFactory = new TransportFactory();
+            var clientTransportFactory = new ClientTransportFactory();
             var tlRig = new TLRig();
             var messageIdGenerator = new MessageIdGenerator();
             var hashServices = new HashServices();
@@ -28,7 +28,7 @@ namespace SharpMTProto
             var keyChain = new KeyChain(tlRig, hashServices);
             var nonceGenerator = new NonceGenerator();
 
-            return new MTProtoBuilder(transportFactory,
+            return new MTProtoBuilder(clientTransportFactory,
                 tlRig,
                 messageIdGenerator,
                 messageCodec,
