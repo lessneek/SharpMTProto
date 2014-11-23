@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace SharpMTProto.Transport
 {
-    public enum TransportState
+    public enum ClientTransportState
     {
         Disconnected = 0,
         Connected = 1
@@ -19,7 +19,7 @@ namespace SharpMTProto.Transport
     public interface IClientTransport : IObservable<byte[]>, IDisposable
     {
         bool IsConnected { get; }
-        TransportState State { get; }
+        ClientTransportState State { get; }
         void Connect();
         Task ConnectAsync();
         Task ConnectAsync(CancellationToken token);

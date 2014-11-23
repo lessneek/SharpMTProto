@@ -41,7 +41,7 @@ namespace SharpMTProto.Transport
         private TLStreamer _nextPacketStreamer;
         private Task _receiverTask;
         private Socket _socket;
-        private volatile TransportState _state = TransportState.Disconnected;
+        private volatile ClientTransportState _state = ClientTransportState.Disconnected;
         private int _tempLengthBufferFill;
         private int _packetNumber;
         private bool _isDisposed;
@@ -76,10 +76,10 @@ namespace SharpMTProto.Transport
 
         public bool IsConnected
         {
-            get { return State == TransportState.Connected; }
+            get { return State == ClientTransportState.Connected; }
         }
 
-        public TransportState State
+        public ClientTransportState State
         {
             get { return _state; }
         }
@@ -99,7 +99,7 @@ namespace SharpMTProto.Transport
             ThrowIfDisposed();
             using (await _stateAsyncLock.LockAsync(token))
             {
-                if (State == TransportState.Connected)
+                if (State == ClientTransportState.Connected)
                 {
                     return;
                 }
@@ -120,7 +120,7 @@ namespace SharpMTProto.Transport
                 catch (Exception e)
                 {
                     Log.Error(e);
-                    _state = TransportState.Disconnected;
+                    _state = ClientTransportState.Disconnected;
                     throw;
                 }
 
@@ -128,13 +128,13 @@ namespace SharpMTProto.Transport
                 {
                     case SocketError.Success:
                     case SocketError.IsConnected:
-                        _state = TransportState.Connected;
+                        _state = ClientTransportState.Connected;
                         break;
                     default:
-                        _state = TransportState.Disconnected;
+                        _state = ClientTransportState.Disconnected;
                         break;
                 }
-                if (_state != TransportState.Connected)
+                if (_state != ClientTransportState.Connected)
                 {
                     return;
                 }
@@ -158,7 +158,7 @@ namespace SharpMTProto.Transport
             ThrowIfDisposed();
             using (await _stateAsyncLock.LockAsync(token))
             {
-                if (_state == TransportState.Disconnected)
+                if (_state == ClientTransportState.Disconnected)
                 {
                     return;
                 }
@@ -177,7 +177,7 @@ namespace SharpMTProto.Transport
                     Log.Debug(e);
                 }
 
-                _state = TransportState.Disconnected;
+                _state = ClientTransportState.Disconnected;
             }
         }
 
