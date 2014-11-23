@@ -44,7 +44,7 @@ namespace SharpMTProto.Transport
         private volatile ClientTransportState _state = ClientTransportState.Disconnected;
         private int _tempLengthBufferFill;
         private int _packetNumber;
-        private bool _isDisposed;
+        private volatile bool _isDisposed;
         private readonly IPEndPoint _remoteEndPoint;
 
         private readonly bool _isOnServerSide;
@@ -172,13 +172,8 @@ namespace SharpMTProto.Transport
 
         public async Task DisconnectAsync()
         {
-            await DisconnectAsync(CancellationToken.None);
-        }
-
-        public async Task DisconnectAsync(CancellationToken token)
-        {
             ThrowIfDisposed();
-            using (await _stateAsyncLock.LockAsync(token))
+            using (await _stateAsyncLock.LockAsync())
             {
                 if (_state == ClientTransportState.Disconnected)
                 {
@@ -213,10 +208,10 @@ namespace SharpMTProto.Transport
             return SendAsync(payload, CancellationToken.None);
         }
 
-        public async Task SendAsync(byte[] payload, CancellationToken token)
+        public Task SendAsync(byte[] payload, CancellationToken token)
         {
             ThrowIfDisposed();
-            await Task.Run(async () =>
+            return Task.Run(async () =>
             {
                 var packet = new TcpTransportPacket(_packetNumber++, payload);
 
@@ -225,12 +220,12 @@ namespace SharpMTProto.Transport
 
                 var awaitable = new SocketAwaitable(args);
                 await _socket.SendAsync(awaitable);
-            }, token).ConfigureAwait(false);
+            }, token);
         }
 
-        private async Task StartReceiver(CancellationToken token)
+        private Task StartReceiver(CancellationToken token)
         {
-            await Task.Run(async () =>
+            return Task.Run(async () =>
             {
                 var args = new SocketAsyncEventArgs();
                 args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
@@ -242,7 +237,7 @@ namespace SharpMTProto.Transport
                     {
                         if (_socket.Available == 0)
                         {
-                            await Task.Delay(1, token);
+                            await Task.Delay(10, token);
                             continue;
                         }
                         await _socket.ReceiveAsync(awaitable);
@@ -271,8 +266,15 @@ namespace SharpMTProto.Transport
                         break;
                     }
                 }
-                await DisconnectAsync(CancellationToken.None);
-            }, token).ConfigureAwait(false);
+                try
+                {
+                    await DisconnectAsync();
+                }
+                catch (Exception e)
+                {
+                    Log.Debug(e);
+                }
+            }, token);
         }
 
         private async Task ProcessReceivedDataAsync(ArraySegment<byte> buffer)
