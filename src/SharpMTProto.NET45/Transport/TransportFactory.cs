@@ -10,16 +10,16 @@ namespace SharpMTProto.Transport
 {
     public class TransportFactory : ITransportFactory
     {
-        public ITransport CreateTransport(ITransportConfig transportConfig)
+        public IClientTransport CreateTransport(IClientTransportConfig clientTransportConfig)
         {
             // TCP.
-            var tcpTransportConfig = transportConfig as TcpTransportConfig;
+            var tcpTransportConfig = clientTransportConfig as TcpClientTransportConfig;
             if (tcpTransportConfig != null)
             {
-                return new TcpTransport(tcpTransportConfig);
+                return new TcpClientTransport(tcpTransportConfig);
             }
 
-            throw new NotSupportedException(string.Format("Transport type '{0}' is not supported.", transportConfig.TransportName));
+            throw new NotSupportedException(string.Format("Transport type '{0}' is not supported.", clientTransportConfig.TransportName));
         }
     }
 }

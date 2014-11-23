@@ -17,7 +17,6 @@ using BigMath.Utils;
 using Catel;
 using Catel.Collections;
 using Catel.Logging;
-using Catel.Reflection;
 using SharpMTProto.Annotations;
 using SharpMTProto.Messaging;
 using SharpMTProto.Messaging.Handlers;
@@ -64,7 +63,7 @@ namespace SharpMTProto
         private readonly RequestsManager _requestsManager = new RequestsManager();
         private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
 
-        private readonly ITransport _transport;
+        private readonly IClientTransport _clientTransport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private CancellationToken _connectionCancellationToken;
         private CancellationTokenSource _connectionCts;
@@ -78,13 +77,13 @@ namespace SharpMTProto
 
 
         public MTProtoConnection(
-            [NotNull] ITransportConfig transportConfig,
+            [NotNull] IClientTransportConfig clientTransportConfig,
             [NotNull] ITransportFactory transportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec)
         {
-            Argument.IsNotNull(() => transportConfig);
+            Argument.IsNotNull(() => clientTransportConfig);
             Argument.IsNotNull(() => transportFactory);
             Argument.IsNotNull(() => tlRig);
             Argument.IsNotNull(() => messageIdGenerator);
@@ -102,10 +101,10 @@ namespace SharpMTProto
             InitResponseDispatcher(_responseDispatcher);
 
             // Init transport.
-            _transport = transportFactory.CreateTransport(transportConfig);
+            _clientTransport = transportFactory.CreateTransport(clientTransportConfig);
 
             // Connector in/out.
-            _transport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
+            _clientTransport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
         }
 
         public TimeSpan DefaultRpcTimeout { get; set; }
@@ -163,7 +162,7 @@ namespace SharpMTProto
                             Log.Debug("Connecting...");
 
                             await
-                                _transport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
+                                _clientTransport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
 
                             _connectionCts = new CancellationTokenSource();
                             _connectionCancellationToken = _connectionCts.Token;
@@ -225,7 +224,7 @@ namespace SharpMTProto
                             _connectionCts = null;
                         }
 
-                        await _transport.DisconnectAsync(CancellationToken.None);
+                        await _clientTransport.DisconnectAsync();
                     }
                 },
                 CancellationToken.None);
@@ -375,7 +374,7 @@ namespace SharpMTProto
         {
             ThrowIfDiconnected();
             LogMessageInOut(data, "OUT");
-            return _transport.SendAsync(data, cancellationToken);
+            return _clientTransport.SendAsync(data, cancellationToken);
         }
 
         /// <summary>
@@ -566,7 +565,7 @@ namespace SharpMTProto
             if (isDisposing)
             {
                 Disconnect().Wait(5000);
-                _transport.Dispose();
+                _clientTransport.Dispose();
             }
         }
         #endregion

@@ -17,14 +17,14 @@ namespace SharpMTProto.Tests
         [Test]
         public void Should_create_connection()
         {
-            IMTProtoConnection connection = MTProtoBuilder.BuildConnection(new TcpTransportConfig("127.0.0.1", 9999));
+            IMTProtoConnection connection = MTProtoBuilder.BuildConnection(new TcpClientTransportConfig("127.0.0.1", 9999));
             connection.Should().NotBeNull();
         }
         
         [Test]
         public void Should_create_auth_key_negotiator()
         {
-            var authKeyNegotiator = MTProtoBuilder.BuildAuthKeyNegotiator(new TcpTransportConfig("127.0.0.1", 9999));
+            var authKeyNegotiator = MTProtoBuilder.BuildAuthKeyNegotiator(new TcpClientTransportConfig("127.0.0.1", 9999));
             authKeyNegotiator.Should().NotBeNull();
         }
     }

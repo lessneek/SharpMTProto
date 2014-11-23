@@ -6,7 +6,7 @@
 
 namespace SharpMTProto.Transport
 {
-    public interface ITransportConfig
+    public interface IClientTransportConfig
     {
         string TransportName { get; }
     }

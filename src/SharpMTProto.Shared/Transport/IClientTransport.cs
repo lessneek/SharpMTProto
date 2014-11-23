@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ITransport.cs">
+// <copyright file="IClientTransport.cs">
 //   Copyright (c) 2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ namespace SharpMTProto.Transport
         Connected = 1
     }
 
-    public interface ITransport : IObservable<byte[]>, IDisposable
+    public interface IClientTransport : IObservable<byte[]>, IDisposable
     {
         bool IsConnected { get; }
         TransportState State { get; }
@@ -25,7 +25,6 @@ namespace SharpMTProto.Transport
         Task ConnectAsync(CancellationToken token);
         void Disconnect();
         Task DisconnectAsync();
-        Task DisconnectAsync(CancellationToken token);
         void Send(byte[] payload);
         Task SendAsync(byte[] payload);
         Task SendAsync(byte[] payload, CancellationToken token);

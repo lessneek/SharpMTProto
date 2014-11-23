@@ -50,7 +50,7 @@ namespace SharpMTProto.Authentication
         private const int HashLength = 20;
         private const int AuthRetryCount = 5;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly ITransportConfig _transportConfig;
+        private readonly IClientTransportConfig _clientTransportConfig;
         private readonly IMTProtoBuilder _mtProtoBuilder;
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
@@ -59,7 +59,7 @@ namespace SharpMTProto.Authentication
         private readonly TLRig _tlRig;
         
         public AuthKeyNegotiator(
-            [NotNull] ITransportConfig transportConfig,
+            [NotNull] IClientTransportConfig clientTransportConfig,
             [NotNull] IMTProtoBuilder mtProtoBuilder,
             [NotNull] TLRig tlRig,
             [NotNull] INonceGenerator nonceGenerator,
@@ -67,7 +67,7 @@ namespace SharpMTProto.Authentication
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] IKeyChain keyChain)
         {
-            Argument.IsNotNull(() => transportConfig);
+            Argument.IsNotNull(() => clientTransportConfig);
             Argument.IsNotNull(() => mtProtoBuilder);
             Argument.IsNotNull(() => tlRig);
             Argument.IsNotNull(() => nonceGenerator);
@@ -75,7 +75,7 @@ namespace SharpMTProto.Authentication
             Argument.IsNotNull(() => encryptionServices);
             Argument.IsNotNull(() => keyChain);
 
-            _transportConfig = transportConfig;
+            _clientTransportConfig = clientTransportConfig;
             _mtProtoBuilder = mtProtoBuilder;
             _tlRig = tlRig;
             _nonceGenerator = nonceGenerator;
@@ -96,7 +96,7 @@ namespace SharpMTProto.Authentication
 
         public async Task<AuthInfo> CreateAuthKey(CancellationToken cancellationToken)
         {
-            IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_transportConfig);
+            IMTProtoConnection connection = _mtProtoBuilder.BuildConnection(_clientTransportConfig);
             var methods = connection.Methods;
 
             try

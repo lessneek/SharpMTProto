@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="TcpTransport.cs">
+// <copyright file="TcpClientTransport.cs">
 //   Copyright (c) 2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -20,9 +20,9 @@ using SharpTL;
 namespace SharpMTProto.Transport
 {
     /// <summary>
-    ///     MTProto TCP transport.
+    ///     MTProto TCP clientTransport.
     /// </summary>
-    public class TcpTransport : ITransport
+    public class TcpClientTransport : IClientTransport
     {
         private const int PacketLengthBytesCount = 4;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
@@ -46,7 +46,7 @@ namespace SharpMTProto.Transport
         private int _packetNumber;
         private bool _isDisposed;
 
-        public TcpTransport(TcpTransportConfig config)
+        public TcpClientTransport(TcpClientTransportConfig config)
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
             {

@@ -96,7 +96,7 @@
     <Compile Include="MTProtoBuilder.cs" />
     <Compile Include="Services\EncryptionServices.cs" />
     <Compile Include="Services\HashServices.cs" />
-    <Compile Include="Transport\TcpTransport.cs" />
+    <Compile Include="Transport\TcpClientTransport.cs" />
     <Compile Include="Transport\TransportFactory.cs" />
     <Compile Include="Utils\SocketAwaitable.cs" />
     <Compile Include="Utils\SocketExtensions.cs" />

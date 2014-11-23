@@ -39,7 +39,7 @@ namespace SharpMTProto.Tests.Authentication
         {
             IServiceLocator serviceLocator = ServiceLocator.Default;
 
-            serviceLocator.RegisterInstance(Mock.Of<ITransportConfig>());
+            serviceLocator.RegisterInstance(Mock.Of<IClientTransportConfig>());
             serviceLocator.RegisterInstance(TLRig.Default);
             serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
             serviceLocator.RegisterInstance<INonceGenerator>(new TestNonceGenerator());
@@ -54,7 +54,7 @@ namespace SharpMTProto.Tests.Authentication
             // Mock transport.
             {
                 var inTransport = new Subject<byte[]>();
-                var mockTransport = new Mock<ITransport>();
+                var mockTransport = new Mock<IClientTransport>();
                 mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>()))
                     .Callback<IObserver<byte[]>>(observer => inTransport.Subscribe(observer));
 
@@ -73,7 +73,7 @@ namespace SharpMTProto.Tests.Authentication
                     .Returns(() => TaskConstants.Completed);
 
                 var mockTransportFactory = new Mock<ITransportFactory>();
-                mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<ITransportConfig>()))
+                mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()))
                     .Returns(mockTransport.Object);
 
                 serviceLocator.RegisterInstance(mockTransportFactory.Object);
@@ -109,7 +109,7 @@ namespace SharpMTProto.Tests.Authentication
             keyChain.AddKeys(TestData.TestPublicKeys);
 
             var mtProtoBuilder = serviceLocator.ResolveType<IMTProtoBuilder>();
-            IAuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<ITransportConfig>());
+            IAuthKeyNegotiator authKeyNegotiator = mtProtoBuilder.BuildAuthKeyNegotiator(Mock.Of<IClientTransportConfig>());
 
             AuthInfo authInfo = await authKeyNegotiator.CreateAuthKey();
 
