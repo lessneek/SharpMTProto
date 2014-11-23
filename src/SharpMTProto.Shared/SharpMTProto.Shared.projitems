@@ -14,7 +14,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\AuthKeyNegotiator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\KeyChain.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\PublicKey.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)CommonAssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ConnectionConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Defaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
