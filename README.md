@@ -21,6 +21,10 @@ PM> Install-Package SharpMTProto
 
 ## Change log
 
+#### SharpMTProto v0.8
+
+- TcpClientTransport: fixed bug in Dispose method.
+
 #### SharpMTProto v0.7
 
 - Added 'Client' prefix for all client's things.
