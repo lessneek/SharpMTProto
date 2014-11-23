@@ -50,13 +50,13 @@ namespace SharpMTProto.Transport
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
             {
-                throw new ArgumentException("Port is incorrect.");
+                throw new ArgumentException(string.Format("Port {0} is incorrect.", config.Port));
             }
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
             {
-                throw new ArgumentException("IP address is incorrect.");
+                throw new ArgumentException(string.Format("IP address [{0}] is incorrect.", config.IPAddress));
             }
 
             _port = config.Port;
@@ -220,7 +220,7 @@ namespace SharpMTProto.Transport
                     {
                         if (_socket.Available == 0)
                         {
-                            await Task.Delay(100, token);
+                            await Task.Delay(1, token);
                             continue;
                         }
                         await _socket.ReceiveAsync(awaitable);
