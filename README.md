@@ -21,6 +21,13 @@ PM> Install-Package SharpMTProto
 
 ## Change log
 
+#### SharpMTProto v0.7
+
+- Added 'Client' prefix for all client's things.
+- `SocketExtensions`: added `AcceptAsync` ext-method.
+- `TcpClientTransport`: added support for server side.
+- Build scripts: removed `psake`, added: `gitversion`, added `appveyor.yml` build script.
+
 #### SharpMTProto v0.6
 
 - `MTProtoConnection`: added MTProto `Methods` property.
