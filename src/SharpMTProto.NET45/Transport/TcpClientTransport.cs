@@ -178,6 +178,10 @@ namespace SharpMTProto.Transport
                 {
                     return;
                 }
+
+                _connectionCancellationTokenSource.Cancel();
+                await Task.Delay(10);
+
                 var args = new SocketAsyncEventArgs();
                 var awaitable = new SocketAwaitable(args);
                 try
