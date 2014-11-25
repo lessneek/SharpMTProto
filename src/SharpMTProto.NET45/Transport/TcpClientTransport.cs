@@ -228,59 +228,69 @@ namespace SharpMTProto.Transport
 
         private void StartReceiver(CancellationToken token)
         {
-            Task.Run(async () =>
+            Func<Task> receiver = async () =>
             {
-                var args = new SocketAsyncEventArgs();
-                args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
-                var awaitable = new SocketAwaitable(args);
-
-                while (!token.IsCancellationRequested && _socket.IsConnected())
-                {
-                    try
-                    {
-                        if (_socket.Available == 0)
-                        {
-                            await Task.Delay(10, token);
-                            continue;
-                        }
-                        await _socket.ReceiveAsync(awaitable);
-                    }
-                    catch (SocketException e)
-                    {
-                        Log.Debug(e);
-                    }
-                    if (args.SocketError != SocketError.Success)
-                    {
-                        break;
-                    }
-                    int bytesRead = args.BytesTransferred;
-                    if (bytesRead <= 0)
-                    {
-                        break;
-                    }
-
-                    try
-                    {
-                        await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e, "Critical error while precessing received data.");
-                        break;
-                    }
-                }
+                Log.Debug(string.Format("Receiver task for endpoint {0} was started.", _remoteEndPoint));
+                bool canceled = false;
                 try
                 {
+                    var args = new SocketAsyncEventArgs();
+                    args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
+                    var awaitable = new SocketAwaitable(args);
+
+                    while (!token.IsCancellationRequested && _socket.IsConnected())
+                    {
+                        try
+                        {
+                            if (_socket.Available == 0)
+                            {
+                                await Task.Delay(10, token);
+                                continue;
+                            }
+                            await _socket.ReceiveAsync(awaitable);
+                        }
+                        catch (SocketException e)
+                        {
+                            Log.Debug(e);
+                        }
+                        if (args.SocketError != SocketError.Success)
+                        {
+                            break;
+                        }
+                        int bytesRead = args.BytesTransferred;
+                        if (bytesRead <= 0)
+                        {
+                            break;
+                        }
+
+                        try
+                        {
+                            await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error(e, "Critical error while precessing received data.");
+                            break;
+                        }
+                    }
+
                     if (!_isDisposed)
                     {
                         await DisconnectAsync();
                     }
                 }
+                catch (TaskCanceledException)
+                {
+                    canceled = true;
+                }
                 catch (Exception e)
                 {
                     Log.Debug(e);
                 }
-            }, token);
+                Log.Debug(string.Format("Receiver task for endpoint {0} was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+            };
+
+            Task.Run(receiver, token);
         }
 
         private async Task ProcessReceivedDataAsync(ArraySegment<byte> buffer)
