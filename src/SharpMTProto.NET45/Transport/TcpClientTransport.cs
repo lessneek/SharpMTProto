@@ -39,7 +39,6 @@ namespace SharpMTProto.Transport
         private int _nextPacketBytesCountLeft;
         private byte[] _nextPacketDataBuffer;
         private TLStreamer _nextPacketStreamer;
-        private Task _receiverTask;
         private Socket _socket;
         private volatile ClientTransportState _state = ClientTransportState.Disconnected;
         private int _tempLengthBufferFill;
@@ -161,7 +160,7 @@ namespace SharpMTProto.Transport
                     return;
                 }
                 _connectionCancellationTokenSource = new CancellationTokenSource();
-                _receiverTask = StartReceiver(_connectionCancellationTokenSource.Token);
+                StartReceiver(_connectionCancellationTokenSource.Token);
             }
         }
 
@@ -223,9 +222,9 @@ namespace SharpMTProto.Transport
             }, token);
         }
 
-        private Task StartReceiver(CancellationToken token)
+        private void StartReceiver(CancellationToken token)
         {
-            return Task.Run(async () =>
+            Task.Run(async () =>
             {
                 var args = new SocketAsyncEventArgs();
                 args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
@@ -268,7 +267,10 @@ namespace SharpMTProto.Transport
                 }
                 try
                 {
-                    await DisconnectAsync();
+                    if (!_isDisposed)
+                    {
+                        await DisconnectAsync();
+                    }
                 }
                 catch (Exception e)
                 {
@@ -351,9 +353,9 @@ namespace SharpMTProto.Transport
             }
         }
 
-        private async Task ProcessReceivedPacket(TcpTransportPacket packet)
+        private Task ProcessReceivedPacket(TcpTransportPacket packet)
         {
-            await Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
+            return Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
         }
 
         private void ThrowIfOnServerSide()
@@ -367,7 +369,6 @@ namespace SharpMTProto.Transport
         #region Disposing
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
             Dispose(true);
         }
 
@@ -388,22 +389,6 @@ namespace SharpMTProto.Transport
             {
                 _connectionCancellationTokenSource.Cancel();
                 _connectionCancellationTokenSource = null;
-            }
-            if (_receiverTask != null)
-            {
-                if (!_receiverTask.IsCompleted)
-                {
-                    _receiverTask.Wait(1000);
-                }
-                if (_receiverTask.IsCompleted)
-                {
-                    _receiverTask.Dispose();
-                }
-                else
-                {
-                    Log.Warning("Receiver task did not completed on transport disposing.");
-                }
-                _receiverTask = null;
             }
             if (_nextPacketStreamer != null)
             {
