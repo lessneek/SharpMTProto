@@ -45,6 +45,8 @@ namespace SharpMTProto.Tests.Transport
                 _serverSocket = null;
             }
             _serverEndPoint = null;
+
+            LogManager.FlushAll();
         }
 
         private Socket _serverSocket;
