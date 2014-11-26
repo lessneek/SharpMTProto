@@ -14,13 +14,15 @@ namespace SharpMTProto.Utils
 {
     public sealed class SocketAwaitable : INotifyCompletion
     {
+        private readonly bool _throwOnError;
         private static readonly Action Sentinel = () => { };
 
         private Action _continuation;
         private bool _isCompleted;
 
-        public SocketAwaitable(SocketAsyncEventArgs eventArgs)
+        public SocketAwaitable(SocketAsyncEventArgs eventArgs, bool throwOnError = false)
         {
+            _throwOnError = throwOnError;
             if (eventArgs == null)
             {
                 throw new ArgumentNullException("eventArgs");
@@ -65,6 +67,10 @@ namespace SharpMTProto.Utils
 
         public void GetResult()
         {
+            if (!_throwOnError)
+            {
+                return;
+            }
             if (EventArgs.SocketError != SocketError.Success)
             {
                 throw new SocketException((int) EventArgs.SocketError);
