@@ -85,7 +85,7 @@ namespace SharpMTProto.Tests.Transport
         }
 
         [Test]
-        public async Task Should_process_lost_connection()
+        public async Task Should_process_remote_disconnection()
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
 
