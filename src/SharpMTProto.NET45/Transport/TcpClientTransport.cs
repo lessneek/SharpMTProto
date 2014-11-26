@@ -65,8 +65,6 @@ namespace SharpMTProto.Transport
             _connectTimeout = config.ConnectTimeout;
 
             _readerBuffer = new byte[config.MaxBufferSize];
-
-            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
         }
 
         public TcpClientTransport([NotNull] Socket socket, bool isOnServerSide = true)
@@ -104,8 +102,6 @@ namespace SharpMTProto.Transport
 
         public void Connect()
         {
-            ThrowIfDisposed();
-            ThrowIfOnServerSide();
             ConnectAsync().Wait();
         }
 
@@ -116,22 +112,27 @@ namespace SharpMTProto.Transport
 
         public async Task ConnectAsync(CancellationToken token)
         {
+            Log.Debug(string.Format("Client transport ({0}) connecting...", _remoteEndPoint));
+
             ThrowIfDisposed();
             ThrowIfOnServerSide();
+
             using (await _stateAsyncLock.LockAsync(token))
             {
-                if (State == ClientTransportState.Connected)
+                if (_state != ClientTransportState.Disconnected)
                 {
+                    Log.Debug(string.Format("Client transport ({0}) could not connect in non disconnected state.", _remoteEndPoint));
                     return;
                 }
+                _state = ClientTransportState.Connecting;
 
                 var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
-                
                 var awaitable = new SocketAwaitable(args);
 
                 try
                 {
                     _packetNumber = 0;
+                    _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                     await _socket.ConnectAsync(awaitable);
                 }
                 catch (SocketException e)
@@ -171,33 +172,46 @@ namespace SharpMTProto.Transport
 
         public async Task DisconnectAsync()
         {
-            ThrowIfDisposed();
             using (await _stateAsyncLock.LockAsync())
             {
-                if (_state == ClientTransportState.Disconnected)
+                if (_state != ClientTransportState.Connected)
                 {
+                    Log.Debug(string.Format("Client transport ({0}) could not disconnect in non connected state.", _remoteEndPoint));
                     return;
                 }
+                _state = ClientTransportState.Disconnecting;
+                Log.Debug(string.Format("Client transport ({0}) disconnecting.", _remoteEndPoint));
 
-                _connectionCancellationTokenSource.Cancel();
+                if (_connectionCancellationTokenSource != null)
+                {
+                    _connectionCancellationTokenSource.Cancel();
+                    _connectionCancellationTokenSource.Dispose();
+                    _connectionCancellationTokenSource = null;
+                }
                 await Task.Delay(10);
 
-                var args = new SocketAsyncEventArgs();
+                var args = new SocketAsyncEventArgs {DisconnectReuseSocket = false};
                 var awaitable = new SocketAwaitable(args);
                 try
                 {
-                    if (_socket.Connected)
+                    if (_socket.IsConnected())
                     {
                         _socket.Shutdown(SocketShutdown.Both);
                         await _socket.DisconnectAsync(awaitable);
+                        _socket.Dispose();
                     }
                 }
                 catch (SocketException e)
                 {
                     Log.Debug(e);
                 }
+                finally
+                {
+                    _socket = null;
+                }
 
                 _state = ClientTransportState.Disconnected;
+                Log.Debug(string.Format("Client transport ({0}) disconnected.", _remoteEndPoint));
             }
         }
 
@@ -230,7 +244,7 @@ namespace SharpMTProto.Transport
         {
             Func<Task> receiver = async () =>
             {
-                Log.Debug(string.Format("Receiver task for endpoint {0} was started.", _remoteEndPoint));
+                Log.Debug(string.Format("Receiver task ({0}) was started.", _remoteEndPoint));
                 bool canceled = false;
                 try
                 {
@@ -242,12 +256,11 @@ namespace SharpMTProto.Transport
                     {
                         try
                         {
-                            if (_socket.Available == 0)
-                            {
-                                await Task.Delay(10, token);
-                                continue;
-                            }
+                            Log.Debug(string.Format("Awaiting socket ({0}) receive async...", _remoteEndPoint));
+
                             await _socket.ReceiveAsync(awaitable);
+
+                            Log.Debug(string.Format("Socket ({0}) has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
                         }
                         catch (SocketException e)
                         {
@@ -273,11 +286,6 @@ namespace SharpMTProto.Transport
                             break;
                         }
                     }
-
-                    if (!_isDisposed)
-                    {
-                        await DisconnectAsync();
-                    }
                 }
                 catch (TaskCanceledException)
                 {
@@ -287,7 +295,13 @@ namespace SharpMTProto.Transport
                 {
                     Log.Debug(e);
                 }
-                Log.Debug(string.Format("Receiver task for endpoint {0} was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+
+                if (_state == ClientTransportState.Connected)
+                {
+                    await DisconnectAsync();
+                }
+
+                Log.Debug(string.Format("Receiver task ({0}) was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
             };
 
             Task.Run(receiver, token);
@@ -399,11 +413,11 @@ namespace SharpMTProto.Transport
                 return;
             }
 
-            if (_connectionCancellationTokenSource != null)
+            if (_state != ClientTransportState.Disconnected)
             {
-                _connectionCancellationTokenSource.Cancel();
-                _connectionCancellationTokenSource = null;
+                Disconnect();
             }
+
             if (_nextPacketStreamer != null)
             {
                 _nextPacketStreamer.Dispose();
@@ -414,23 +428,6 @@ namespace SharpMTProto.Transport
                 _in.OnCompleted();
                 _in.Dispose();
                 _in = null;
-            }
-            if (_socket != null)
-            {
-                try
-                {
-                    _socket.Shutdown(SocketShutdown.Both);
-                    _socket.Disconnect(false);
-                    _socket.Close();
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e);
-                }
-                finally
-                {
-                    _socket = null;
-                }
             }
         }
 

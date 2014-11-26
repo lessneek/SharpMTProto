@@ -13,7 +13,9 @@ namespace SharpMTProto.Transport
     public enum ClientTransportState
     {
         Disconnected = 0,
-        Connected = 1
+        Connecting = 1,
+        Connected = 2,
+        Disconnecting = 3
     }
 
     public interface IClientTransport : IObservable<byte[]>, IDisposable
