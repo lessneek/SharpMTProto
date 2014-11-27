@@ -117,7 +117,7 @@ namespace SharpMTProto.Transport
             ThrowIfDisposed();
             ThrowIfOnServerSide();
 
-            using (await _stateAsyncLock.LockAsync(token))
+            using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
                 if (_state != ClientTransportState.Disconnected)
                 {
@@ -172,7 +172,7 @@ namespace SharpMTProto.Transport
 
         public async Task DisconnectAsync()
         {
-            using (await _stateAsyncLock.LockAsync())
+            using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
                 if (_state != ClientTransportState.Connected)
                 {
