@@ -154,7 +154,7 @@ namespace SharpMTProto.Tests
             IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
             var mockTransport = new Mock<IClientTransport>();
-            mockTransport.Setup(transport => transport.ConnectAsync(It.IsAny<CancellationToken>())).Returns(() => Task.Delay(1000));
+            mockTransport.Setup(transport => transport.ConnectAsync()).Returns(() => Task.Delay(1000));
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
 

@@ -163,8 +163,7 @@ namespace SharpMTProto
                             _state = MTProtoConnectionState.Connecting;
                             Log.Debug("Connecting...");
 
-                            await
-                                _clientTransport.ConnectAsync(cancellationToken).ToObservable().Timeout(DefaultConnectTimeout);
+                            await _clientTransport.ConnectAsync().ToObservable().Timeout(DefaultConnectTimeout);
 
                             _connectionCts = new CancellationTokenSource();
                             _connectionCancellationToken = _connectionCts.Token;

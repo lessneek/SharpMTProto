@@ -46,7 +46,7 @@ namespace SharpMTProto.Transport
         private volatile bool _isDisposed;
         private readonly IPEndPoint _remoteEndPoint;
 
-        private readonly bool _isOnServerSide;
+        private readonly bool _isConnectedSocket;
 
         public TcpClientTransport(TcpClientTransportConfig config)
         {
@@ -67,21 +67,24 @@ namespace SharpMTProto.Transport
             _readerBuffer = new byte[config.MaxBufferSize];
         }
 
-        public TcpClientTransport([NotNull] Socket socket, bool isOnServerSide = true)
+        /// <summary>
+        ///     Create a new instance of <see cref="TcpClientTransport" /> with connected socket.
+        /// </summary>
+        /// <param name="socket">Connected socket.</param>
+        public TcpClientTransport([NotNull] Socket socket)
         {
             if (socket == null)
             {
                 throw new ArgumentNullException("socket");
             }
 
-            _isOnServerSide = isOnServerSide;
+            _isConnectedSocket = true;
             _socket = socket;
+
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
             _readerBuffer = new byte[_socket.ReceiveBufferSize];
-            if (_socket.IsConnected())
-            {
-                _state = ClientTransportState.Connected;
-            }
+
+            InternalConnectAsync().Wait();
         }
 
         public IDisposable Subscribe(IObserver<byte[]> observer)
@@ -107,15 +110,15 @@ namespace SharpMTProto.Transport
 
         public Task ConnectAsync()
         {
-            return ConnectAsync(CancellationToken.None);
+            ThrowIfConnectedSocket();
+            return InternalConnectAsync();
         }
 
-        public async Task ConnectAsync(CancellationToken token)
+        private async Task InternalConnectAsync()
         {
             Log.Debug(string.Format("Client transport ({0}) connecting...", _remoteEndPoint));
 
             ThrowIfDisposed();
-            ThrowIfOnServerSide();
 
             using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
@@ -126,40 +129,50 @@ namespace SharpMTProto.Transport
                 }
                 _state = ClientTransportState.Connecting;
 
-                var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
-                var awaitable = new SocketAwaitable(args);
+                if (_isConnectedSocket)
+                {
+                    _state = ClientTransportState.Connected;
+                }
+                else
+                {
+                    var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
+                    var awaitable = new SocketAwaitable(args);
 
-                try
-                {
-                    _packetNumber = 0;
-                    _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                    await _socket.ConnectAsync(awaitable);
-                }
-                catch (SocketException e)
-                {
-                    Log.Debug(e);
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e);
-                    _state = ClientTransportState.Disconnected;
-                    throw;
-                }
-
-                switch (args.SocketError)
-                {
-                    case SocketError.Success:
-                    case SocketError.IsConnected:
-                        _state = ClientTransportState.Connected;
-                        break;
-                    default:
+                    try
+                    {
+                        _packetNumber = 0;
+                        _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                        await _socket.ConnectAsync(awaitable);
+                    }
+                    catch (SocketException e)
+                    {
+                        Log.Debug(e);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error(e);
                         _state = ClientTransportState.Disconnected;
-                        break;
+                        throw;
+                    }
+
+                    switch (args.SocketError)
+                    {
+                        case SocketError.Success:
+                        case SocketError.IsConnected:
+                            _state = ClientTransportState.Connected;
+                            break;
+                        default:
+                            _state = ClientTransportState.Disconnected;
+                            break;
+                    }
                 }
+
                 if (_state != ClientTransportState.Connected)
                 {
+                    _state = ClientTransportState.Disconnected;
                     return;
                 }
+
                 _connectionCancellationTokenSource = new CancellationTokenSource();
                 StartReceiver(_connectionCancellationTokenSource.Token);
             }
@@ -386,11 +399,11 @@ namespace SharpMTProto.Transport
             return Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
         }
 
-        private void ThrowIfOnServerSide()
+        private void ThrowIfConnectedSocket()
         {
-            if (_isOnServerSide)
+            if (_isConnectedSocket)
             {
-                throw new NotSupportedException("Not supported in server client mode.");
+                throw new NotSupportedException("Not supported in connected socket mode.");
             }
         }
 
