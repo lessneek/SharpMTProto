@@ -135,35 +135,37 @@ namespace SharpMTProto.Transport
                 }
                 else
                 {
-                    var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
-                    var awaitable = new SocketAwaitable(args);
+                    using (var args = new SocketAsyncEventArgs { RemoteEndPoint = _remoteEndPoint })
+                    {
+                        var awaitable = new SocketAwaitable(args);
 
-                    try
-                    {
-                        _packetNumber = 0;
-                        _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                        await _socket.ConnectAsync(awaitable);
-                    }
-                    catch (SocketException e)
-                    {
-                        Log.Debug(e);
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error(e);
-                        _state = ClientTransportState.Disconnected;
-                        throw;
-                    }
-
-                    switch (args.SocketError)
-                    {
-                        case SocketError.Success:
-                        case SocketError.IsConnected:
-                            _state = ClientTransportState.Connected;
-                            break;
-                        default:
+                        try
+                        {
+                            _packetNumber = 0;
+                            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                            await _socket.ConnectAsync(awaitable);
+                        }
+                        catch (SocketException e)
+                        {
+                            Log.Debug(e);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error(e);
                             _state = ClientTransportState.Disconnected;
-                            break;
+                            throw;
+                        }
+
+                        switch (args.SocketError)
+                        {
+                            case SocketError.Success:
+                            case SocketError.IsConnected:
+                                _state = ClientTransportState.Connected;
+                                break;
+                            default:
+                                _state = ClientTransportState.Disconnected;
+                                break;
+                        }
                     }
                 }
 
@@ -203,24 +205,26 @@ namespace SharpMTProto.Transport
                 }
                 await Task.Delay(10);
 
-                var args = new SocketAsyncEventArgs {DisconnectReuseSocket = false};
-                var awaitable = new SocketAwaitable(args);
-                try
+                using (var args = new SocketAsyncEventArgs { DisconnectReuseSocket = false })
                 {
-                    if (_socket.IsConnected())
+                    var awaitable = new SocketAwaitable(args);
+                    try
                     {
-                        _socket.Shutdown(SocketShutdown.Both);
-                        await _socket.DisconnectAsync(awaitable);
-                        _socket.Dispose();
+                        if (_socket.IsConnected())
+                        {
+                            _socket.Shutdown(SocketShutdown.Both);
+                            await _socket.DisconnectAsync(awaitable);
+                            _socket.Dispose();
+                        }
                     }
-                }
-                catch (SocketException e)
-                {
-                    Log.Debug(e);
-                }
-                finally
-                {
-                    _socket = null;
+                    catch (SocketException e)
+                    {
+                        Log.Debug(e);
+                    }
+                    finally
+                    {
+                        _socket = null;
+                    }
                 }
 
                 _state = ClientTransportState.Disconnected;
@@ -261,42 +265,44 @@ namespace SharpMTProto.Transport
                 bool canceled = false;
                 try
                 {
-                    var args = new SocketAsyncEventArgs();
-                    args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
-                    var awaitable = new SocketAwaitable(args);
-
-                    while (!token.IsCancellationRequested && _socket.IsConnected())
+                    using (var args = new SocketAsyncEventArgs())
                     {
-                        try
-                        {
-                            Log.Debug(string.Format("Awaiting socket ({0}) receive async...", _remoteEndPoint));
+                        args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
+                        var awaitable = new SocketAwaitable(args);
 
-                            await _socket.ReceiveAsync(awaitable);
+                        while (!token.IsCancellationRequested && _socket.IsConnected())
+                        {
+                            try
+                            {
+                                Log.Debug(string.Format("Awaiting socket ({0}) receive async...", _remoteEndPoint));
 
-                            Log.Debug(string.Format("Socket ({0}) has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
-                        }
-                        catch (SocketException e)
-                        {
-                            Log.Debug(e);
-                        }
-                        if (args.SocketError != SocketError.Success)
-                        {
-                            break;
-                        }
-                        int bytesRead = args.BytesTransferred;
-                        if (bytesRead <= 0)
-                        {
-                            break;
-                        }
+                                await _socket.ReceiveAsync(awaitable);
 
-                        try
-                        {
-                            await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
-                        }
-                        catch (Exception e)
-                        {
-                            Log.Error(e, "Critical error while precessing received data.");
-                            break;
+                                Log.Debug(string.Format("Socket ({0}) has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                            }
+                            catch (SocketException e)
+                            {
+                                Log.Debug(e);
+                            }
+                            if (args.SocketError != SocketError.Success)
+                            {
+                                break;
+                            }
+                            int bytesRead = args.BytesTransferred;
+                            if (bytesRead <= 0)
+                            {
+                                break;
+                            }
+
+                            try
+                            {
+                                await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Error(e, "Critical error while precessing received data.");
+                                break;
+                            }
                         }
                     }
                 }
