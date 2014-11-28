@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="ResponseDispatcherFacts.cs">
+// <copyright file="MessageDispatcherFacts.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -17,7 +17,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
 {
     [TestFixture]
     [Category("Messaging.Handlers")]
-    public class ResponseDispatcherFacts
+    public class MessageDispatcherFacts
     {
         [Test]
         public async Task Should_dispatch_messages()
@@ -27,18 +27,18 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             var msg2 = new Message(5, 6, new TestResponse2 {Name = "Mr.Resp", Address = "1 Object st.", City = "Class"});
             var msg3 = new Message(7, 8, 9);
 
-            Expression<Func<IResponseHandler, Task>> handleAnyMsgExp = handler => handler.HandleAsync(It.IsAny<IMessage>());
+            Expression<Func<IMessageHandler, Task>> handleAnyMsgExp = handler => handler.HandleAsync(It.IsAny<IMessage>());
 
-            var handler1 = new Mock<IResponseHandler>();
-            handler1.SetupGet(handler => handler.ResponseType).Returns(typeof (ITestResponse));
+            var handler1 = new Mock<IMessageHandler>();
+            handler1.SetupGet(handler => handler.MessageType).Returns(typeof (ITestResponse));
 
-            var handler2 = new Mock<IResponseHandler>();
-            handler2.SetupGet(handler => handler.ResponseType).Returns(typeof (ITestResponse2));
+            var handler2 = new Mock<IMessageHandler>();
+            handler2.SetupGet(handler => handler.MessageType).Returns(typeof (ITestResponse2));
 
-            var handlerF = new Mock<IResponseHandler>();
-            handlerF.SetupGet(handler => handler.ResponseType).Returns(typeof (object));
+            var handlerF = new Mock<IMessageHandler>();
+            handlerF.SetupGet(handler => handler.MessageType).Returns(typeof (object));
 
-            var dispatcher = new ResponseDispatcher();
+            var dispatcher = new MessageDispatcher();
             dispatcher.AddHandler(handler1.Object);
             dispatcher.AddHandler(handler2.Object);
             dispatcher.FallbackHandler = handlerF.Object;

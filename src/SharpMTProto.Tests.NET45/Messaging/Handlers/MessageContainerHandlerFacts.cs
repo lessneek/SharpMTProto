@@ -27,12 +27,12 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             List<Message> expectedMessages = messages.CloneTLObject();
             var receivedMessages = new List<IMessage>();
 
-            var responseDispatcher = new Mock<IResponseDispatcher>();
-            responseDispatcher.Setup(dispatcher => dispatcher.DispatchAsync(It.IsAny<IMessage>()))
+            var messageDispatcher = new Mock<IMessageDispatcher>();
+            messageDispatcher.Setup(dispatcher => dispatcher.DispatchAsync(It.IsAny<IMessage>()))
                 .Returns(TaskConstants.Completed)
                 .Callback<IMessage>(receivedMessages.Add);
 
-            var handler = new MessageContainerHandler(responseDispatcher.Object);
+            var handler = new MessageContainerHandler(messageDispatcher.Object);
             await handler.HandleAsync(containerMessage);
 
             receivedMessages.Should().Equal(expectedMessages);

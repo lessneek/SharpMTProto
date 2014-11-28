@@ -11,7 +11,7 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class RpcResultHandler : ResponseHandler<IRpcResult>
+    public class RpcResultHandler : MessageHandler<IRpcResult>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
@@ -22,9 +22,9 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        protected override Task HandleInternalAsync(IMessage responseMessage)
+        protected override Task HandleInternalAsync(IMessage message)
         {
-            var rpcResult = (IRpcResult) responseMessage.Body;
+            var rpcResult = (IRpcResult) message.Body;
             object result = rpcResult.Result;
 
             IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
@@ -32,7 +32,7 @@ namespace SharpMTProto.Messaging.Handlers
             {
                 Log.Warning(
                     string.Format(
-                        "Ignored response of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
+                        "Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
                         rpcResult.ReqMsgId,
                         result.GetType()));
                 return TaskConstants.Completed;

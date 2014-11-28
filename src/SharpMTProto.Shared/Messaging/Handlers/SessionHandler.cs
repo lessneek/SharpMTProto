@@ -10,9 +10,9 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class SessionHandler : ResponseHandler<INewSession>
+    public class SessionHandler : MessageHandler<INewSession>
     {
-        protected override Task HandleInternalAsync(IMessage responseMessage)
+        protected override Task HandleInternalAsync(IMessage message)
         {
             // TODO: implement.
             return TaskConstants.Completed;

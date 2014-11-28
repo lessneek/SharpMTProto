@@ -1,5 +1,5 @@
 // --------------------------------------------------------------------------------------------------------------------
-// <copyright file="IResponseHandler.cs">
+// <copyright file="IMessageHandler.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -11,20 +11,20 @@ using SharpMTProto.Schema;
 namespace SharpMTProto.Messaging.Handlers
 {
     /// <summary>
-    ///     Response handler.
+    ///     Message handler.
     /// </summary>
-    public interface IResponseHandler
+    public interface IMessageHandler
     {
         /// <summary>
-        ///     Response type.
+        ///     Message type.
         /// </summary>
-        Type ResponseType { get; }
+        Type MessageType { get; }
 
         /// <summary>
-        ///     Handle response.
+        ///     Handle message.
         /// </summary>
-        /// <param name="responseMessage">Message with a response.</param>
+        /// <param name="message">Message.</param>
         /// <returns>Completiong task.</returns>
-        Task HandleAsync(IMessage responseMessage);
+        Task HandleAsync(IMessage message);
     }
 }

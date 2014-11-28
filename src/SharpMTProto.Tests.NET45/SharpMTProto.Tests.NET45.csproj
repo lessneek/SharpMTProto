@@ -111,7 +111,7 @@
     <Compile Include="Messaging\Handlers\BadMsgNotificationHandlerFacts.cs" />
     <Compile Include="Messaging\Handlers\FirstRequestResponseHandlerFacts.cs" />
     <Compile Include="Messaging\Handlers\MessageContainerHandlerFacts.cs" />
-    <Compile Include="Messaging\Handlers\ResponseDispatcherFacts.cs" />
+    <Compile Include="Messaging\Handlers\MessageDispatcherFacts.cs" />
     <Compile Include="Messaging\Handlers\RpcResultHandlerFacts.cs" />
     <Compile Include="Messaging\RequestsManagerFacts.cs" />
     <Compile Include="MTProtoBuilderFacts.cs" />

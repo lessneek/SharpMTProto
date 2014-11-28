@@ -12,7 +12,7 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class FirstRequestResponseHandler : IResponseHandler
+    public class FirstRequestResponseHandler : IMessageHandler
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Type ResponseTypeInternal = typeof (object);
@@ -23,25 +23,25 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        public Type ResponseType
+        public Type MessageType
         {
             get { return ResponseTypeInternal; }
         }
 
-        /// <exception cref="System.ArgumentNullException">The <paramref name="responseMessage" /> is <c>null</c>.</exception>
-        public Task HandleAsync(IMessage responseMessage)
+        /// <exception cref="System.ArgumentNullException">The <paramref name="message" /> is <c>null</c>.</exception>
+        public Task HandleAsync(IMessage message)
         {
-            Argument.IsNotNull(() => responseMessage);
+            Argument.IsNotNull(() => message);
             return Task.Run(() =>
             {
-                IRequest request = _requestsManager.GetFirstOrDefault(responseMessage.Body);
+                IRequest request = _requestsManager.GetFirstOrDefault(message.Body);
                 if (request == null)
                 {
-                    Log.Warning(string.Format("Request for response of type '{0}' not found.", responseMessage.Body.GetType()));
+                    Log.Warning(string.Format("Request for response of type '{0}' not found.", message.Body.GetType()));
                     return;
                 }
 
-                request.SetResponse(responseMessage.Body);
+                request.SetResponse(message.Body);
             });
         }
     }

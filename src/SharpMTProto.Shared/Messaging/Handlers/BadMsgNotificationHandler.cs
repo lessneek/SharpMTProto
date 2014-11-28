@@ -11,7 +11,7 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class BadMsgNotificationHandler : ResponseHandler<IBadMsgNotification>
+    public class BadMsgNotificationHandler : MessageHandler<IBadMsgNotification>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
@@ -24,7 +24,7 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        protected override async Task HandleInternalAsync(IMessage responseMessage)
+        protected override async Task HandleInternalAsync(IMessage message)
         {
             #region Notice of Ignored Error Message
             /* In certain cases, a server may notify a client that its incoming message was ignored for whatever reason.
@@ -67,7 +67,7 @@ namespace SharpMTProto.Messaging.Handlers
              */
             #endregion
 
-            var response = (IBadMsgNotification) responseMessage.Body;
+            var response = (IBadMsgNotification) message.Body;
 
             var errorCode = (ErrorCode) response.ErrorCode;
             Log.Warning(string.Format("Bad message notification received with error code: {0} ({1}).", response.ErrorCode, errorCode));

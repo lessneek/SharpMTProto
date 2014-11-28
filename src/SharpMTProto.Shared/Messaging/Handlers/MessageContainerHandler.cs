@@ -11,17 +11,17 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class MessageContainerHandler : ResponseHandler<IMessageContainer>
+    public class MessageContainerHandler : MessageHandler<IMessageContainer>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly IResponseDispatcher _responseDispatcher;
+        private readonly IMessageDispatcher _messageDispatcher;
 
-        public MessageContainerHandler(IResponseDispatcher responseDispatcher)
+        public MessageContainerHandler(IMessageDispatcher messageDispatcher)
         {
-            _responseDispatcher = responseDispatcher;
+            _messageDispatcher = messageDispatcher;
         }
 
-        protected override async Task HandleInternalAsync(IMessage responseMessage)
+        protected override async Task HandleInternalAsync(IMessage message)
         {
             #region Description
             /*
@@ -36,21 +36,21 @@ namespace SharpMTProto.Messaging.Handlers
              */
             #endregion
 
-            var msgContainer = responseMessage.Body as MsgContainer;
+            var msgContainer = message.Body as MsgContainer;
             if (msgContainer != null)
             {
-                if (msgContainer.Messages.Any(msg => msg.MsgId >= responseMessage.MsgId || msg.Seqno > responseMessage.Seqno))
+                if (msgContainer.Messages.Any(msg => msg.MsgId >= message.MsgId || msg.Seqno > message.Seqno))
                 {
                     throw new InvalidMessageException("Container MessageId must be greater than all MsgIds of inner messages.");
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    await _responseDispatcher.DispatchAsync(msg);
+                    await _messageDispatcher.DispatchAsync(msg);
                 }
             }
             else
             {
-                Log.Debug("Unsupported message container of type: {0}.", responseMessage.Body.GetType());
+                Log.Debug("Unsupported message container of type: {0}.", message.Body.GetType());
             }
         }
     }

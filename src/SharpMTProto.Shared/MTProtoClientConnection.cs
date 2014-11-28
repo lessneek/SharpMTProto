@@ -63,7 +63,7 @@ namespace SharpMTProto
         private readonly TLRig _tlRig;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly RequestsManager _requestsManager = new RequestsManager();
-        private readonly IResponseDispatcher _responseDispatcher = new ResponseDispatcher();
+        private readonly IMessageDispatcher _messageDispatcher = new MessageDispatcher();
 
         private readonly IClientTransport _clientTransport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
@@ -100,7 +100,7 @@ namespace SharpMTProto
 
             _methods = new MTProtoAsyncMethods(this);
 
-            InitResponseDispatcher(_responseDispatcher);
+            InitMessageDispatcher(_messageDispatcher);
 
             // Init transport.
             _clientTransport = clientTransportFactory.CreateTransport(clientTransportConfig);
@@ -335,13 +335,13 @@ namespace SharpMTProto
             _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
-        private void InitResponseDispatcher(IResponseDispatcher responseDispatcher)
+        private void InitMessageDispatcher(IMessageDispatcher messageDispatcher)
         {
-            responseDispatcher.FallbackHandler = new FirstRequestResponseHandler(_requestsManager);
-            responseDispatcher.AddHandler(new BadMsgNotificationHandler(this, _requestsManager));
-            responseDispatcher.AddHandler(new MessageContainerHandler(_responseDispatcher));
-            responseDispatcher.AddHandler(new RpcResultHandler(_requestsManager));
-            responseDispatcher.AddHandler(new SessionHandler());
+            messageDispatcher.FallbackHandler = new FirstRequestResponseHandler(_requestsManager);
+            messageDispatcher.AddHandler(new BadMsgNotificationHandler(this, _requestsManager));
+            messageDispatcher.AddHandler(new MessageContainerHandler(_messageDispatcher));
+            messageDispatcher.AddHandler(new RpcResultHandler(_requestsManager));
+            messageDispatcher.AddHandler(new SessionHandler());
         }
 
         private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)
@@ -457,7 +457,7 @@ namespace SharpMTProto
             {
                 Log.Debug("Incoming message data of type = {0}.", message.Body.GetType());
 
-                await _responseDispatcher.DispatchAsync(message);
+                await _messageDispatcher.DispatchAsync(message);
             }
             catch (Exception e)
             {
