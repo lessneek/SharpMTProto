@@ -10,7 +10,7 @@ namespace SharpMTProto
 {
     public static class Defaults
     {
-        public static readonly TimeSpan RpcTimeout = TimeSpan.FromSeconds(10);
+        public static readonly TimeSpan SendingTimeout = TimeSpan.FromSeconds(10);
         public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
     }
 }

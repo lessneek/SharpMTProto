@@ -50,6 +50,11 @@ namespace SharpMTProto
         /// </summary>
         TimeSpan DefaultConnectTimeout { get; set; }
 
+        /// <summary>
+        ///     Default sending timeout.
+        /// </summary>
+        TimeSpan DefaultSendingTimeout { get; set; }
+
         IMessageDispatcher MessageDispatcher { get; }
 
         /// <summary>
@@ -121,6 +126,7 @@ namespace SharpMTProto
             _messageCodec = messageCodec;
 
             DefaultConnectTimeout = Defaults.ConnectTimeout;
+            DefaultSendingTimeout = Defaults.SendingTimeout;
 
             // Init transport.
             _clientTransport = clientTransport;
@@ -142,6 +148,7 @@ namespace SharpMTProto
         }
 
         public TimeSpan DefaultConnectTimeout { get; set; }
+        public TimeSpan DefaultSendingTimeout { get; set; }
 
         public bool IsEncryptionSupported
         {
@@ -270,9 +277,24 @@ namespace SharpMTProto
             _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
-        public async Task SendAsync(object requestBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
+        public Task SendAsync(object messageBody, MessageSendingFlags flags)
         {
-            byte[] messageBytes = EncodeMessage(CreateMessage(requestBody, flags.HasFlag(MessageSendingFlags.ContentRelated)),
+            return SendAsync(messageBody, flags, DefaultSendingTimeout, CancellationToken.None);
+        }
+
+        public Task SendAsync(object messageBody, MessageSendingFlags flags, TimeSpan timeout)
+        {
+            return SendAsync(messageBody, flags, timeout, CancellationToken.None);
+        }
+
+        public Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken)
+        {
+            return SendAsync(messageBody, flags, DefaultSendingTimeout, cancellationToken);
+        }
+
+        public async Task SendAsync(object messageBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            byte[] messageBytes = EncodeMessage(CreateMessage(messageBody, flags.HasFlag(MessageSendingFlags.ContentRelated)),
                 flags.HasFlag(MessageSendingFlags.Encrypted));
 
             var timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
@@ -281,11 +303,21 @@ namespace SharpMTProto
                     cancellationToken,
                     _connectionCts.Token))
             {
-                await SendAsync(messageBytes, cts.Token);
+                await SendRawDataAsync(messageBytes, cts.Token);
             }
         }
 
-        protected Task SendAsync(byte[] data, CancellationToken cancellationToken)
+        public Task SendAsync(IMessage message, MessageSendingFlags flags, CancellationToken cancellationToken)
+        {
+            return Task.Run(async () =>
+            {
+                byte[] messageBytes = EncodeMessage(message, flags.HasFlag(MessageSendingFlags.Encrypted));
+                await SendRawDataAsync(messageBytes, cancellationToken);
+            },
+                cancellationToken);
+        }
+
+        public Task SendRawDataAsync(byte[] data, CancellationToken cancellationToken)
         {
             ThrowIfDiconnected();
             LogMessageInOut(data, "OUT");

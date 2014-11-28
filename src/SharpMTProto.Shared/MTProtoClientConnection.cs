@@ -111,14 +111,10 @@ namespace SharpMTProto
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec) : base(clientTransport, tlRig, messageIdGenerator, messageCodec)
         {
-            DefaultRpcTimeout = Defaults.RpcTimeout;
-
             _methods = new MTProtoAsyncMethods(this);
 
             InitMessageDispatcher();
         }
-
-        public TimeSpan DefaultRpcTimeout { get; set; }
 
         public IMTProtoAsyncMethods Methods
         {
@@ -127,7 +123,7 @@ namespace SharpMTProto
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)
         {
-            return RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
+            return RequestAsync<TResponse>(requestBody, flags, DefaultSendingTimeout, CancellationToken.None);
         }
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
@@ -137,7 +133,7 @@ namespace SharpMTProto
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
-            return RequestAsync<TResponse>(requestBody, flags, DefaultRpcTimeout, cancellationToken);
+            return RequestAsync<TResponse>(requestBody, flags, DefaultSendingTimeout, cancellationToken);
         }
 
         public async Task<TResponse> RequestAsync<TResponse>(object requestBody,
@@ -169,27 +165,12 @@ namespace SharpMTProto
 
         public Task SendAsync(object requestBody)
         {
-            return SendAsync(requestBody, GetMessageSendingFlags(requestBody), DefaultRpcTimeout, CancellationToken.None);
+            return SendAsync(requestBody, GetMessageSendingFlags(requestBody), DefaultSendingTimeout, CancellationToken.None);
         }
 
         public void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags)
         {
             _messageSendingFlags.AddRange(flags);
-        }
-
-        public Task SendAsync(object requestBody, MessageSendingFlags flags)
-        {
-            return SendAsync(requestBody, flags, DefaultRpcTimeout, CancellationToken.None);
-        }
-
-        public Task SendAsync(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
-        {
-            return SendAsync(requestBody, flags, timeout, CancellationToken.None);
-        }
-
-        public Task SendAsync(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
-        {
-            return SendAsync(requestBody, flags, DefaultRpcTimeout, cancellationToken);
         }
 
         private void InitMessageDispatcher()
@@ -204,12 +185,7 @@ namespace SharpMTProto
 
         private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)
         {
-            return Task.Run(async () =>
-            {
-                byte[] messageBytes = EncodeMessage(request.Message, request.Flags.HasFlag(MessageSendingFlags.Encrypted));
-                await SendAsync(messageBytes, cancellationToken);
-            },
-                cancellationToken);
+            return SendAsync(request.Message, request.Flags, cancellationToken);
         }
 
         private Request<TResponse> CreateRequest<TResponse>(object body, MessageSendingFlags flags, CancellationToken cancellationToken)

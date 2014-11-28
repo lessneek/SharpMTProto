@@ -18,11 +18,6 @@ namespace SharpMTProto
     public interface IRemoteProcedureCaller
     {
         /// <summary>
-        ///     Default RPC timeout.
-        /// </summary>
-        TimeSpan DefaultRpcTimeout { get; set; }
-
-        /// <summary>
         ///     Sends query without waiting for any result.
         /// </summary>
         /// <param name="requestBody">Request body.</param>
