@@ -64,7 +64,8 @@ namespace SharpMTProto
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
-            return new MTProtoClientConnection(clientTransportConfig, _clientTransportFactory, _tlRig, _messageIdGenerator, _messageCodec);
+            IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
+            return new MTProtoClientConnection(transport, _tlRig, _messageIdGenerator, _messageCodec);
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)

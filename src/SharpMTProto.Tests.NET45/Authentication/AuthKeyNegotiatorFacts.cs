@@ -1,29 +1,27 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="AuthKeyNegotiatorFacts.cs">
-//   Copyright (c) 2014 Alexander Logger. All rights reserved.
+//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Linq;
-using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
-using BigMath.Utils;
-using Catel.IoC;
-using Catel.Logging;
-using FluentAssertions;
-using Moq;
-using Nito.AsyncEx;
-using NUnit.Framework;
-using SharpMTProto.Authentication;
-using SharpMTProto.Messaging;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
-
 namespace SharpMTProto.Tests.Authentication
 {
+    using System;
+    using System.Linq;
+    using System.Reactive.Subjects;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using BigMath.Utils;
+    using Catel.IoC;
+    using Catel.Logging;
+    using FluentAssertions;
+    using Moq;
+    using Nito.AsyncEx;
+    using NUnit.Framework;
+    using SharpMTProto.Authentication;
+    using SharpMTProto.Services;
+    using SharpMTProto.Transport;
+
     [TestFixture]
     [Category("Authentication")]
     public class AuthKeyNegotiatorFacts
@@ -37,19 +35,8 @@ namespace SharpMTProto.Tests.Authentication
         [Test]
         public async Task Should_create_auth_key()
         {
-            IServiceLocator serviceLocator = ServiceLocator.Default;
-
-            serviceLocator.RegisterInstance(Mock.Of<IClientTransportConfig>());
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
+            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
             serviceLocator.RegisterInstance<INonceGenerator>(new TestNonceGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
-            serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
-            serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
-            serviceLocator.RegisterType<IMTProtoClientConnection, MTProtoClientConnection>(RegistrationType.Transient);
-            serviceLocator.RegisterType<IMTProtoClientBuilder, MTProtoClientBuilder>();
-            serviceLocator.RegisterType<IKeyChain, KeyChain>();
 
             // Mock transport.
             {
@@ -62,13 +49,11 @@ namespace SharpMTProto.Tests.Authentication
                     .Callback(() => inTransport.OnNext(TestData.ResPQ))
                     .Returns(() => TaskConstants.Completed);
 
-                mockTransport.Setup(
-                    transport => transport.SendAsync(TestData.ReqDHParams, It.IsAny<CancellationToken>()))
+                mockTransport.Setup(transport => transport.SendAsync(TestData.ReqDHParams, It.IsAny<CancellationToken>()))
                     .Callback(() => inTransport.OnNext(TestData.ServerDHParams))
                     .Returns(() => TaskConstants.Completed);
 
-                mockTransport.Setup(
-                    transport => transport.SendAsync(TestData.SetClientDHParams, It.IsAny<CancellationToken>()))
+                mockTransport.Setup(transport => transport.SendAsync(TestData.SetClientDHParams, It.IsAny<CancellationToken>()))
                     .Callback(() => inTransport.OnNext(TestData.DhGenOk))
                     .Returns(() => TaskConstants.Completed);
 
@@ -85,18 +70,13 @@ namespace SharpMTProto.Tests.Authentication
                 mockEncryptionServices.Setup(services => services.RSAEncrypt(It.IsAny<byte[]>(), It.IsAny<PublicKey>()))
                     .Returns(TestData.EncryptedData);
                 mockEncryptionServices.Setup(
-                    services =>
-                        services.Aes256IgeDecrypt(TestData.ServerDHParamsOkEncryptedAnswer,
-                            TestData.TmpAesKey,
-                            TestData.TmpAesIV))
+                    services => services.Aes256IgeDecrypt(TestData.ServerDHParamsOkEncryptedAnswer, TestData.TmpAesKey, TestData.TmpAesIV))
                     .Returns(TestData.ServerDHInnerDataWithHash);
                 mockEncryptionServices.Setup(
                     services =>
                         services.Aes256IgeEncrypt(
                             It.Is<byte[]>(
-                                bytes =>
-                                    bytes.RewriteWithValue(0, bytes.Length - 12, 12)
-                                        .SequenceEqual(TestData.ClientDHInnerDataWithHash)),
+                                bytes => bytes.RewriteWithValue(0, bytes.Length - 12, 12).SequenceEqual(TestData.ClientDHInnerDataWithHash)),
                             TestData.TmpAesKey,
                             TestData.TmpAesIV)).Returns(TestData.SetClientDHParamsEncryptedData);
                 mockEncryptionServices.Setup(services => services.DH(TestData.B, TestData.G, TestData.GA, TestData.P))

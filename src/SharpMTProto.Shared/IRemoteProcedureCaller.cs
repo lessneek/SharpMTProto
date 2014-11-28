@@ -4,19 +4,24 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Threading.Tasks;
-using SharpMTProto.Messaging;
-
 namespace SharpMTProto
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Reflection;
+    using System.Threading.Tasks;
+    using Messaging;
+
     /// <summary>
     ///     Interface for remote procedure calls.
     /// </summary>
     public interface IRemoteProcedureCaller
     {
+        /// <summary>
+        ///     Default RPC timeout.
+        /// </summary>
+        TimeSpan DefaultRpcTimeout { get; set; }
+
         /// <summary>
         ///     Sends query without waiting for any result.
         /// </summary>
@@ -38,7 +43,7 @@ namespace SharpMTProto
         void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags);
 
         /// <summary>
-        /// Prepares serializers for all TL-objects in assembly.
+        ///     Prepares serializers for all TL-objects in assembly.
         /// </summary>
         /// <param name="assembly">Assembly.</param>
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);

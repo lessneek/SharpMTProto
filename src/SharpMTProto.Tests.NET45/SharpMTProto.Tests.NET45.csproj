@@ -117,7 +117,7 @@
     <Compile Include="MTProtoBuilderFacts.cs" />
     <Compile Include="Services\EncryptionServicesFacts.cs" />
     <Compile Include="Authentication\KeyChainFacts.cs" />
-    <Compile Include="MTProtoConnectionFacts.cs" />
+    <Compile Include="MTProtoClientConnectionFacts.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Transport\TcpClientTransportFacts.cs" />
     <Compile Include="TestData.cs" />

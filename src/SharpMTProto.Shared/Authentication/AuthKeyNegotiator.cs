@@ -107,7 +107,7 @@ namespace SharpMTProto.Authentication
 
                 // Connecting.
                 Log.Debug("Connecting...");
-                MTProtoConnectResult result = await connection.Connect(cancellationToken);
+                MTProtoConnectResult result = await connection.ConnectAsync();
                 if (result != MTProtoConnectResult.Success)
                 {
                     throw new CouldNotConnectException("Connection trial was unsuccessful.", result);

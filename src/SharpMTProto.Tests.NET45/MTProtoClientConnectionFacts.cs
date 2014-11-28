@@ -31,6 +31,12 @@ namespace SharpMTProto.Tests
             LogManager.AddDebugListener(true);
         }
 
+        [TearDown]
+        public void TearDown()
+        {
+            LogManager.FlushAll();
+        }
+
         [Test]
         public async Task Should_send_Rpc_and_receive_response()
         {
@@ -52,17 +58,18 @@ namespace SharpMTProto.Tests
                 Sender.Server);
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
-
-            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
+            
+            var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
+            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.Configure(config);
-                await connection.Connect();
+                await connection.ConnectAsync();
 
                 TestResponse response = await connection.RpcAsync<TestResponse>(request);
                 response.Should().NotBeNull();
                 response.Should().Be(expectedResponse);
 
-                await connection.Disconnect();
+                await connection.DisconnectAsync();
             }
         }
 
@@ -87,16 +94,17 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
+            var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
+            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.Configure(config);
-                await connection.Connect();
+                await connection.ConnectAsync();
 
                 TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.EncryptedAndContentRelated, TimeSpan.FromSeconds(5));
                 response.Should().NotBeNull();
                 response.Should().Be(expectedResponse);
 
-                await connection.Disconnect();
+                await connection.DisconnectAsync();
             }
         }
 
@@ -114,16 +122,17 @@ namespace SharpMTProto.Tests
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
+            var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
+            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
-                await connection.Connect();
+                await connection.ConnectAsync();
 
                 // Testing sending a plain message.
                 TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.None, TimeSpan.FromSeconds(5));
                 response.Should().NotBeNull();
                 response.Should().Be(expectedResponse);
 
-                await connection.Disconnect();
+                await connection.DisconnectAsync();
             }
         }
 
@@ -139,9 +148,10 @@ namespace SharpMTProto.Tests
             var testAction = new Func<Task>(
                 async () =>
                 {
-                    using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
+                    var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
+                    using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
                     {
-                        await connection.Connect();
+                        await connection.ConnectAsync();
                         await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
                     }
                 });
@@ -158,10 +168,11 @@ namespace SharpMTProto.Tests
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
 
-            using (var connection = serviceLocator.ResolveType<IMTProtoClientConnection>())
+            var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
+            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.DefaultConnectTimeout = TimeSpan.FromMilliseconds(100);
-                MTProtoConnectResult result = await connection.Connect();
+                MTProtoConnectResult result = await connection.ConnectAsync();
                 result.Should().Be(MTProtoConnectResult.Timeout);
             }
         }
