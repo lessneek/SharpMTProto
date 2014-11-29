@@ -98,9 +98,10 @@ namespace SharpMTProto.Tests
             using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.Configure(config);
+                connection.Transport.SendingTimeout = TimeSpan.FromSeconds(5);
                 await connection.ConnectAsync();
 
-                TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.EncryptedAndContentRelated, TimeSpan.FromSeconds(5));
+                TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.EncryptedAndContentRelated);
                 response.Should().NotBeNull();
                 response.Should().Be(expectedResponse);
 
@@ -125,10 +126,11 @@ namespace SharpMTProto.Tests
             var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
             using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
+                connection.Transport.SendingTimeout = TimeSpan.FromSeconds(5);
                 await connection.ConnectAsync();
 
                 // Testing sending a plain message.
-                TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.None, TimeSpan.FromSeconds(5));
+                TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.None);
                 response.Should().NotBeNull();
                 response.Should().Be(expectedResponse);
 
@@ -141,7 +143,7 @@ namespace SharpMTProto.Tests
         {
             IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
 
-            var mockTransport = new Mock<IClientTransport>();
+            var mockTransport = CreateMockTransport();
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
 
@@ -158,35 +160,29 @@ namespace SharpMTProto.Tests
             testAction.ShouldThrow<TaskCanceledException>();
         }
 
-        [Test]
-        public async Task Should_timeout_on_connect()
-        {
-            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
-
-            var mockTransport = new Mock<IClientTransport>();
-            mockTransport.Setup(transport => transport.ConnectAsync()).Returns(() => Task.Delay(1000));
-
-            serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
-
-            var builder = serviceLocator.ResolveType<IMTProtoClientBuilder>();
-            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
-            {
-                connection.DefaultConnectTimeout = TimeSpan.FromMilliseconds(100);
-                MTProtoConnectResult result = await connection.ConnectAsync();
-                result.Should().Be(MTProtoConnectResult.Timeout);
-            }
-        }
-
         private static void SetupMockTransportWhichReturnsBytes(IServiceLocator serviceLocator, byte[] expectedResponseMessageBytes)
         {
             var inConnector = new Subject<byte[]>();
-            var mockTransport = new Mock<IClientTransport>();
+            var mockTransport = CreateMockTransport();
+
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
+            
             mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
                 .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
                 .Returns(() => TaskConstants.Completed);
 
             serviceLocator.RegisterInstance(CreateMockTransportFactory(mockTransport.Object));
+        }
+
+        private static Mock<IClientTransport> CreateMockTransport()
+        {
+            var mockTransport = new Mock<IClientTransport>();
+
+            mockTransport.Setup(transport => transport.ConnectAsync()).Returns(() => Task.FromResult(TransportConnectResult.Success));
+
+            mockTransport.Setup(transport => transport.IsConnected).Returns(() => true);
+
+            return mockTransport;
         }
 
         private static IClientTransportFactory CreateMockTransportFactory(IClientTransport clientTransport)

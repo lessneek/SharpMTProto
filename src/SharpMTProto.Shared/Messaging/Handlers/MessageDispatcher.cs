@@ -4,17 +4,16 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Catel.Logging;
-using Catel.Reflection;
-using Nito.AsyncEx;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto.Messaging.Handlers
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using Catel.Logging;
+    using Catel.Reflection;
+    using Schema;
+
     /// <summary>
     ///     Message dispatcher.
     /// </summary>
@@ -58,7 +57,7 @@ namespace SharpMTProto.Messaging.Handlers
         /// <param name="overwriteExisted">Overwrite existed.</param>
         void AddHandler(IMessageHandler handler, Type messageType, bool overwriteExisted = false);
     }
-    
+
     /// <summary>
     ///     Message dispatcher routes messages to proper message handler.
     /// </summary>
@@ -74,7 +73,8 @@ namespace SharpMTProto.Messaging.Handlers
         {
             Type messageType = message.Body.GetType();
 
-            IMessageHandler handler = _handlers.Where(pair => pair.Key.IsAssignableFromEx(messageType)).Select(pair => pair.Value).FirstOrDefault();
+            IMessageHandler handler =
+                _handlers.Where(pair => pair.Key.IsAssignableFromEx(messageType)).Select(pair => pair.Value).FirstOrDefault();
             if (handler == null)
             {
                 if (FallbackHandler != null)
@@ -84,7 +84,8 @@ namespace SharpMTProto.Messaging.Handlers
                 else
                 {
                     Log.WarningWithData(
-                        string.Format("No handler found for message of type '{0}' and there is no fallback handler. Message was ignored.", messageType.Name));
+                        string.Format("No handler found for message of type '{0}' and there is no fallback handler. Message was ignored.",
+                            messageType.Name));
                     return;
                 }
             }
@@ -106,7 +107,7 @@ namespace SharpMTProto.Messaging.Handlers
 
         public void AddHandler<TMessage>(IMessageHandler handler, bool overwriteExisted = false)
         {
-            Type messageType = typeof(TMessage);
+            Type messageType = typeof (TMessage);
             AddHandler(handler, messageType, overwriteExisted);
         }
 
@@ -116,7 +117,9 @@ namespace SharpMTProto.Messaging.Handlers
             {
                 if (!overwriteExisted)
                 {
-                    Log.Warning(string.Format("Prevented addition of another handler '{0}' for message of type '{1}'.", handler.GetType(), handler.MessageType.Name));
+                    Log.Warning(string.Format("Prevented addition of another handler '{0}' for message of type '{1}'.",
+                        handler.GetType(),
+                        handler.MessageType.Name));
                     return;
                 }
                 _handlers.Remove(messageType);

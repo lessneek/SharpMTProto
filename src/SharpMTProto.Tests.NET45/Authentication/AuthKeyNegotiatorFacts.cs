@@ -45,6 +45,10 @@ namespace SharpMTProto.Tests.Authentication
                 mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>()))
                     .Callback<IObserver<byte[]>>(observer => inTransport.Subscribe(observer));
 
+                mockTransport.Setup(transport => transport.ConnectAsync()).Returns(() => Task.FromResult(TransportConnectResult.Success));
+
+                mockTransport.Setup(transport => transport.IsConnected).Returns(() => true);
+
                 mockTransport.Setup(transport => transport.SendAsync(TestData.ReqPQ, It.IsAny<CancellationToken>()))
                     .Callback(() => inTransport.OnNext(TestData.ResPQ))
                     .Returns(() => TaskConstants.Completed);
@@ -69,9 +73,11 @@ namespace SharpMTProto.Tests.Authentication
                 var mockEncryptionServices = new Mock<IEncryptionServices>();
                 mockEncryptionServices.Setup(services => services.RSAEncrypt(It.IsAny<byte[]>(), It.IsAny<PublicKey>()))
                     .Returns(TestData.EncryptedData);
+
                 mockEncryptionServices.Setup(
                     services => services.Aes256IgeDecrypt(TestData.ServerDHParamsOkEncryptedAnswer, TestData.TmpAesKey, TestData.TmpAesIV))
                     .Returns(TestData.ServerDHInnerDataWithHash);
+
                 mockEncryptionServices.Setup(
                     services =>
                         services.Aes256IgeEncrypt(
@@ -79,6 +85,7 @@ namespace SharpMTProto.Tests.Authentication
                                 bytes => bytes.RewriteWithValue(0, bytes.Length - 12, 12).SequenceEqual(TestData.ClientDHInnerDataWithHash)),
                             TestData.TmpAesKey,
                             TestData.TmpAesIV)).Returns(TestData.SetClientDHParamsEncryptedData);
+
                 mockEncryptionServices.Setup(services => services.DH(TestData.B, TestData.G, TestData.GA, TestData.P))
                     .Returns(new DHOutParams(TestData.GB, TestData.AuthKey));
 

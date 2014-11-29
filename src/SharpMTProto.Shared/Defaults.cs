@@ -12,5 +12,6 @@ namespace SharpMTProto
     {
         public static readonly TimeSpan SendingTimeout = TimeSpan.FromSeconds(10);
         public static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(10);
+        public static readonly TimeSpan ResponseTimeout = TimeSpan.FromSeconds(10);
     }
 }

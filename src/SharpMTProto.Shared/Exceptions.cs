@@ -4,13 +4,14 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+    using Schema;
+    using Transport;
+
     public class MTProtoException : Exception
     {
         public MTProtoException()
@@ -62,11 +63,11 @@ namespace SharpMTProto
         {
         }
 
-        public CouldNotConnectException(string message, MTProtoConnectResult result) : base(message)
+        public CouldNotConnectException(string message, TransportConnectResult result) : base(message)
         {
         }
 
-        public CouldNotConnectException(string message, MTProtoConnectResult result, Exception innerException)
+        public CouldNotConnectException(string message, TransportConnectResult result, Exception innerException)
             : base(message, innerException)
         {
         }

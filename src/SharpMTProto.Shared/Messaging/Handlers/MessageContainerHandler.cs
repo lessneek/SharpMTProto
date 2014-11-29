@@ -14,11 +14,11 @@ namespace SharpMTProto.Messaging.Handlers
     public class MessageContainerHandler : MessageHandler<IMessageContainer>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly IMessageDispatcher _messageDispatcher;
+        private readonly IMessageDispatcher _dispatcher;
 
-        public MessageContainerHandler(IMessageDispatcher messageDispatcher)
+        public MessageContainerHandler(IMessageDispatcher dispatcher)
         {
-            _messageDispatcher = messageDispatcher;
+            _dispatcher = dispatcher;
         }
 
         protected override async Task HandleInternalAsync(IMessage message)
@@ -45,7 +45,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    await _messageDispatcher.DispatchAsync(msg);
+                    await _dispatcher.DispatchAsync(msg);
                 }
             }
             else

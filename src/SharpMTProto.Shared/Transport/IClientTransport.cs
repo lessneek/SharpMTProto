@@ -1,15 +1,15 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="IClientTransport.cs">
-//   Copyright (c) 2014 Alexander Logger. All rights reserved.
+//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace SharpMTProto.Transport
 {
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+
     public enum ClientTransportState
     {
         Disconnected = 0,
@@ -18,13 +18,24 @@ namespace SharpMTProto.Transport
         Disconnecting = 3
     }
 
+    /// <summary>
+    ///     Transport connect result.
+    /// </summary>
+    public enum TransportConnectResult
+    {
+        Unknown = 0,
+        Success = 1,
+        Fail = 2,
+        Timeout = 3
+    }
+
     public interface IClientTransport : IObservable<byte[]>, IDisposable
     {
         bool IsConnected { get; }
         ClientTransportState State { get; }
-        void Connect();
-        Task ConnectAsync();
-        void Disconnect();
+        TimeSpan SendingTimeout { get; set; }
+        TimeSpan ConnectTimeout { get; set; }
+        Task<TransportConnectResult> ConnectAsync();
         Task DisconnectAsync();
         void Send(byte[] payload);
         Task SendAsync(byte[] payload);

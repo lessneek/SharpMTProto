@@ -15,6 +15,8 @@ using SharpTL;
 
 namespace SharpMTProto
 {
+    using Messaging.Handlers;
+
     public interface IMTProtoClientBuilder
     {
         [NotNull]
@@ -65,7 +67,8 @@ namespace SharpMTProto
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
-            return new MTProtoClientConnection(transport, _tlRig, _messageIdGenerator, _messageCodec);
+            var messenger = new MTProtoMessenger(transport, _tlRig, _messageIdGenerator, _messageCodec);
+            return new MTProtoClientConnection(messenger);
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)

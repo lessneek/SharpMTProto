@@ -4,29 +4,30 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Threading.Tasks;
-using Catel.Logging;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto.Messaging.Handlers
 {
+    using System;
+    using System.Threading.Tasks;
+    using Catel.Logging;
+    using Schema;
+
     public class BadMsgNotificationHandler : MessageHandler<IBadMsgNotification>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
-        private readonly IMTProtoClientConnection _connection;
+        private readonly IMTProtoMessenger _messenger;
         private readonly IRequestsManager _requestsManager;
 
-        public BadMsgNotificationHandler(IMTProtoClientConnection connection, IRequestsManager requestsManager)
+        public BadMsgNotificationHandler(IMTProtoMessenger messenger, IRequestsManager requestsManager)
         {
-            _connection = connection;
+            _messenger = messenger;
             _requestsManager = requestsManager;
         }
 
         protected override async Task HandleInternalAsync(IMessage message)
         {
             #region Notice of Ignored Error Message
+
             /* In certain cases, a server may notify a client that its incoming message was ignored for whatever reason.
              * Note that such a notification cannot be generated unless a message is correctly decoded by the server.
              * 
@@ -65,6 +66,7 @@ namespace SharpMTProto.Messaging.Handlers
              * 
              * https://core.telegram.org/mtproto/service_messages_about_messages#notice-of-ignored-error-message
              */
+
             #endregion
 
             var response = (IBadMsgNotification) message.Body;
@@ -96,19 +98,19 @@ namespace SharpMTProto.Messaging.Handlers
             {
                 if (errorCode != ErrorCode.IncorrectServerSalt)
                 {
-                    Log.Warning(string.Format("Error code must be '{0}' for a BadServerSalt notification, but found '{1}'.", ErrorCode.IncorrectServerSalt, errorCode));
+                    Log.Warning(string.Format("Error code must be '{0}' for a BadServerSalt notification, but found '{1}'.",
+                        ErrorCode.IncorrectServerSalt,
+                        errorCode));
                 }
 
-                Log.Debug(
-                    string.Format(
-                        "Bad server salt was in outgoing message (MsgId = 0x{0:X}, Seqno = {1}). Error code = {2}.",
-                        badServerSalt.BadMsgId,
-                        badServerSalt.BadMsgSeqno,
-                        errorCode));
+                Log.Debug(string.Format("Bad server salt was in outgoing message (MsgId = 0x{0:X}, Seqno = {1}). Error code = {2}.",
+                    badServerSalt.BadMsgId,
+                    badServerSalt.BadMsgSeqno,
+                    errorCode));
 
                 Log.Debug("Setting new salt.");
 
-                _connection.UpdateSalt(badServerSalt.NewServerSalt);
+                _messenger.UpdateSalt(badServerSalt.NewServerSalt);
 
                 Log.Debug("Resending bad message with the new salt.");
 

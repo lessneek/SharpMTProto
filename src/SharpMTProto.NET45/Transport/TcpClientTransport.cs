@@ -1,25 +1,26 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="TcpClientTransport.cs">
-//   Copyright (c) 2014 Alexander Logger. All rights reserved.
+//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
-using BigMath.Utils;
-using Catel.Logging;
-using Nito.AsyncEx;
-using SharpMTProto.Utils;
-using SharpTL;
-
 namespace SharpMTProto.Transport
 {
+    using System;
+    using System.Diagnostics;
+    using System.Net;
+    using System.Net.Sockets;
+    using System.Reactive.Linq;
+    using System.Reactive.Subjects;
+    using System.Reactive.Threading.Tasks;
+    using System.Threading;
+    using System.Threading.Tasks;
     using Annotations;
+    using BigMath.Utils;
+    using Catel.Logging;
+    using Nito.AsyncEx;
+    using SharpTL;
+    using Utils;
 
     /// <summary>
     ///     MTProto TCP clientTransport.
@@ -28,8 +29,9 @@ namespace SharpMTProto.Transport
     {
         private const int PacketLengthBytesCount = 4;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly TimeSpan _connectTimeout;
+        private readonly bool _isConnectedSocket;
         private readonly byte[] _readerBuffer;
+        private readonly IPEndPoint _remoteEndPoint;
 
         private readonly AsyncLock _stateAsyncLock = new AsyncLock();
         private readonly byte[] _tempLengthBuffer = new byte[PacketLengthBytesCount];
@@ -39,14 +41,10 @@ namespace SharpMTProto.Transport
         private int _nextPacketBytesCountLeft;
         private byte[] _nextPacketDataBuffer;
         private TLStreamer _nextPacketStreamer;
+        private int _packetNumber;
         private Socket _socket;
         private volatile ClientTransportState _state = ClientTransportState.Disconnected;
         private int _tempLengthBufferFill;
-        private int _packetNumber;
-        private volatile bool _isDisposed;
-        private readonly IPEndPoint _remoteEndPoint;
-
-        private readonly bool _isConnectedSocket;
 
         public TcpClientTransport(TcpClientTransportConfig config)
         {
@@ -62,7 +60,8 @@ namespace SharpMTProto.Transport
             }
 
             _remoteEndPoint = new IPEndPoint(ipAddress, config.Port);
-            _connectTimeout = config.ConnectTimeout;
+            ConnectTimeout = config.ConnectTimeout;
+            SendingTimeout = config.SendingTimeout;
 
             _readerBuffer = new byte[config.MaxBufferSize];
         }
@@ -103,92 +102,22 @@ namespace SharpMTProto.Transport
             get { return _state; }
         }
 
-        public void Connect()
-        {
-            ConnectAsync().Wait();
-        }
+        public TimeSpan ConnectTimeout { get; set; }
+        public TimeSpan SendingTimeout { get; set; }
 
-        public Task ConnectAsync()
+        public Task<TransportConnectResult> ConnectAsync()
         {
             ThrowIfConnectedSocket();
             return InternalConnectAsync();
-        }
-
-        private async Task InternalConnectAsync()
-        {
-            Log.Debug(string.Format("Client transport ({0}) connecting...", _remoteEndPoint));
-
-            ThrowIfDisposed();
-
-            using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
-            {
-                if (_state != ClientTransportState.Disconnected)
-                {
-                    Log.Debug(string.Format("Client transport ({0}) could not connect in non disconnected state.", _remoteEndPoint));
-                    return;
-                }
-                _state = ClientTransportState.Connecting;
-
-                if (_isConnectedSocket)
-                {
-                    _state = ClientTransportState.Connected;
-                }
-                else
-                {
-                    using (var args = new SocketAsyncEventArgs { RemoteEndPoint = _remoteEndPoint })
-                    {
-                        var awaitable = new SocketAwaitable(args);
-
-                        try
-                        {
-                            _packetNumber = 0;
-                            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                            await _socket.ConnectAsync(awaitable);
-                        }
-                        catch (SocketException e)
-                        {
-                            Log.Debug(e);
-                        }
-                        catch (Exception e)
-                        {
-                            Log.Error(e);
-                            _state = ClientTransportState.Disconnected;
-                            throw;
-                        }
-
-                        switch (args.SocketError)
-                        {
-                            case SocketError.Success:
-                            case SocketError.IsConnected:
-                                _state = ClientTransportState.Connected;
-                                break;
-                            default:
-                                _state = ClientTransportState.Disconnected;
-                                break;
-                        }
-                    }
-                }
-
-                if (_state != ClientTransportState.Connected)
-                {
-                    _state = ClientTransportState.Disconnected;
-                    return;
-                }
-
-                _connectionCancellationTokenSource = new CancellationTokenSource();
-                StartReceiver(_connectionCancellationTokenSource.Token);
-            }
-        }
-
-        public void Disconnect()
-        {
-            DisconnectAsync().Wait();
         }
 
         public async Task DisconnectAsync()
         {
             using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
+                Debug.Assert(_state != ClientTransportState.Connecting, "This should never happens.");
+                Debug.Assert(_state != ClientTransportState.Disconnecting, "This should never happens.");
+
                 if (_state != ClientTransportState.Connected)
                 {
                     Log.Debug(string.Format("Client transport ({0}) could not disconnect in non connected state.", _remoteEndPoint));
@@ -205,7 +134,7 @@ namespace SharpMTProto.Transport
                 }
                 await Task.Delay(10);
 
-                using (var args = new SocketAsyncEventArgs { DisconnectReuseSocket = false })
+                using (var args = new SocketAsyncEventArgs {DisconnectReuseSocket = false})
                 {
                     var awaitable = new SocketAwaitable(args);
                     try
@@ -254,7 +183,105 @@ namespace SharpMTProto.Transport
 
                 var awaitable = new SocketAwaitable(args);
                 await _socket.SendAsync(awaitable);
-            }, token);
+                // TODO: add timeout and exception catcher.
+            },
+                token);
+        }
+
+        private async Task<TransportConnectResult> InternalConnectAsync()
+        {
+            Log.Debug(string.Format("Client transport ({0}) connecting...", _remoteEndPoint));
+
+            ThrowIfDisposed();
+
+            using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
+            {
+                Debug.Assert(_state != ClientTransportState.Connecting, "This should never happens.");
+                Debug.Assert(_state != ClientTransportState.Disconnecting, "This should never happens.");
+
+                var result = TransportConnectResult.Unknown;
+
+                if (_state == ClientTransportState.Connected)
+                {
+                    Log.Debug(string.Format("Client transport ({0}) already connected.", _remoteEndPoint));
+                    return TransportConnectResult.Success;
+                }
+                _state = ClientTransportState.Connecting;
+
+                if (_isConnectedSocket)
+                {
+                    _state = ClientTransportState.Connected;
+                    result = TransportConnectResult.Success;
+                }
+                else
+                {
+                    using (var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint})
+                    {
+                        var awaitable = new SocketAwaitable(args);
+
+                        try
+                        {
+                            _packetNumber = 0;
+                            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                            await Task.Run(async () => await _socket.ConnectAsync(awaitable)).ToObservable().Timeout(ConnectTimeout);
+                        }
+                        catch (TimeoutException)
+                        {
+                            result = TransportConnectResult.Timeout;
+                        }
+                        catch (SocketException e)
+                        {
+                            // Log only. Process actual SocketError below.
+                            Log.Debug(e);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error(e);
+                            _state = ClientTransportState.Disconnected;
+                            throw;
+                        }
+
+                        if (result == TransportConnectResult.Unknown)
+                        {
+                            switch (args.SocketError)
+                            {
+                                case SocketError.Success:
+                                case SocketError.IsConnected:
+                                    result = TransportConnectResult.Success;
+                                    break;
+                                case SocketError.TimedOut:
+                                    result = TransportConnectResult.Timeout;
+                                    break;
+                                default:
+                                    result = TransportConnectResult.Fail;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                switch (result)
+                {
+                    case TransportConnectResult.Success:
+                        _state = ClientTransportState.Connected;
+                        break;
+                    case TransportConnectResult.Unknown:
+                    case TransportConnectResult.Fail:
+                    case TransportConnectResult.Timeout:
+                        _socket.Close();
+                        _socket = null;
+                        _state = ClientTransportState.Disconnected;
+                        return result;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                _connectionCancellationTokenSource = new CancellationTokenSource();
+                StartReceiver(_connectionCancellationTokenSource.Token);
+
+                return result;
+            }
         }
 
         private void StartReceiver(CancellationToken token)
@@ -354,7 +381,8 @@ namespace SharpMTProto.Transport
                         _tempLengthBufferFill = 0;
                         _nextPacketBytesCountLeft = _tempLengthBuffer.ToInt32();
 
-                        if (_nextPacketDataBuffer == null || _nextPacketDataBuffer.Length < _nextPacketBytesCountLeft || _nextPacketStreamer == null)
+                        if (_nextPacketDataBuffer == null || _nextPacketDataBuffer.Length < _nextPacketBytesCountLeft ||
+                            _nextPacketStreamer == null)
                         {
                             _nextPacketDataBuffer = new byte[_nextPacketBytesCountLeft];
                             _nextPacketStreamer = new TLStreamer(_nextPacketDataBuffer);
@@ -414,12 +442,15 @@ namespace SharpMTProto.Transport
         }
 
         #region Disposing
+
+        private volatile bool _isDisposed;
+
         public void Dispose()
         {
             Dispose(true);
         }
 
-        protected virtual void Dispose(bool isDisposing)
+        protected virtual async void Dispose(bool isDisposing)
         {
             if (_isDisposed)
             {
@@ -434,7 +465,7 @@ namespace SharpMTProto.Transport
 
             if (_state != ClientTransportState.Disconnected)
             {
-                Disconnect();
+                await DisconnectAsync();
             }
 
             if (_nextPacketStreamer != null)
@@ -458,6 +489,7 @@ namespace SharpMTProto.Transport
                 throw new ObjectDisposedException("Connection was disposed.");
             }
         }
+
         #endregion
     }
 }

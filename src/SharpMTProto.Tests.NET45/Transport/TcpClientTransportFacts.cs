@@ -259,5 +259,14 @@ namespace SharpMTProto.Tests.Transport
 
             receivedPayload.ShouldAllBeEquivalentTo(payload);
         }
+
+        [Test]
+        public async Task Should_timeout_on_connect()
+        {
+            var config = new TcpClientTransportConfig("1.0.0.1", 1) {ConnectTimeout = TimeSpan.FromMilliseconds(100)};
+            var transport = new TcpClientTransport(config);
+            var result = await transport.ConnectAsync();
+            result.Should().Be(TransportConnectResult.Timeout);
+        }
     }
 }

@@ -31,15 +31,15 @@ namespace SharpMTProto.Tests.Messaging.Handlers
                 2,
                 new BadServerSalt {BadMsgId = reqMsg.MsgId, BadMsgSeqno = reqMsg.Seqno, ErrorCode = (uint) ErrorCode.IncorrectServerSalt, NewServerSalt = newSalt});
 
-            var connection = new Mock<IMTProtoClientConnection>();
+            var messener = new Mock<IMTProtoMessenger>();
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 
-            var handler = new BadMsgNotificationHandler(connection.Object, requestsManager.Object);
+            var handler = new BadMsgNotificationHandler(messener.Object, requestsManager.Object);
             await handler.HandleAsync(resMsg);
 
-            connection.Verify(c => c.UpdateSalt(It.IsAny<ulong>()), Times.Once);
-            connection.Verify(c => c.UpdateSalt(newSalt), Times.Once);
+            messener.Verify(c => c.UpdateSalt(It.IsAny<ulong>()), Times.Once);
+            messener.Verify(c => c.UpdateSalt(newSalt), Times.Once);
 
             requestsManager.Verify(manager => manager.Get(It.IsAny<ulong>()), Times.Once);
             requestsManager.Verify(manager => manager.Get(reqMsg.MsgId), Times.Once);

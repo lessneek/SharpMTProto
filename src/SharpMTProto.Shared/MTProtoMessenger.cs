@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MTProtoConnection.cs">
+// <copyright file="MTProtoMessenger.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -7,10 +7,10 @@
 namespace SharpMTProto
 {
     using System;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Reactive.Concurrency;
     using System.Reactive.Linq;
-    using System.Reactive.Threading.Tasks;
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
@@ -28,44 +28,16 @@ namespace SharpMTProto
     /// <summary>
     ///     Interface of a MTProto connection.
     /// </summary>
-    public interface IMTProtoConnection : IDisposable
+    public interface IMTProtoMessenger : IDisposable
     {
-        /// <summary>
-        ///     A state.
-        /// </summary>
-        MTProtoConnectionState State { get; }
-
-        /// <summary>
-        ///     Is connected.
-        /// </summary>
-        bool IsConnected { get; }
-
         /// <summary>
         ///     Is encryption supported.
         /// </summary>
         bool IsEncryptionSupported { get; }
 
-        /// <summary>
-        ///     Default connect timeout.
-        /// </summary>
-        TimeSpan DefaultConnectTimeout { get; set; }
+        IMessageDispatcher IncomingMessageDispatcher { get; }
 
-        /// <summary>
-        ///     Default sending timeout.
-        /// </summary>
-        TimeSpan DefaultSendingTimeout { get; set; }
-
-        IMessageDispatcher MessageDispatcher { get; }
-
-        /// <summary>
-        ///     Diconnect.
-        /// </summary>
-        Task DisconnectAsync();
-
-        /// <summary>
-        ///     Connect.
-        /// </summary>
-        Task<MTProtoConnectResult> ConnectAsync();
+        IClientTransport Transport { get; }
 
         /// <summary>
         ///     Configure connection.
@@ -78,35 +50,41 @@ namespace SharpMTProto
         /// </summary>
         /// <param name="salt">New salt.</param>
         void UpdateSalt(ulong salt);
+
+        void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
+        Task SendAsync(object messageBody, MessageSendingFlags flags);
+        Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken);
+        Task SendAsync(IMessage message, MessageSendingFlags flags);
+        Task SendAsync(IMessage message, MessageSendingFlags flags, CancellationToken cancellationToken);
+        Message CreateMessage(object body, bool isContentRelated);
     }
 
     /// <summary>
     ///     MTProto connection base.
     /// </summary>
-    public abstract class MTProtoConnection : IMTProtoConnection
+    public class MTProtoMessenger : IMTProtoMessenger
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
         private readonly AsyncLock _connectionLock = new AsyncLock();
+        private readonly Dictionary<Type, IMessageHandler> _handlers = new Dictionary<Type, IMessageHandler>();
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageDispatcher _messageDispatcher = new MessageDispatcher();
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly TLRig _tlRig;
-        private IClientTransport _clientTransport;
+        private IClientTransport _transport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
-        private CancellationTokenSource _connectionCts;
         private bool _isDisposed;
         private uint _messageSeqNumber;
-        private volatile MTProtoConnectionState _state = MTProtoConnectionState.Disconnected;
 
-        protected MTProtoConnection([NotNull] IClientTransport clientTransport,
+        public MTProtoMessenger([NotNull] IClientTransport transport,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec)
         {
-            if (clientTransport == null)
+            if (transport == null)
             {
-                throw new ArgumentNullException("clientTransport");
+                throw new ArgumentNullException("transport");
             }
             if (tlRig == null)
             {
@@ -125,44 +103,28 @@ namespace SharpMTProto
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
 
-            DefaultConnectTimeout = Defaults.ConnectTimeout;
-            DefaultSendingTimeout = Defaults.SendingTimeout;
-
             // Init transport.
-            _clientTransport = clientTransport;
+            _transport = transport;
 
             // Connector in/out.
-            _clientTransport.ObserveOn(DefaultScheduler.Instance)
+            _transport.ObserveOn(DefaultScheduler.Instance)
                 .Do(bytes => LogMessageInOut(bytes, "IN"))
                 .Subscribe(ProcessIncomingMessageBytes);
         }
 
-        public IMessageDispatcher MessageDispatcher
+        public IMessageDispatcher IncomingMessageDispatcher
         {
             get { return _messageDispatcher; }
         }
-
-        protected CancellationTokenSource ConnectionCts
-        {
-            get { return _connectionCts; }
-        }
-
-        public TimeSpan DefaultConnectTimeout { get; set; }
-        public TimeSpan DefaultSendingTimeout { get; set; }
-
+        
         public bool IsEncryptionSupported
         {
             get { return _config.AuthKey != null; }
         }
 
-        public MTProtoConnectionState State
+        public IClientTransport Transport
         {
-            get { return _state; }
-        }
-
-        public bool IsConnected
-        {
-            get { return _state == MTProtoConnectionState.Connected; }
+            get { return _transport; }
         }
 
         /// <summary>
@@ -188,90 +150,6 @@ namespace SharpMTProto
             _config.Salt = salt;
         }
 
-        /// <summary>
-        ///     Connect.
-        /// </summary>
-        public Task<MTProtoConnectResult> ConnectAsync()
-        {
-            return Task.Run(async () =>
-            {
-                var result = MTProtoConnectResult.Other;
-
-                using (await _connectionLock.LockAsync().ConfigureAwait(false))
-                {
-                    if (_state == MTProtoConnectionState.Connected)
-                    {
-                        result = MTProtoConnectResult.Success;
-                        return result;
-                    }
-                    Debug.Assert(_state == MTProtoConnectionState.Disconnected);
-                    try
-                    {
-                        _state = MTProtoConnectionState.Connecting;
-                        Log.Debug("Connecting...");
-
-                        await _clientTransport.ConnectAsync().ToObservable().Timeout(DefaultConnectTimeout);
-
-                        _connectionCts = new CancellationTokenSource();
-
-                        Log.Debug("Connected.");
-                        result = MTProtoConnectResult.Success;
-                    }
-                    catch (TimeoutException)
-                    {
-                        result = MTProtoConnectResult.Timeout;
-                        Log.Debug(string.Format("Failed to connect due to timeout ({0}s).", DefaultConnectTimeout.TotalSeconds));
-                    }
-                    catch (Exception e)
-                    {
-                        result = MTProtoConnectResult.Other;
-                        Log.Debug(e, "Failed to connect.");
-                    }
-                    finally
-                    {
-                        switch (result)
-                        {
-                            case MTProtoConnectResult.Success:
-                                _state = MTProtoConnectionState.Connected;
-                                break;
-                            case MTProtoConnectResult.Timeout:
-                            case MTProtoConnectResult.Other:
-                                _state = MTProtoConnectionState.Disconnected;
-                                break;
-                            default:
-                                throw new ArgumentOutOfRangeException();
-                        }
-                    }
-                }
-                return result;
-            });
-        }
-
-        public Task DisconnectAsync()
-        {
-            return Task.Run(async () =>
-            {
-                using (await _connectionLock.LockAsync())
-                {
-                    if (_state == MTProtoConnectionState.Disconnected)
-                    {
-                        return;
-                    }
-                    _state = MTProtoConnectionState.Disconnected;
-
-                    if (_connectionCts != null)
-                    {
-                        _connectionCts.Cancel();
-                        _connectionCts.Dispose();
-                        _connectionCts = null;
-                    }
-
-                    await _clientTransport.DisconnectAsync();
-                }
-            },
-                CancellationToken.None);
-        }
-
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
         {
             _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
@@ -279,32 +157,20 @@ namespace SharpMTProto
 
         public Task SendAsync(object messageBody, MessageSendingFlags flags)
         {
-            return SendAsync(messageBody, flags, DefaultSendingTimeout, CancellationToken.None);
+            return SendAsync(messageBody, flags, CancellationToken.None);
         }
 
-        public Task SendAsync(object messageBody, MessageSendingFlags flags, TimeSpan timeout)
-        {
-            return SendAsync(messageBody, flags, timeout, CancellationToken.None);
-        }
-
-        public Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken)
-        {
-            return SendAsync(messageBody, flags, DefaultSendingTimeout, cancellationToken);
-        }
-
-        public async Task SendAsync(object messageBody, MessageSendingFlags flags, TimeSpan timeout, CancellationToken cancellationToken)
+        public async Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
             byte[] messageBytes = EncodeMessage(CreateMessage(messageBody, flags.HasFlag(MessageSendingFlags.ContentRelated)),
                 flags.HasFlag(MessageSendingFlags.Encrypted));
 
-            var timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
-            using (
-                CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCancellationTokenSource.Token,
-                    cancellationToken,
-                    _connectionCts.Token))
-            {
-                await SendRawDataAsync(messageBytes, cts.Token);
-            }
+            await SendRawDataAsync(messageBytes, cancellationToken);
+        }
+
+        public Task SendAsync(IMessage message, MessageSendingFlags flags)
+        {
+            return SendAsync(message, flags, CancellationToken.None);
         }
 
         public Task SendAsync(IMessage message, MessageSendingFlags flags, CancellationToken cancellationToken)
@@ -317,16 +183,25 @@ namespace SharpMTProto
                 cancellationToken);
         }
 
-        public Task SendRawDataAsync(byte[] data, CancellationToken cancellationToken)
+        public Message CreateMessage(object body, bool isContentRelated)
+        {
+            return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
+        }
+
+        [DebuggerStepThrough]
+        protected void ThrowIfDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException("Connection was disposed.");
+            }
+        }
+
+        protected Task SendRawDataAsync(byte[] data, CancellationToken cancellationToken)
         {
             ThrowIfDiconnected();
             LogMessageInOut(data, "OUT");
-            return _clientTransport.SendAsync(data, cancellationToken);
-        }
-
-        protected Message CreateMessage(object body, bool isContentRelated)
-        {
-            return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
+            return _transport.SendAsync(data, cancellationToken);
         }
 
         private uint GetNextMsgSeqno(bool isContentRelated)
@@ -425,7 +300,7 @@ namespace SharpMTProto
             }
         }
 
-        private async void ProcessIncomingMessage(IMessage message)
+        private void ProcessIncomingMessage(IMessage message)
         {
             ThrowIfDisposed();
 
@@ -433,7 +308,7 @@ namespace SharpMTProto
             {
                 Log.Debug("Incoming message data of type = {0}.", message.Body.GetType());
 
-                await _messageDispatcher.DispatchAsync(message);
+                Task.Run(() => _messageDispatcher.DispatchAsync(message));
             }
             catch (Exception e)
             {
@@ -441,7 +316,7 @@ namespace SharpMTProto
             }
         }
 
-        private bool IsIncomingMessageIdValid(ulong messageId)
+        protected bool IsIncomingMessageIdValid(ulong messageId)
         {
             // TODO: check.
             return true;
@@ -464,7 +339,7 @@ namespace SharpMTProto
         [DebuggerStepThrough]
         protected void ThrowIfDiconnected()
         {
-            if (!IsConnected)
+            if (!_transport.IsConnected)
             {
                 throw new InvalidOperationException("Not allowed when disconnected.");
             }
@@ -476,15 +351,6 @@ namespace SharpMTProto
             if (!IsEncryptionSupported)
             {
                 throw new InvalidOperationException("Encryption is not supported. Setup encryption first by calling Configure() method.");
-            }
-        }
-
-        [DebuggerStepThrough]
-        protected void ThrowIfDisposed()
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException("Connection was disposed.");
             }
         }
 
@@ -505,9 +371,8 @@ namespace SharpMTProto
 
             if (isDisposing)
             {
-                DisconnectAsync().Wait(5000);
-                _clientTransport.Dispose();
-                _clientTransport = null;
+                _transport.Dispose();
+                _transport = null;
             }
         }
 

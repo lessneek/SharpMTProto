@@ -8,6 +8,8 @@ namespace SharpMTProto
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
     using Annotations;
@@ -17,37 +19,20 @@ namespace SharpMTProto
     using Messaging;
     using Messaging.Handlers;
     using Schema;
-    using Services;
-    using SharpTL;
     using Transport;
 
     // ReSharper disable ClassWithVirtualMembersNeverInherited.Global
 
     /// <summary>
-    ///     MTProto connection state.
-    /// </summary>
-    public enum MTProtoConnectionState
-    {
-        Disconnected = 0,
-        Connecting = 1,
-        Connected = 2
-    }
-
-    /// <summary>
-    ///     MTProto connect result.
-    /// </summary>
-    public enum MTProtoConnectResult
-    {
-        Success,
-        Timeout,
-        Other
-    }
-
-    /// <summary>
     ///     Interface of a client MTProto connection.
     /// </summary>
-    public interface IMTProtoClientConnection : IMTProtoConnection, IDisposable, IRemoteProcedureCaller
+    public interface IMTProtoClientConnection : IDisposable, IRemoteProcedureCaller
     {
+        IMTProtoAsyncMethods Methods { get; }
+        bool IsConnected { get; }
+        IClientTransport Transport { get; }
+        TimeSpan DefaultResponseTimeout { get; set; }
+
         /// <summary>
         ///     Sends request and wait for a response asynchronously.
         /// </summary>
@@ -91,39 +76,79 @@ namespace SharpMTProto
             TimeSpan timeout,
             CancellationToken cancellationToken);
 
-        IMTProtoAsyncMethods Methods { get; }
+        Task<TransportConnectResult> ConnectAsync();
+        Task DisconnectAsync();
+        void Configure(ConnectionConfig config);
     }
 
     /// <summary>
     ///     Client MTProto connection.
     /// </summary>
-    public class MTProtoClientConnection : MTProtoConnection, IMTProtoClientConnection
+    public class MTProtoClientConnection : IMTProtoClientConnection
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
         private readonly Dictionary<Type, MessageSendingFlags> _messageSendingFlags = new Dictionary<Type, MessageSendingFlags>();
+        private IMTProtoMessenger _messenger;
 
         private readonly MTProtoAsyncMethods _methods;
         private readonly RequestsManager _requestsManager = new RequestsManager();
 
-        public MTProtoClientConnection([NotNull] IClientTransport clientTransport,
-            [NotNull] TLRig tlRig,
-            [NotNull] IMessageIdGenerator messageIdGenerator,
-            [NotNull] IMessageCodec messageCodec) : base(clientTransport, tlRig, messageIdGenerator, messageCodec)
+        public MTProtoClientConnection([NotNull] IMTProtoMessenger messenger)
         {
+            if (messenger == null)
+            {
+                throw new ArgumentNullException("messenger");
+            }
+
+            _messenger = messenger;
             _methods = new MTProtoAsyncMethods(this);
+
+            DefaultResponseTimeout = Defaults.ResponseTimeout;
 
             InitMessageDispatcher();
         }
+
+        public TimeSpan DefaultResponseTimeout { get; set; }
 
         public IMTProtoAsyncMethods Methods
         {
             get { return _methods; }
         }
 
+        public IClientTransport Transport
+        {
+            get
+            {
+                ThrowIfDisposed();
+                return _messenger.Transport;
+            }
+        }
+
+        public Task<TransportConnectResult> ConnectAsync()
+        {
+            return Transport.ConnectAsync();
+        }
+
+        public Task DisconnectAsync()
+        {
+            return Transport.DisconnectAsync();
+        }
+
+        public bool IsConnected
+        {
+            get { return Transport.IsConnected; }
+        }
+
+        public void Configure(ConnectionConfig config)
+        {
+            ThrowIfDisposed();
+            _messenger.Configure(config);
+        }
+
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)
         {
-            return RequestAsync<TResponse>(requestBody, flags, DefaultSendingTimeout, CancellationToken.None);
+            return RequestAsync<TResponse>(requestBody, flags, DefaultResponseTimeout, CancellationToken.None);
         }
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, TimeSpan timeout)
@@ -133,7 +158,7 @@ namespace SharpMTProto
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
-            return RequestAsync<TResponse>(requestBody, flags, DefaultSendingTimeout, cancellationToken);
+            return RequestAsync<TResponse>(requestBody, flags, DefaultResponseTimeout, cancellationToken);
         }
 
         public async Task<TResponse> RequestAsync<TResponse>(object requestBody,
@@ -143,18 +168,17 @@ namespace SharpMTProto
         {
             Argument.IsNotNull(() => requestBody);
             cancellationToken.ThrowIfCancellationRequested();
-            ThrowIfDiconnected();
 
             var timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
             using (
                 CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCancellationTokenSource.Token,
-                    cancellationToken,
-                    ConnectionCts.Token))
+                    cancellationToken))
             {
                 Request<TResponse> request = CreateRequest<TResponse>(requestBody, flags, cts.Token);
                 Log.Info("Sending request ({0}) '{1}'.", flags, requestBody);
                 await request.SendAsync();
                 return await request.GetResponseAsync();
+                // TODO: make observable timeout.
             }
         }
 
@@ -165,7 +189,10 @@ namespace SharpMTProto
 
         public Task SendAsync(object requestBody)
         {
-            return SendAsync(requestBody, GetMessageSendingFlags(requestBody), DefaultSendingTimeout, CancellationToken.None);
+            ThrowIfDisposed();
+            return _messenger.SendAsync(requestBody,
+                GetMessageSendingFlags(requestBody),
+                CancellationToken.None);
         }
 
         public void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags)
@@ -173,24 +200,71 @@ namespace SharpMTProto
             _messageSendingFlags.AddRange(flags);
         }
 
+        public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
+        {
+            ThrowIfDisposed();
+            _messenger.PrepareSerializersForAllTLObjectsInAssembly(assembly);
+        }
+
+        #region Disposing
+
+        private volatile bool _isDisposed;
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        protected virtual void Dispose(bool isDisposing)
+        {
+            if (_isDisposed)
+            {
+                return;
+            }
+            _isDisposed = true;
+
+            if (!isDisposing)
+            {
+                return;
+            }
+
+            if (_messenger != null)
+            {
+                _messenger.Dispose();
+                _messenger = null;
+            }
+        }
+
+        [DebuggerStepThrough]
+        private void ThrowIfDisposed()
+        {
+            if (_isDisposed)
+            {
+                throw new ObjectDisposedException("Connection was disposed.");
+            }
+        }
+        #endregion
+
         private void InitMessageDispatcher()
         {
-            IMessageDispatcher messageDispatcher = MessageDispatcher;
-            messageDispatcher.FallbackHandler = new FirstRequestResponseHandler(_requestsManager);
-            messageDispatcher.AddHandler(new BadMsgNotificationHandler(this, _requestsManager));
-            messageDispatcher.AddHandler(new MessageContainerHandler(messageDispatcher));
-            messageDispatcher.AddHandler(new RpcResultHandler(_requestsManager));
-            messageDispatcher.AddHandler(new SessionHandler());
+            var dispatcher = _messenger.IncomingMessageDispatcher;
+            dispatcher.FallbackHandler = new FirstRequestResponseHandler(_requestsManager);
+            dispatcher.AddHandler(new BadMsgNotificationHandler(_messenger, _requestsManager));
+            dispatcher.AddHandler(new MessageContainerHandler(dispatcher));
+            dispatcher.AddHandler(new RpcResultHandler(_requestsManager));
+            dispatcher.AddHandler(new SessionHandler());
         }
 
         private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)
         {
-            return SendAsync(request.Message, request.Flags, cancellationToken);
+            ThrowIfDisposed();
+            return _messenger.SendAsync(request.Message, request.Flags, cancellationToken);
         }
 
         private Request<TResponse> CreateRequest<TResponse>(object body, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
-            var request = new Request<TResponse>(CreateMessage(body, flags.HasFlag(MessageSendingFlags.ContentRelated)),
+            ThrowIfDisposed();
+            var request = new Request<TResponse>(_messenger.CreateMessage(body, flags.HasFlag(MessageSendingFlags.ContentRelated)),
                 flags,
                 SendRequestAsync,
                 cancellationToken);
