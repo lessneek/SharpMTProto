@@ -71,24 +71,18 @@ namespace SharpMTProto
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageDispatcher _messageDispatcher = new MessageDispatcher();
         private readonly IMessageIdGenerator _messageIdGenerator;
-        private readonly TLRig _tlRig;
         private IClientTransport _transport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private bool _isDisposed;
         private uint _messageSeqNumber;
 
         public MTProtoMessenger([NotNull] IClientTransport transport,
-            [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec)
         {
             if (transport == null)
             {
                 throw new ArgumentNullException("transport");
-            }
-            if (tlRig == null)
-            {
-                throw new ArgumentNullException("tlRig");
             }
             if (messageIdGenerator == null)
             {
@@ -99,7 +93,6 @@ namespace SharpMTProto
                 throw new ArgumentNullException("messageCodec");
             }
 
-            _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
 
@@ -152,7 +145,7 @@ namespace SharpMTProto
 
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
         {
-            _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
+            _messageCodec.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
         public Task SendAsync(object messageBody, MessageSendingFlags flags)

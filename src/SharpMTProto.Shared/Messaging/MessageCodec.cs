@@ -16,6 +16,8 @@ using SharpTL;
 
 namespace SharpMTProto.Messaging
 {
+    using System.Reflection;
+
     public interface IMessageCodec
     {
         /// <summary>
@@ -75,6 +77,8 @@ namespace SharpMTProto.Messaging
         /// <param name="salt">Salt.</param>
         /// <param name="sessionId">Session ID.</param>
         IMessage DecodeEncryptedMessage([NotNull] byte[] messageBytes, [NotNull] byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId);
+
+        void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
     }
 
     public class MessageCodec : IMessageCodec
@@ -121,6 +125,11 @@ namespace SharpMTProto.Messaging
             _hashServices = hashServices;
             _encryptionServices = encryptionServices;
             _randomGenerator = randomGenerator;
+        }
+
+        public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
+        {
+            _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
         public byte[] EncodePlainMessage(IMessage message)

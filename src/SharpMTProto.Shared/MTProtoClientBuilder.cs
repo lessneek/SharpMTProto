@@ -67,7 +67,7 @@ namespace SharpMTProto
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
-            var messenger = new MTProtoMessenger(transport, _tlRig, _messageIdGenerator, _messageCodec);
+            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec);
             return new MTProtoClientConnection(messenger);
         }
 
