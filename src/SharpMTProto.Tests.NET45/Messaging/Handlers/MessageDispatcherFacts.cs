@@ -15,6 +15,8 @@ using SharpMTProto.Tests.TestObjects;
 
 namespace SharpMTProto.Tests.Messaging.Handlers
 {
+    using SharpMTProto.Messaging;
+
     [TestFixture]
     [Category("Messaging.Handlers")]
     public class MessageDispatcherFacts

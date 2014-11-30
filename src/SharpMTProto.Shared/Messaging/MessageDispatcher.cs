@@ -4,7 +4,7 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-namespace SharpMTProto.Messaging.Handlers
+namespace SharpMTProto.Messaging
 {
     using System;
     using System.Collections.Generic;
@@ -12,6 +12,7 @@ namespace SharpMTProto.Messaging.Handlers
     using System.Threading.Tasks;
     using Catel.Logging;
     using Catel.Reflection;
+    using Handlers;
     using Schema;
 
     /// <summary>
