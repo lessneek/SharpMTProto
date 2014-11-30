@@ -13,6 +13,8 @@ using SharpTL;
 
 namespace SharpMTProto
 {
+    using Messaging.Handlers;
+
     public partial class MTProtoClientBuilder
     {
         [NotNull]
@@ -27,6 +29,7 @@ namespace SharpMTProto
             var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);
             var keyChain = new KeyChain(tlRig, hashServices);
             var nonceGenerator = new NonceGenerator();
+            var messageDispatcher = new MessageDispatcher();
 
             return new MTProtoClientBuilder(clientTransportFactory,
                 tlRig,
@@ -35,7 +38,8 @@ namespace SharpMTProto
                 hashServices,
                 encryptionServices,
                 nonceGenerator,
-                keyChain);
+                keyChain,
+                messageDispatcher);
         }
     }
 }

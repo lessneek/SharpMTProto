@@ -16,6 +16,8 @@ using SharpTL;
 
 namespace SharpMTProto.Tests
 {
+    using SharpMTProto.Messaging.Handlers;
+
     public static class TestData
     {
         public static readonly PublicKey[] TestPublicKeys =
@@ -162,6 +164,7 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
             serviceLocator.RegisterType<IMTProtoClientBuilder, MTProtoClientBuilder>();
             serviceLocator.RegisterType<INonceGenerator, NonceGenerator>();
+            serviceLocator.RegisterType<IMessageDispatcher, MessageDispatcher>();
             serviceLocator.RegisterType<IKeyChain, KeyChain>();
             serviceLocator.RegisterInstance(
                 Mock.Of<IClientTransportFactory>(

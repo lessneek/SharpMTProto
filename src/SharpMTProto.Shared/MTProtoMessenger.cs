@@ -69,7 +69,7 @@ namespace SharpMTProto
         private readonly AsyncLock _connectionLock = new AsyncLock();
         private readonly Dictionary<Type, IMessageHandler> _handlers = new Dictionary<Type, IMessageHandler>();
         private readonly IMessageCodec _messageCodec;
-        private readonly IMessageDispatcher _messageDispatcher = new MessageDispatcher();
+        private readonly IMessageDispatcher _messageDispatcher;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private IClientTransport _transport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
@@ -78,7 +78,8 @@ namespace SharpMTProto
 
         public MTProtoMessenger([NotNull] IClientTransport transport,
             [NotNull] IMessageIdGenerator messageIdGenerator,
-            [NotNull] IMessageCodec messageCodec)
+            [NotNull] IMessageCodec messageCodec,
+            [NotNull] IMessageDispatcher messageDispatcher)
         {
             if (transport == null)
             {
@@ -92,9 +93,14 @@ namespace SharpMTProto
             {
                 throw new ArgumentNullException("messageCodec");
             }
+            if (messageDispatcher == null)
+            {
+                throw new ArgumentNullException("messageDispatcher");
+            }
 
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
+            _messageDispatcher = messageDispatcher;
 
             // Init transport.
             _transport = transport;
