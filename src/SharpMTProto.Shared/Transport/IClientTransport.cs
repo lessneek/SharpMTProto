@@ -35,6 +35,7 @@ namespace SharpMTProto.Transport
         ClientTransportState State { get; }
         TimeSpan SendingTimeout { get; set; }
         TimeSpan ConnectTimeout { get; set; }
+        IObservable<ClientTransportState> StateChanges { get; }
         Task<TransportConnectResult> ConnectAsync();
         Task DisconnectAsync();
         void Send(byte[] payload);

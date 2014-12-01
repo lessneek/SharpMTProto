@@ -60,30 +60,38 @@ namespace SharpMTProto.Tests.Transport
         }
 
         [Test]
-        public async Task Should_connect_and_disconnect()
+        public async Task Should_connect_and_disconnect_with_according_state_changes()
         {
-            TcpClientTransport clientTransport = CreateTcpTransport();
+            ClientTransportState? currentState = null;
 
-            clientTransport.State.Should().Be(ClientTransportState.Disconnected);
-            clientTransport.IsConnected.Should().BeFalse();
+            using (TcpClientTransport clientTransport = CreateTcpTransport())
+            {
+                clientTransport.StateChanges.Subscribe(state => currentState = state);
 
-            await clientTransport.ConnectAsync();
+                currentState.Should().NotBeNull();
+                currentState.Should().Be(ClientTransportState.Disconnected);
+                clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+                clientTransport.IsConnected.Should().BeFalse();
 
-            Socket clientSocket = _serverSocket.Accept();
+                await clientTransport.ConnectAsync();
 
-            clientSocket.Should().NotBeNull();
-            clientSocket.IsConnected().Should().BeTrue();
+                Socket clientSocket = _serverSocket.Accept();
 
-            clientTransport.State.Should().Be(ClientTransportState.Connected);
-            clientTransport.IsConnected.Should().BeTrue();
+                clientSocket.Should().NotBeNull();
+                clientSocket.IsConnected().Should().BeTrue();
 
-            await clientTransport.DisconnectAsync();
-            clientTransport.Dispose();
+                currentState.Should().Be(ClientTransportState.Connected);
+                clientTransport.State.Should().Be(ClientTransportState.Connected);
+                clientTransport.IsConnected.Should().BeTrue();
 
-            clientSocket.IsConnected().Should().BeFalse();
+                await clientTransport.DisconnectAsync();
 
-            clientTransport.State.Should().Be(ClientTransportState.Disconnected);
-            clientTransport.IsConnected.Should().BeFalse();
+                clientSocket.IsConnected().Should().BeFalse();
+
+                currentState.Should().Be(ClientTransportState.Disconnected);
+                clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+                clientTransport.IsConnected.Should().BeFalse();
+            }
         }
 
         [Test]
