@@ -7,7 +7,6 @@
 namespace SharpMTProto
 {
     using System;
-    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Reactive.Concurrency;
     using System.Reactive.Linq;
@@ -18,12 +17,10 @@ namespace SharpMTProto
     using BigMath.Utils;
     using Catel.Logging;
     using Messaging;
-    using Messaging.Handlers;
     using Schema;
     using Services;
     using SharpTL;
     using Transport;
-    using AsyncLock = Nito.AsyncEx.AsyncLock;
 
     /// <summary>
     ///     Interface of a MTProto connection.
@@ -66,15 +63,13 @@ namespace SharpMTProto
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
-        private readonly AsyncLock _connectionLock = new AsyncLock();
-        private readonly Dictionary<Type, IMessageHandler> _handlers = new Dictionary<Type, IMessageHandler>();
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageDispatcher _messageDispatcher;
         private readonly IMessageIdGenerator _messageIdGenerator;
-        private IClientTransport _transport;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private bool _isDisposed;
         private uint _messageSeqNumber;
+        private IClientTransport _transport;
 
         public MTProtoMessenger([NotNull] IClientTransport transport,
             [NotNull] IMessageIdGenerator messageIdGenerator,
@@ -106,16 +101,14 @@ namespace SharpMTProto
             _transport = transport;
 
             // Connector in/out.
-            _transport.ObserveOn(DefaultScheduler.Instance)
-                .Do(bytes => LogMessageInOut(bytes, "IN"))
-                .Subscribe(ProcessIncomingMessageBytes);
+            _transport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
         }
 
         public IMessageDispatcher IncomingMessageDispatcher
         {
             get { return _messageDispatcher; }
         }
-        
+
         public bool IsEncryptionSupported
         {
             get { return _config.AuthKey != null; }
