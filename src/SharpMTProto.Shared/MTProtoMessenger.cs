@@ -189,11 +189,11 @@ namespace SharpMTProto
             }
         }
 
-        protected Task SendRawDataAsync(byte[] data, CancellationToken cancellationToken)
+        protected async Task SendRawDataAsync(byte[] data, CancellationToken cancellationToken)
         {
             ThrowIfDiconnected();
             LogMessageInOut(data, "OUT");
-            return _transport.SendAsync(data, cancellationToken);
+            await _transport.SendAsync(data, cancellationToken).ConfigureAwait(false);
         }
 
         private uint GetNextMsgSeqno(bool isContentRelated)
