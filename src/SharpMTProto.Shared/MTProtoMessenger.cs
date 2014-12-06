@@ -154,10 +154,8 @@ namespace SharpMTProto
 
         public async Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken)
         {
-            byte[] messageBytes = EncodeMessage(CreateMessage(messageBody, flags.HasFlag(MessageSendingFlags.ContentRelated)),
-                flags.HasFlag(MessageSendingFlags.Encrypted));
-
-            await SendRawDataAsync(messageBytes, cancellationToken);
+            var message = CreateMessage(messageBody, flags.HasFlag(MessageSendingFlags.ContentRelated));
+            await SendAsync(message, flags, cancellationToken);
         }
 
         public Task SendAsync(IMessage message, MessageSendingFlags flags)
