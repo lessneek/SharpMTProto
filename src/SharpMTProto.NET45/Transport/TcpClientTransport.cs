@@ -25,7 +25,7 @@ namespace SharpMTProto.Transport
     /// <summary>
     ///     MTProto TCP clientTransport.
     /// </summary>
-    public class TcpClientTransport : IClientTransport
+    public class TcpClientTransport : Cancelable, IClientTransport
     {
         private const int PacketLengthBytesCount = 4;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
@@ -449,57 +449,34 @@ namespace SharpMTProto.Transport
 
         #region Disposing
 
-        private volatile bool _isDisposed;
-
-        public void Dispose()
+        protected override async void Dispose(bool isDisposing)
         {
-            Dispose(true);
-        }
+            if (isDisposing)
+            {
+                if (State != ClientTransportState.Disconnected)
+                {
+                    await DisconnectAsync();
+                }
 
-        protected virtual async void Dispose(bool isDisposing)
-        {
-            if (_isDisposed)
-            {
-                return;
+                if (_nextPacketStreamer != null)
+                {
+                    _nextPacketStreamer.Dispose();
+                    _nextPacketStreamer = null;
+                }
+                if (_in != null)
+                {
+                    _in.OnCompleted();
+                    _in.Dispose();
+                    _in = null;
+                }
+                if (_stateChanges != null)
+                {
+                    _stateChanges.OnCompleted();
+                    _stateChanges.Dispose();
+                    _stateChanges = null;
+                }
             }
-            _isDisposed = true;
-
-            if (!isDisposing)
-            {
-                return;
-            }
-
-            if (State != ClientTransportState.Disconnected)
-            {
-                await DisconnectAsync();
-            }
-
-            if (_nextPacketStreamer != null)
-            {
-                _nextPacketStreamer.Dispose();
-                _nextPacketStreamer = null;
-            }
-            if (_in != null)
-            {
-                _in.OnCompleted();
-                _in.Dispose();
-                _in = null;
-            }
-            if (_stateChanges != null)
-            {
-                _stateChanges.OnCompleted();
-                _stateChanges.Dispose();
-                _stateChanges = null;
-            }
-        }
-
-        [DebuggerStepThrough]
-        private void ThrowIfDisposed()
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException("Connection was disposed.");
-            }
+            base.Dispose(isDisposing);
         }
 
         #endregion

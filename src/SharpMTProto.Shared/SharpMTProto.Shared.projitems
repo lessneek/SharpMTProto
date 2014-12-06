@@ -55,6 +55,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportFactory.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpClientTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportPacket.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\Cancelable.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />
   </ItemGroup>
 </Project>

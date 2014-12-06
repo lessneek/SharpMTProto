@@ -7,6 +7,7 @@
 namespace SharpMTProto.Transport
 {
     using System;
+    using System.Reactive.Disposables;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -29,7 +30,7 @@ namespace SharpMTProto.Transport
         Timeout = 3
     }
 
-    public interface IClientTransport : IObservable<byte[]>, IDisposable
+    public interface IClientTransport : IObservable<byte[]>, ICancelable
     {
         bool IsConnected { get; }
         ClientTransportState State { get; }

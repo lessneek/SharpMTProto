@@ -21,6 +21,7 @@ namespace SharpMTProto
     using Services;
     using SharpTL;
     using Transport;
+    using Utils;
 
     /// <summary>
     ///     Interface of a MTProto connection.
@@ -59,7 +60,7 @@ namespace SharpMTProto
     /// <summary>
     ///     MTProto connection base.
     /// </summary>
-    public class MTProtoMessenger : IMTProtoMessenger
+    public class MTProtoMessenger : Cancelable, IMTProtoMessenger
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
@@ -67,9 +68,9 @@ namespace SharpMTProto
         private readonly IMessageDispatcher _messageDispatcher;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
-        private bool _isDisposed;
         private uint _messageSeqNumber;
         private IClientTransport _transport;
+        private IDisposable _transportSubscription;
 
         public MTProtoMessenger([NotNull] IClientTransport transport,
             [NotNull] IMessageIdGenerator messageIdGenerator,
@@ -101,7 +102,10 @@ namespace SharpMTProto
             _transport = transport;
 
             // Connector in/out.
-            _transport.ObserveOn(DefaultScheduler.Instance).Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
+            _transportSubscription =
+                _transport.ObserveOn(DefaultScheduler.Instance)
+                    .Do(bytes => LogMessageInOut(bytes, "IN"))
+                    .Subscribe(ProcessIncomingMessageBytes);
         }
 
         public IMessageDispatcher IncomingMessageDispatcher
@@ -176,15 +180,6 @@ namespace SharpMTProto
         public Message CreateMessage(object body, bool isContentRelated)
         {
             return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
-        }
-
-        [DebuggerStepThrough]
-        protected void ThrowIfDisposed()
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException("Connection was disposed.");
-            }
         }
 
         protected async Task SendRawDataAsync(byte[] data, CancellationToken cancellationToken)
@@ -346,24 +341,22 @@ namespace SharpMTProto
 
         #region Disposable
 
-        public void Dispose()
+        protected override void Dispose(bool isDisposing)
         {
-            Dispose(true);
-        }
-
-        protected virtual void Dispose(bool isDisposing)
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-            _isDisposed = true;
-
             if (isDisposing)
             {
-                _transport.Dispose();
-                _transport = null;
+                if (_transport != null)
+                {
+                    _transport.Dispose();
+                    _transport = null;
+                }
+                if (_transportSubscription != null)
+                {
+                    _transportSubscription.Dispose();
+                    _transportSubscription = null;
+                }
             }
+            base.Dispose(isDisposing);
         }
 
         #endregion

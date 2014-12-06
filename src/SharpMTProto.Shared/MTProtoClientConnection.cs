@@ -9,6 +9,7 @@ namespace SharpMTProto
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Reactive.Disposables;
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
@@ -20,13 +21,14 @@ namespace SharpMTProto
     using Messaging.Handlers;
     using Schema;
     using Transport;
+    using Utils;
 
     // ReSharper disable ClassWithVirtualMembersNeverInherited.Global
 
     /// <summary>
     ///     Interface of a client MTProto connection.
     /// </summary>
-    public interface IMTProtoClientConnection : IDisposable, IRemoteProcedureCaller
+    public interface IMTProtoClientConnection : ICancelable, IRemoteProcedureCaller
     {
         IMTProtoAsyncMethods Methods { get; }
         bool IsConnected { get; }
@@ -84,7 +86,7 @@ namespace SharpMTProto
     /// <summary>
     ///     Client MTProto connection.
     /// </summary>
-    public class MTProtoClientConnection : IMTProtoClientConnection
+    public class MTProtoClientConnection : Cancelable, IMTProtoClientConnection
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
@@ -208,41 +210,19 @@ namespace SharpMTProto
 
         #region Disposing
 
-        private volatile bool _isDisposed;
-
-        public void Dispose()
+        protected override void Dispose(bool isDisposing)
         {
-            Dispose(true);
+            if (isDisposing)
+            {
+                if (_messenger != null)
+                {
+                    _messenger.Dispose();
+                    _messenger = null;
+                }
+            }
+            base.Dispose(isDisposing);
         }
 
-        protected virtual void Dispose(bool isDisposing)
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-            _isDisposed = true;
-
-            if (!isDisposing)
-            {
-                return;
-            }
-
-            if (_messenger != null)
-            {
-                _messenger.Dispose();
-                _messenger = null;
-            }
-        }
-
-        [DebuggerStepThrough]
-        private void ThrowIfDisposed()
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException("Connection was disposed.");
-            }
-        }
         #endregion
 
         private void InitMessageDispatcher()
