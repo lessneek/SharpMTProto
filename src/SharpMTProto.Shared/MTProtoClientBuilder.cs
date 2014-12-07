@@ -4,18 +4,20 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using SharpMTProto.Annotations;
-using SharpMTProto.Authentication;
-using SharpMTProto.Messaging;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
+#region R#
 
 // ReSharper disable MemberCanBePrivate.Global
 
+#endregion
+
 namespace SharpMTProto
 {
-    using Messaging.Handlers;
+    using Annotations;
+    using Authentication;
+    using Messaging;
+    using Services;
+    using SharpTL;
+    using Transport;
 
     public interface IMTProtoClientBuilder
     {
@@ -33,7 +35,6 @@ namespace SharpMTProto
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
         private readonly IKeyChain _keyChain;
-        private readonly IMessageDispatcher _messageDispatcher;
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly INonceGenerator _nonceGenerator;
@@ -45,16 +46,14 @@ namespace SharpMTProto
             Default = CreateDefault();
         }
 
-        public MTProtoClientBuilder(
-            [NotNull] IClientTransportFactory clientTransportFactory,
+        public MTProtoClientBuilder([NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec,
             [NotNull] IHashServices hashServices,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] INonceGenerator nonceGenerator,
-            [NotNull] IKeyChain keyChain,
-            [NotNull] IMessageDispatcher messageDispatcher)
+            [NotNull] IKeyChain keyChain)
         {
             _clientTransportFactory = clientTransportFactory;
             _tlRig = tlRig;
@@ -64,25 +63,18 @@ namespace SharpMTProto
             _encryptionServices = encryptionServices;
             _nonceGenerator = nonceGenerator;
             _keyChain = keyChain;
-            _messageDispatcher = messageDispatcher;
         }
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
-            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _messageDispatcher);
+            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec);
             return new MTProtoClientConnection(messenger);
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)
         {
-            return new AuthKeyNegotiator(clientTransportConfig,
-                this,
-                _tlRig,
-                _nonceGenerator,
-                _hashServices,
-                _encryptionServices,
-                _keyChain);
+            return new AuthKeyNegotiator(clientTransportConfig, this, _tlRig, _nonceGenerator, _hashServices, _encryptionServices, _keyChain);
         }
 
         [NotNull]

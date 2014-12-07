@@ -4,14 +4,15 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Threading.Tasks;
-using Catel.Logging;
-using Nito.AsyncEx;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class RpcResultHandler : MessageHandler<IRpcResult>
+    using System.Reactive.Linq;
+    using System.Reactive.Threading.Tasks;
+    using System.Threading.Tasks;
+    using Catel.Logging;
+    using Schema;
+
+    public class RpcResultHandler : SingleMessageHandler<IRpcResult>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
@@ -22,32 +23,33 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        protected override Task HandleInternalAsync(IMessage message)
+        public override Task HandleAsync(IMessage message)
         {
-            var rpcResult = (IRpcResult) message.Body;
-            object result = rpcResult.Result;
-
-            IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
-            if (request == null)
+            return Observable.Start(() =>
             {
-                Log.Warning(
-                    string.Format(
-                        "Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
+                var rpcResult = (IRpcResult) message.Body;
+                object result = rpcResult.Result;
+
+                IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
+                if (request == null)
+                {
+                    Log.Warning(string.Format("Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
                         rpcResult.ReqMsgId,
                         result.GetType()));
-                return TaskConstants.Completed;
-            }
+                    return;
+                }
 
-            var rpcError = result as IRpcError;
-            if (rpcError != null)
-            {
-                request.SetException(new RpcErrorException(rpcError));
-            }
-            else
-            {
-                request.SetResponse(result);
-            }
-            return TaskConstants.Completed;
+                var rpcError = result as IRpcError;
+                if (rpcError != null)
+                {
+                    request.SetException(new RpcErrorException(rpcError));
+                }
+                else
+                {
+                    request.SetResponse(result);
+                }
+            },
+                ObserverScheduler).ToTask();
         }
     }
 }

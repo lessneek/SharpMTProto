@@ -12,6 +12,8 @@ using SharpMTProto.Tests.TestObjects;
 
 namespace SharpMTProto.Tests.Messaging
 {
+    using System;
+
     [TestFixture]
     [Category("Messaging")]
     public class RequestsManagerFacts
@@ -23,7 +25,7 @@ namespace SharpMTProto.Tests.Messaging
             var response = new TestResponse {TestId = 1, TestText = "Test text."};
 
             var exReqMock = new Mock<IRequest>();
-            exReqMock.Setup(r => r.CanSetResponse(It.IsAny<object>())).Returns((object o) => o is TestResponse);
+            exReqMock.Setup(r => r.CanSetResponse(It.IsAny<Type>())).Returns((Type type) => typeof(TestResponse).IsAssignableFrom(type));
             exReqMock.Setup(r => r.Message.MsgId).Returns(0x100500);
             exReqMock.Setup(r => r.Flags).Returns(MessageSendingFlags.EncryptedAndContentRelatedRPC);
             var exReq = exReqMock.Object;
@@ -31,7 +33,7 @@ namespace SharpMTProto.Tests.Messaging
             var requestsManager = new RequestsManager();
             requestsManager.Add(exReq);
 
-            IRequest request = requestsManager.GetFirstOrDefault(response, includeRpc);
+            IRequest request = requestsManager.GetFirstOrDefaultWithUnsetResponse(response, includeRpc);
 
             if (includeRpc)
             {

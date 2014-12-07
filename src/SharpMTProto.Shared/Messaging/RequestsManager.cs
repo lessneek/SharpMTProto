@@ -8,22 +8,25 @@ namespace SharpMTProto.Messaging
 {
     using System.Collections.Generic;
     using System.Linq;
+    using System.Reactive.Disposables;
+    using Utils;
 
-    public interface IRequestsManager
+    public interface IRequestsManager : ICancelable
     {
         void Add(IRequest request);
         IRequest Get(ulong messageId);
-        IRequest GetFirstOrDefault(object response, bool includeRpc = false);
+        IRequest GetFirstOrDefaultWithUnsetResponse(object response, bool includeRpc = false);
         void Change(ulong newMessageId, ulong oldMessageId);
         void Remove(ulong messageId);
     }
 
-    public class RequestsManager : IRequestsManager
+    public class RequestsManager : Cancelable, IRequestsManager
     {
-        private readonly SortedDictionary<ulong, IRequest> _requests = new SortedDictionary<ulong, IRequest>();
+        private SortedDictionary<ulong, IRequest> _requests = new SortedDictionary<ulong, IRequest>();
 
         public void Add(IRequest request)
         {
+            ThrowIfDisposed();
             lock (_requests)
             {
                 _requests.Add(request.Message.MsgId, request);
@@ -32,6 +35,7 @@ namespace SharpMTProto.Messaging
 
         public void Change(ulong newMessageId, ulong oldMessageId)
         {
+            ThrowIfDisposed();
             lock (_requests)
             {
                 _requests.Add(newMessageId, _requests[oldMessageId]);
@@ -41,6 +45,7 @@ namespace SharpMTProto.Messaging
 
         public IRequest Get(ulong messageId)
         {
+            ThrowIfDisposed();
             lock (_requests)
             {
                 IRequest request;
@@ -48,13 +53,14 @@ namespace SharpMTProto.Messaging
             }
         }
 
-        public IRequest GetFirstOrDefault(object response, bool includeRpc = false)
+        public IRequest GetFirstOrDefaultWithUnsetResponse(object response, bool includeRpc = false)
         {
+            ThrowIfDisposed();
             lock (_requests)
             {
                 return
                     _requests.Values.FirstOrDefault(
-                        r => r.CanSetResponse(response) && (!r.Flags.HasFlag(MessageSendingFlags.RPC) || includeRpc));
+                        r => r.CanSetResponse(response.GetType()) && (!r.Flags.HasFlag(MessageSendingFlags.RPC) || includeRpc));
             }
         }
 
@@ -64,6 +70,19 @@ namespace SharpMTProto.Messaging
             {
                 _requests.Remove(messageId);
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (_requests != null)
+                {
+                    _requests.Clear();
+                    _requests = null;
+                }
+            }
+            base.Dispose(disposing);
         }
     }
 }

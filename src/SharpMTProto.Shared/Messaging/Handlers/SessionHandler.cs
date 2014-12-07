@@ -4,15 +4,15 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Threading.Tasks;
-using Nito.AsyncEx;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class SessionHandler : MessageHandler<INewSession>
+    using System.Threading.Tasks;
+    using Nito.AsyncEx;
+    using Schema;
+
+    public class SessionHandler : SingleMessageHandler<INewSession>
     {
-        protected override Task HandleInternalAsync(IMessage message)
+        public override Task HandleAsync(IMessage message)
         {
             // TODO: implement.
             return TaskConstants.Completed;

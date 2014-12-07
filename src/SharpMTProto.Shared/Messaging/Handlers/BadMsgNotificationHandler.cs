@@ -11,7 +11,7 @@ namespace SharpMTProto.Messaging.Handlers
     using Catel.Logging;
     using Schema;
 
-    public class BadMsgNotificationHandler : MessageHandler<IBadMsgNotification>
+    public class BadMsgNotificationHandler : SingleMessageHandler<IBadMsgNotification>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
@@ -24,7 +24,7 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        protected override async Task HandleInternalAsync(IMessage message)
+        public override async Task HandleAsync(IMessage message)
         {
             #region Notice of Ignored Error Message
 

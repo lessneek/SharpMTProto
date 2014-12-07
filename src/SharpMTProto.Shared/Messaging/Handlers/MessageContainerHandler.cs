@@ -4,26 +4,27 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Linq;
-using System.Threading.Tasks;
-using Catel.Logging;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto.Messaging.Handlers
 {
-    public class MessageContainerHandler : MessageHandler<IMessageContainer>
-    {
-        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly IMessageDispatcher _dispatcher;
+    using System.Linq;
+    using System.Threading.Tasks;
+    using Catel.Logging;
+    using Schema;
 
-        public MessageContainerHandler(IMessageDispatcher dispatcher)
+    public class MessageContainerHandler : SingleMessageHandler<IMessageContainer>
+    {
+        private readonly IMessageHandler _messageHandlersHub;
+        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
+
+        public MessageContainerHandler(IMessageHandler messageHandlersHub)
         {
-            _dispatcher = dispatcher;
+            _messageHandlersHub = messageHandlersHub;
         }
 
-        protected override async Task HandleInternalAsync(IMessage message)
+        public override async Task HandleAsync(IMessage message)
         {
             #region Description
+
             /*
              * All messages in a container must have msg_id lower than that of the container itself.
              * A container does not require an acknowledgment and may not carry other simple containers.
@@ -34,6 +35,7 @@ namespace SharpMTProto.Messaging.Handlers
              * 
              * https://core.telegram.org/mtproto/service_messages#containers
              */
+
             #endregion
 
             var msgContainer = message.Body as MsgContainer;
@@ -45,7 +47,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    await _dispatcher.DispatchAsync(msg);
+                    await _messageHandlersHub.HandleAsync(msg);
                 }
             }
             else

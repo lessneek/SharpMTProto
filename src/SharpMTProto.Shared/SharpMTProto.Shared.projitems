@@ -22,13 +22,13 @@
     <Compile Include="$(MSBuildThisFileDirectory)IRemoteProcedureCaller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\BadMsgNotificationHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\FirstRequestResponseHandler.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\IMessageHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageContainerHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageHandlersHub.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SessionHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SingleMessageHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodec.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageDispatcher.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSendingFlags.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Request.cs" />

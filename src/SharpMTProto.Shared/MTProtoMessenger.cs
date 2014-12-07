@@ -9,7 +9,9 @@ namespace SharpMTProto
     using System;
     using System.Diagnostics;
     using System.Reactive.Concurrency;
+    using System.Reactive.Disposables;
     using System.Reactive.Linq;
+    using System.Reactive.Subjects;
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
@@ -26,16 +28,18 @@ namespace SharpMTProto
     /// <summary>
     ///     Interface of a MTProto connection.
     /// </summary>
-    public interface IMTProtoMessenger : IDisposable
+    public interface IMTProtoMessenger : ICancelable
     {
         /// <summary>
         ///     Is encryption supported.
         /// </summary>
         bool IsEncryptionSupported { get; }
 
-        IMessageDispatcher IncomingMessageDispatcher { get; }
-
         IClientTransport Transport { get; }
+
+        IObservable<IMessage> IncomingMessages { get; }
+
+        IObservable<IMessage> OutgoingMessages { get; }
 
         /// <summary>
         ///     Configure connection.
@@ -65,17 +69,17 @@ namespace SharpMTProto
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
         private readonly IMessageCodec _messageCodec;
-        private readonly IMessageDispatcher _messageDispatcher;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private uint _messageSeqNumber;
         private IClientTransport _transport;
         private IDisposable _transportSubscription;
+        private Subject<IMessage> _incomingMessages = new Subject<IMessage>();
+        private Subject<IMessage> _outgoingMessages = new Subject<IMessage>();
 
         public MTProtoMessenger([NotNull] IClientTransport transport,
             [NotNull] IMessageIdGenerator messageIdGenerator,
-            [NotNull] IMessageCodec messageCodec,
-            [NotNull] IMessageDispatcher messageDispatcher)
+            [NotNull] IMessageCodec messageCodec)
         {
             if (transport == null)
             {
@@ -89,14 +93,9 @@ namespace SharpMTProto
             {
                 throw new ArgumentNullException("messageCodec");
             }
-            if (messageDispatcher == null)
-            {
-                throw new ArgumentNullException("messageDispatcher");
-            }
 
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
-            _messageDispatcher = messageDispatcher;
 
             // Init transport.
             _transport = transport;
@@ -108,9 +107,14 @@ namespace SharpMTProto
                     .Subscribe(ProcessIncomingMessageBytes);
         }
 
-        public IMessageDispatcher IncomingMessageDispatcher
+        public IObservable<IMessage> IncomingMessages
         {
-            get { return _messageDispatcher; }
+            get { return _incomingMessages; }
+        }
+
+        public IObservable<IMessage> OutgoingMessages
+        {
+            get { return _outgoingMessages; }
         }
 
         public bool IsEncryptionSupported
@@ -173,6 +177,7 @@ namespace SharpMTProto
             {
                 byte[] messageBytes = EncodeMessage(message, flags.HasFlag(MessageSendingFlags.Encrypted));
                 await SendRawDataAsync(messageBytes, cancellationToken);
+                _outgoingMessages.OnNext(message);
             },
                 cancellationToken);
         }
@@ -288,12 +293,11 @@ namespace SharpMTProto
         private void ProcessIncomingMessage(IMessage message)
         {
             ThrowIfDisposed();
-
             try
             {
                 Log.Debug("Incoming message data of type = {0}.", message.Body.GetType());
 
-                Task.Run(() => _messageDispatcher.DispatchAsync(message));
+                _incomingMessages.OnNext(message);
             }
             catch (Exception e)
             {
@@ -345,6 +349,18 @@ namespace SharpMTProto
         {
             if (isDisposing)
             {
+                if (_incomingMessages != null)
+                {
+                    _incomingMessages.OnCompleted();
+                    _incomingMessages.Dispose();
+                    _incomingMessages = null;
+                }
+                if (_outgoingMessages != null)
+                {
+                    _outgoingMessages.OnCompleted();
+                    _outgoingMessages.Dispose();
+                    _outgoingMessages = null;
+                }
                 if (_transport != null)
                 {
                     _transport.Dispose();

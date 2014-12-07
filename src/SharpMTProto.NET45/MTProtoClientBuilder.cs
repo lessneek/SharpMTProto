@@ -4,16 +4,14 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using SharpMTProto.Annotations;
-using SharpMTProto.Authentication;
-using SharpMTProto.Messaging;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
-
 namespace SharpMTProto
 {
-    using Messaging.Handlers;
+    using Annotations;
+    using Authentication;
+    using Messaging;
+    using Services;
+    using SharpTL;
+    using Transport;
 
     public partial class MTProtoClientBuilder
     {
@@ -29,7 +27,6 @@ namespace SharpMTProto
             var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);
             var keyChain = new KeyChain(tlRig, hashServices);
             var nonceGenerator = new NonceGenerator();
-            var messageDispatcher = new MessageDispatcher();
 
             return new MTProtoClientBuilder(clientTransportFactory,
                 tlRig,
@@ -38,8 +35,7 @@ namespace SharpMTProto
                 hashServices,
                 encryptionServices,
                 nonceGenerator,
-                keyChain,
-                messageDispatcher);
+                keyChain);
         }
     }
 }

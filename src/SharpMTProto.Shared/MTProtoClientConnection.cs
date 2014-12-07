@@ -4,12 +4,19 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
+#region R#
+
+// ReSharper disable ClassWithVirtualMembersNeverInherited.Global
+
+#endregion
+
 namespace SharpMTProto
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
+    using System.Collections.Immutable;
     using System.Reactive.Disposables;
+    using System.Reactive.Subjects;
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
@@ -22,8 +29,6 @@ namespace SharpMTProto
     using Schema;
     using Transport;
     using Utils;
-
-    // ReSharper disable ClassWithVirtualMembersNeverInherited.Global
 
     /// <summary>
     ///     Interface of a client MTProto connection.
@@ -94,7 +99,11 @@ namespace SharpMTProto
         private IMTProtoMessenger _messenger;
 
         private readonly MTProtoAsyncMethods _methods;
-        private readonly RequestsManager _requestsManager = new RequestsManager();
+        private IRequestsManager _requestsManager = new RequestsManager();
+        private MessageHandlersHub _messageHandlersHub;
+
+        private BehaviorSubject<ImmutableArray<Type>> _firstRequestResponseMessageTypes =
+            new BehaviorSubject<ImmutableArray<Type>>(ImmutableArray<Type>.Empty);
 
         public MTProtoClientConnection([NotNull] IMTProtoMessenger messenger)
         {
@@ -192,9 +201,7 @@ namespace SharpMTProto
         public Task SendAsync(object requestBody)
         {
             ThrowIfDisposed();
-            return _messenger.SendAsync(requestBody,
-                GetMessageSendingFlags(requestBody),
-                CancellationToken.None);
+            return _messenger.SendAsync(requestBody, GetMessageSendingFlags(requestBody), CancellationToken.None);
         }
 
         public void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags)
@@ -208,8 +215,6 @@ namespace SharpMTProto
             _messenger.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
-        #region Disposing
-
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
@@ -219,20 +224,36 @@ namespace SharpMTProto
                     _messenger.Dispose();
                     _messenger = null;
                 }
+                if (_messageHandlersHub != null)
+                {
+                    _messageHandlersHub.Dispose();
+                    _messageHandlersHub = null;
+                }
+                if (_firstRequestResponseMessageTypes != null)
+                {
+                    _firstRequestResponseMessageTypes.OnCompleted();
+                    _firstRequestResponseMessageTypes.Dispose();
+                    _firstRequestResponseMessageTypes = null;
+                }
+                if (_requestsManager != null)
+                {
+                    _requestsManager.Dispose();
+                    _requestsManager = null;
+                }
             }
             base.Dispose(isDisposing);
         }
 
-        #endregion
-
         private void InitMessageDispatcher()
         {
-            var dispatcher = _messenger.IncomingMessageDispatcher;
-            dispatcher.FallbackHandler = new FirstRequestResponseHandler(_requestsManager);
-            dispatcher.AddHandler(new BadMsgNotificationHandler(_messenger, _requestsManager));
-            dispatcher.AddHandler(new MessageContainerHandler(dispatcher));
-            dispatcher.AddHandler(new RpcResultHandler(_requestsManager));
-            dispatcher.AddHandler(new SessionHandler());
+            _messageHandlersHub = new MessageHandlersHub();
+            _messageHandlersHub.Add(new MessageContainerHandler(_messageHandlersHub),
+                new BadMsgNotificationHandler(_messenger, _requestsManager),
+                new RpcResultHandler(_requestsManager),
+                new SessionHandler(),
+                new FirstRequestResponseHandler(_requestsManager, _firstRequestResponseMessageTypes));
+
+            _messageHandlersHub.SubscribeTo(_messenger.IncomingMessages);
         }
 
         private Task SendRequestAsync(IRequest request, CancellationToken cancellationToken)
@@ -249,6 +270,13 @@ namespace SharpMTProto
                 SendRequestAsync,
                 cancellationToken);
             _requestsManager.Add(request);
+
+            var types = _firstRequestResponseMessageTypes.Value;
+            if (!request.IsRpc && !types.Contains(request.ResponseType))
+            {
+                _firstRequestResponseMessageTypes.OnNext(types.Add(request.ResponseType));
+            }
+
             return request;
         }
 

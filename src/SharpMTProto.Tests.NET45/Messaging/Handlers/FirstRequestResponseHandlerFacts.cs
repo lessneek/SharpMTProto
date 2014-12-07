@@ -4,16 +4,20 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Threading.Tasks;
-using Moq;
-using NUnit.Framework;
-using SharpMTProto.Messaging;
-using SharpMTProto.Messaging.Handlers;
-using SharpMTProto.Schema;
-using SharpMTProto.Tests.TestObjects;
-
 namespace SharpMTProto.Tests.Messaging.Handlers
 {
+    using System;
+    using System.Collections.Immutable;
+    using System.Reactive.Subjects;
+    using System.Threading.Tasks;
+    using FluentAssertions;
+    using Moq;
+    using NUnit.Framework;
+    using Schema;
+    using SharpMTProto.Messaging;
+    using SharpMTProto.Messaging.Handlers;
+    using TestObjects;
+
     [TestFixture]
     [Category("Messaging.Handlers")]
     public class FirstRequestResponseHandlerFacts
@@ -28,9 +32,14 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             var responseMessage = new Message(1, 1, response);
 
             var requestsManager = new Mock<IRequestsManager>();
-            requestsManager.Setup(manager => manager.GetFirstOrDefault(response, It.IsAny<bool>())).Returns(request.Object).Verifiable();
+            requestsManager.Setup(manager => manager.GetFirstOrDefaultWithUnsetResponse(response, It.IsAny<bool>()))
+                .Returns(request.Object)
+                .Verifiable();
 
-            var handler = new FirstRequestResponseHandler(requestsManager.Object);
+            var messageTypes = new BehaviorSubject<ImmutableArray<Type>>(ImmutableArray.Create(typeof (TestResponse)));
+
+            var handler = new FirstRequestResponseHandler(requestsManager.Object, messageTypes);
+            handler.CanHandle(responseMessage).Should().BeTrue();
             await handler.HandleAsync(responseMessage);
 
             requestsManager.Verify();
