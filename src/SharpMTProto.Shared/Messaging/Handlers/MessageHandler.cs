@@ -82,7 +82,7 @@ namespace SharpMTProto.Messaging.Handlers
 
         public abstract Task HandleAsync(IMessage message);
 
-        public virtual ImmutableArray<Type> MessageTypes
+        public ImmutableArray<Type> MessageTypes
         {
             get { return _messageTypes; }
             protected set
