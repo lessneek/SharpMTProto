@@ -41,6 +41,8 @@ namespace SharpMTProto
 
         IObservable<IMessage> OutgoingMessages { get; }
 
+        bool IsServerMode { get; set; }
+
         /// <summary>
         ///     Configure connection.
         /// </summary>
@@ -121,6 +123,8 @@ namespace SharpMTProto
         {
             get { return _config.AuthKey != null; }
         }
+
+        public bool IsServerMode { get; set; }
 
         public IClientTransport Transport
         {
@@ -272,7 +276,7 @@ namespace SharpMTProto
                     }
 
                     ulong salt, sessionId;
-                    message = _messageCodec.DecodeEncryptedMessage(messageBytes, _config.AuthKey, Sender.Server, out salt, out sessionId);
+                    message = _messageCodec.DecodeEncryptedMessage(messageBytes, _config.AuthKey, IsServerMode ? Sender.Client : Sender.Server, out salt, out sessionId);
                     // TODO: check salt.
                     if (sessionId != _config.SessionId)
                     {
@@ -319,7 +323,7 @@ namespace SharpMTProto
             }
 
             byte[] messageBytes = isEncrypted
-                ? _messageCodec.EncodeEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, Sender.Client)
+                ? _messageCodec.EncodeEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, IsServerMode ? Sender.Server : Sender.Client)
                 : _messageCodec.EncodePlainMessage(message);
 
             return messageBytes;
