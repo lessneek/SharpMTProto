@@ -13,8 +13,8 @@ namespace SharpMTProto.Messaging.Handlers
     using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
+    using System.Reflection;
     using System.Threading.Tasks;
-    using Catel.Reflection;
     using Schema;
     using Utils;
 
@@ -108,11 +108,7 @@ namespace SharpMTProto.Messaging.Handlers
 
         public virtual bool CanHandle(IMessage message)
         {
-#if PCL
-            return MessageTypes.Any(type => type.GetTypeInfo().IsInstanceOfType(message.Body));
-#else
-            return MessageTypes.Any(type => type.IsInstanceOfType(message.Body));
-#endif
+            return MessageTypes.Any(type => type.GetTypeInfo().IsAssignableFrom(message.Body.GetType().GetTypeInfo()));
         }
 
         protected override void Dispose(bool disposing)
