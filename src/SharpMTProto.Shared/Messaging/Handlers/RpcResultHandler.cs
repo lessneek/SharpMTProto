@@ -48,8 +48,7 @@ namespace SharpMTProto.Messaging.Handlers
                 {
                     request.SetResponse(result);
                 }
-            },
-                ObserverScheduler).ToTask();
+            }).ToTask();
         }
     }
 }

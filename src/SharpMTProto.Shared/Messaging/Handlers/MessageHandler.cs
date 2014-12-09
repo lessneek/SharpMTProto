@@ -9,7 +9,6 @@ namespace SharpMTProto.Messaging.Handlers
     using System;
     using System.Collections.Immutable;
     using System.Linq;
-    using System.Reactive.Concurrency;
     using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
@@ -56,30 +55,9 @@ namespace SharpMTProto.Messaging.Handlers
 
     public abstract class MessageHandler : Cancelable, IMessageHandler, IObserver<IMessage>
     {
-        private IDisposable _subscription;
         private ImmutableArray<Type> _messageTypes = ImmutableArray<Type>.Empty;
         private Subject<MessageTypesUpdate> _messageTypesUpdates = new Subject<MessageTypesUpdate>();
-
-        protected virtual IScheduler ObserverScheduler
-        {
-            get { return Scheduler.Default; }
-        }
-
-        void IObserver<IMessage>.OnNext(IMessage message)
-        {
-            Task.Run(() => HandleAsync(message));
-        }
-
-        void IObserver<IMessage>.OnError(Exception error)
-        {
-            Unsubscribe();
-        }
-
-        void IObserver<IMessage>.OnCompleted()
-        {
-            Unsubscribe();
-        }
-
+        private IDisposable _subscription;
         public abstract Task HandleAsync(IMessage message);
 
         public ImmutableArray<Type> MessageTypes
@@ -111,6 +89,36 @@ namespace SharpMTProto.Messaging.Handlers
             return MessageTypes.Any(type => type.GetTypeInfo().IsAssignableFrom(message.Body.GetType().GetTypeInfo()));
         }
 
+        public void SubscribeTo(IObservable<IMessage> observable)
+        {
+            Unsubscribe();
+            _subscription = observable.Where(CanHandle).Subscribe(this);
+        }
+
+        public void Unsubscribe()
+        {
+            if (_subscription != null)
+            {
+                _subscription.Dispose();
+                _subscription = null;
+            }
+        }
+
+        void IObserver<IMessage>.OnNext(IMessage message)
+        {
+            Task.Run(() => HandleAsync(message));
+        }
+
+        void IObserver<IMessage>.OnError(Exception error)
+        {
+            Unsubscribe();
+        }
+
+        void IObserver<IMessage>.OnCompleted()
+        {
+            Unsubscribe();
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -125,21 +133,6 @@ namespace SharpMTProto.Messaging.Handlers
             }
             base.Dispose(disposing);
         }
-
-        public void SubscribeTo(IObservable<IMessage> observable)
-        {
-            Unsubscribe();
-            _subscription = observable.Where(CanHandle).ObserveOn(ObserverScheduler).Subscribe(this);
-        }
-
-        public void Unsubscribe()
-        {
-            if (_subscription != null)
-            {
-                _subscription.Dispose();
-                _subscription = null;
-            }
-        }
     }
 
     public class MessageTypesUpdate
@@ -152,9 +145,7 @@ namespace SharpMTProto.Messaging.Handlers
         }
 
         public IMessageHandler Sender { get; private set; }
-
         public ImmutableArray<Type> AddedTypes { get; private set; }
-
         public ImmutableArray<Type> RemovedTypes { get; private set; }
     }
 }
