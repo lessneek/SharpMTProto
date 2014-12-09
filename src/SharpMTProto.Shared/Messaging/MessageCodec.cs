@@ -8,7 +8,6 @@ using System;
 using System.Diagnostics;
 using BigMath;
 using BigMath.Utils;
-using Catel;
 using SharpMTProto.Schema;
 using SharpMTProto.Annotations;
 using SharpMTProto.Services;
@@ -124,9 +123,12 @@ namespace SharpMTProto.Messaging
         public MessageCodec([NotNull] TLRig tlRig, [NotNull] IHashServices hashServices, [NotNull] IEncryptionServices encryptionServices,
             IRandomGenerator randomGenerator)
         {
-            Argument.IsNotNull(() => tlRig);
-            Argument.IsNotNull(() => hashServices);
-            Argument.IsNotNull(() => encryptionServices);
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (hashServices == null)
+                throw new ArgumentNullException("hashServices");
+            if (encryptionServices == null)
+                throw new ArgumentNullException("encryptionServices");
 
             _tlRig = tlRig;
             _hashServices = hashServices;
@@ -183,8 +185,10 @@ namespace SharpMTProto.Messaging
 
         public byte[] EncodeEncryptedMessage(IMessage message, byte[] authKey, ulong salt, ulong sessionId, Sender sender)
         {
-            Argument.IsNotNull(() => authKey);
-            Argument.IsNotNull(() => message);
+            if (message == null)
+                throw new ArgumentNullException("message");
+            if (authKey == null)
+                throw new ArgumentNullException("authKey");
 
             ulong authKeyId = ComputeAuthKeyId(authKey);
             byte[] serBody = _tlRig.Serialize(message.Body, TLSerializationMode.Boxed);
@@ -235,8 +239,10 @@ namespace SharpMTProto.Messaging
 
         public IMessage DecodeEncryptedMessage(byte[] messageBytes, byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId)
         {
-            Argument.IsNotNull(() => authKey);
-            Argument.IsNotNull(() => messageBytes);
+            if (messageBytes == null)
+                throw new ArgumentNullException("messageBytes");
+            if (authKey == null)
+                throw new ArgumentNullException("authKey");
 
             ulong providedAuthKeyId = ComputeAuthKeyId(authKey);
 
