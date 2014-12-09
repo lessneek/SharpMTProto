@@ -110,10 +110,7 @@ namespace SharpMTProto
             _transport = transport;
 
             // Connector in/out.
-            _transportSubscription =
-                _transport.ObserveOn(DefaultScheduler.Instance)
-                    .Do(bytes => LogMessageInOut(bytes, "IN"))
-                    .Subscribe(ProcessIncomingMessageBytes);
+            _transportSubscription = _transport.Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
         }
 
         public IObservable<IMessage> IncomingMessages
