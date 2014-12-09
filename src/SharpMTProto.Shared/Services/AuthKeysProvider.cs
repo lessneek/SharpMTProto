@@ -7,29 +7,38 @@
 namespace SharpMTProto.Services
 {
     using System;
-    using System.Collections.Concurrent;
+    using System.Collections.Immutable;
+    using System.Threading;
     using Messaging;
 
     public interface IAuthKeysProvider
     {
-        bool TryAdd(byte[] authKey, out UInt64 authKeyId);
+        void Add(byte[] authKey, out UInt64 authKeyId);
         bool TryGet(ulong authKeyId, out byte[] authKey);
     }
 
     public class AuthKeysProvider : IAuthKeysProvider
     {
-        private readonly ConcurrentDictionary<UInt64, byte[]> _authKeys = new ConcurrentDictionary<ulong, byte[]>();
+        private volatile ImmutableDictionary<UInt64, byte[]> _authKeys = ImmutableDictionary<ulong, byte[]>.Empty;
         private readonly IMessageCodec _messageCodec;
+        private readonly object _syncRoot = new object();
 
         public AuthKeysProvider(IMessageCodec messageCodec)
         {
             _messageCodec = messageCodec;
         }
 
-        public bool TryAdd(byte[] authKey, out UInt64 authKeyId)
+        public void Add(byte[] authKey, out UInt64 authKeyId)
         {
             authKeyId = _messageCodec.ComputeAuthKeyId(authKey);
-            return _authKeys.TryAdd(authKeyId, authKey);
+
+            lock (_syncRoot)
+            {
+                if (_authKeys.ContainsKey(authKeyId))
+                    return;
+
+                _authKeys = _authKeys.Add(authKeyId, authKey);
+            }
         }
 
         public bool TryGet(ulong authKeyId, out byte[] authKey)
