@@ -329,7 +329,7 @@ namespace SharpMTProto.Transport
 
                             try
                             {
-                                await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
+                                ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
                             }
                             catch (Exception e)
                             {
@@ -359,7 +359,7 @@ namespace SharpMTProto.Transport
             Task.Run(receiver, token);
         }
 
-        private async Task ProcessReceivedDataAsync(ArraySegment<byte> buffer)
+        private void ProcessReceivedDataAsync(ArraySegment<byte> buffer)
         {
             try
             {
@@ -414,7 +414,7 @@ namespace SharpMTProto.Transport
 
                     var packet = new TcpTransportPacket(_nextPacketDataBuffer, 0, (int) _nextPacketStreamer.Position);
 
-                    await ProcessReceivedPacket(packet);
+                    ProcessReceivedPacket(packet);
 
                     _nextPacketBytesCountLeft = 0;
                     _nextPacketStreamer.Position = 0;
@@ -434,9 +434,9 @@ namespace SharpMTProto.Transport
             }
         }
 
-        private Task ProcessReceivedPacket(TcpTransportPacket packet)
+        private void ProcessReceivedPacket(TcpTransportPacket packet)
         {
-            return Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
+            _in.OnNext(packet.GetPayloadCopy());
         }
 
         private void ThrowIfConnectedSocket()

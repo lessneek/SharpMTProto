@@ -8,10 +8,7 @@ namespace SharpMTProto.Messaging.Handlers
 {
     using System;
     using System.Collections.Immutable;
-    using System.Reactive.Linq;
     using System.Reactive.Subjects;
-    using System.Reactive.Threading.Tasks;
-    using System.Threading.Tasks;
     using Catel.Logging;
     using Schema;
 
@@ -79,10 +76,10 @@ namespace SharpMTProto.Messaging.Handlers
             MessageTypes = builder.ToImmutable();
         }
 
-        public override Task HandleAsync(IMessage message)
+        public override void Handle(IMessage message)
         {
             ThrowIfDisposed();
-            return Observable.Start(() => _messages.OnNext(message)).ToTask();
+            _messages.OnNext(message);
         }
 
         public override bool CanHandle(IMessage message)

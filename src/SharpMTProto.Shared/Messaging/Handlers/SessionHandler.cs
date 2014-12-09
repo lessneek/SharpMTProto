@@ -6,16 +6,13 @@
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    using System.Threading.Tasks;
-    using Nito.AsyncEx;
     using Schema;
 
     public class SessionHandler : SingleMessageHandler<INewSession>
     {
-        public override Task HandleAsync(IMessage message)
+        public override void Handle(IMessage message)
         {
             // TODO: implement.
-            return TaskConstants.Completed;
         }
     }
 }

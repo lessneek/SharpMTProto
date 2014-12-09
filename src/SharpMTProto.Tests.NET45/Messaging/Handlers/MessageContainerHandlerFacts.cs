@@ -15,8 +15,6 @@ using SharpMTProto.Schema;
 
 namespace SharpMTProto.Tests.Messaging.Handlers
 {
-    using SharpMTProto.Messaging;
-
     [TestFixture]
     [Category("Messaging.Handlers")]
     public class MessageContainerHandlerFacts
@@ -30,8 +28,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             var receivedMessages = new List<IMessage>();
 
             var messageHandlersHubMock = new Mock<IMessageHandler>();
-            messageHandlersHubMock.Setup(dispatcher => dispatcher.HandleAsync(It.IsAny<IMessage>()))
-                .Returns(TaskConstants.Completed)
+            messageHandlersHubMock.Setup(dispatcher => dispatcher.Handle(It.IsAny<IMessage>()))
                 .Callback<IMessage>(receivedMessages.Add);
 
             var handler = new MessageContainerHandler(messageHandlersHubMock.Object);

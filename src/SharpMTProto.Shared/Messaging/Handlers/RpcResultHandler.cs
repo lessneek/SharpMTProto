@@ -6,9 +6,6 @@
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    using System.Reactive.Linq;
-    using System.Reactive.Threading.Tasks;
-    using System.Threading.Tasks;
     using Catel.Logging;
     using Schema;
 
@@ -23,32 +20,28 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        public override Task HandleAsync(IMessage message)
+        public override void Handle(IMessage message)
         {
-            return Observable.Start(() =>
+            var rpcResult = (IRpcResult) message.Body;
+            var result = rpcResult.Result;
+
+            var request = _requestsManager.Get(rpcResult.ReqMsgId);
+            if (request == null)
             {
-                var rpcResult = (IRpcResult) message.Body;
-                object result = rpcResult.Result;
+                Log.Warning(string.Format("Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.", rpcResult.ReqMsgId,
+                    result.GetType()));
+                return;
+            }
 
-                IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
-                if (request == null)
-                {
-                    Log.Warning(string.Format("Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
-                        rpcResult.ReqMsgId,
-                        result.GetType()));
-                    return;
-                }
-
-                var rpcError = result as IRpcError;
-                if (rpcError != null)
-                {
-                    request.SetException(new RpcErrorException(rpcError));
-                }
-                else
-                {
-                    request.SetResponse(result);
-                }
-            }).ToTask();
+            var rpcError = result as IRpcError;
+            if (rpcError != null)
+            {
+                request.SetException(new RpcErrorException(rpcError));
+            }
+            else
+            {
+                request.SetResponse(result);
+            }
         }
     }
 }

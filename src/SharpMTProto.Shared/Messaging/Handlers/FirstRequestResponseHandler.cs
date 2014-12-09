@@ -8,8 +8,6 @@ namespace SharpMTProto.Messaging.Handlers
 {
     using System;
     using System.Collections.Immutable;
-    using System.Threading.Tasks;
-    using Catel;
     using Catel.Logging;
     using Schema;
 
@@ -25,20 +23,16 @@ namespace SharpMTProto.Messaging.Handlers
             _messageTypesSubscription = messageTypesObservable.Subscribe(types => MessageTypes = types);
         }
 
-        public override Task HandleAsync(IMessage message)
+        public override void Handle(IMessage message)
         {
-            Argument.IsNotNull(() => message);
-            return Task.Run(() =>
+            var request = _requestsManager.GetFirstOrDefaultWithUnsetResponse(message.Body);
+            if (request == null)
             {
-                IRequest request = _requestsManager.GetFirstOrDefaultWithUnsetResponse(message.Body);
-                if (request == null)
-                {
-                    Log.Warning(string.Format("Request for response of type '{0}' not found.", message.Body.GetType()));
-                    return;
-                }
+                Log.Warning(string.Format("Request for response of type '{0}' not found.", message.Body.GetType()));
+                return;
+            }
 
-                request.SetResponse(message.Body);
-            });
+            request.SetResponse(message.Body);
         }
 
         protected override void Dispose(bool disposing)

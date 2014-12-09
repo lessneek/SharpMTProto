@@ -7,7 +7,6 @@
 namespace SharpMTProto.Messaging.Handlers
 {
     using System.Linq;
-    using System.Threading.Tasks;
     using Catel.Logging;
     using Schema;
 
@@ -21,7 +20,7 @@ namespace SharpMTProto.Messaging.Handlers
             _messageHandlersHub = messageHandlersHub;
         }
 
-        public override async Task HandleAsync(IMessage message)
+        public override void Handle(IMessage message)
         {
             #region Description
 
@@ -47,7 +46,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    await _messageHandlersHub.HandleAsync(msg);
+                    _messageHandlersHub.Handle(msg);
                 }
             }
             else

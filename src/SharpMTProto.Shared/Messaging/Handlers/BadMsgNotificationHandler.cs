@@ -24,7 +24,7 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        public override async Task HandleAsync(IMessage message)
+        public override void Handle(IMessage message)
         {
             #region Notice of Ignored Error Message
 
@@ -114,7 +114,7 @@ namespace SharpMTProto.Messaging.Handlers
 
                 Log.Debug("Resending bad message with the new salt.");
 
-                await request.SendAsync();
+                request.SendAsync();
                 return;
             }
 

@@ -51,6 +51,12 @@ namespace SharpMTProto.Messaging.Handlers
         /// </summary>
         /// <param name="message">A message to handle.</param>
         Task HandleAsync(IMessage message);
+
+        /// <summary>
+        ///     Handles a message.
+        /// </summary>
+        /// <param name="message">A message to handle.</param>
+        void Handle(IMessage message);
     }
 
     public abstract class MessageHandler : Cancelable, IMessageHandler, IObserver<IMessage>
@@ -58,7 +64,13 @@ namespace SharpMTProto.Messaging.Handlers
         private ImmutableArray<Type> _messageTypes = ImmutableArray<Type>.Empty;
         private Subject<MessageTypesUpdate> _messageTypesUpdates = new Subject<MessageTypesUpdate>();
         private IDisposable _subscription;
-        public abstract Task HandleAsync(IMessage message);
+
+        public Task HandleAsync(IMessage message)
+        {
+            return Task.Run(() => Handle(message));
+        }
+
+        public abstract void Handle(IMessage message);
 
         public ImmutableArray<Type> MessageTypes
         {
@@ -106,7 +118,7 @@ namespace SharpMTProto.Messaging.Handlers
 
         void IObserver<IMessage>.OnNext(IMessage message)
         {
-            Task.Run(() => HandleAsync(message));
+            HandleAsync(message);
         }
 
         void IObserver<IMessage>.OnError(Exception error)
