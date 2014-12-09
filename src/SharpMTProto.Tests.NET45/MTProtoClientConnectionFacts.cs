@@ -54,7 +54,7 @@ namespace SharpMTProto.Tests
                 new Message(0x0102030405060708, 3, rpcResult),
                 config.AuthKey,
                 config.Salt,
-                config.SessionId,
+                config.SessionId.GetValueOrDefault(),
                 Sender.Server);
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);
@@ -89,7 +89,7 @@ namespace SharpMTProto.Tests
                 new Message(0x0102030405060708, 3, expectedResponse),
                 config.AuthKey,
                 config.Salt,
-                config.SessionId,
+                config.SessionId.GetValueOrDefault(),
                 Sender.Server);
 
             SetupMockTransportWhichReturnsBytes(serviceLocator, expectedResponseMessageBytes);

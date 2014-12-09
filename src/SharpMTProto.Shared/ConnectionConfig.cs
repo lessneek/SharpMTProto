@@ -11,9 +11,9 @@ namespace SharpMTProto
     /// </summary>
     public class ConnectionConfig
     {
-        private readonly byte[] _authKey;
+        private byte[] _authKey;
         private ulong _salt;
-        private ulong _sessionId;
+        private ulong? _sessionId;
 
         /// <summary>
         ///     Initializes a new instance of the <see cref="ConnectionConfig" /> class.
@@ -33,6 +33,7 @@ namespace SharpMTProto
         public byte[] AuthKey
         {
             get { return _authKey; }
+            set { _authKey = value; }
         }
 
         /// <summary>
@@ -48,7 +49,7 @@ namespace SharpMTProto
             }
         }
 
-        public ulong SessionId
+        public ulong? SessionId
         {
             get { return _sessionId; }
             set

@@ -169,6 +169,7 @@ namespace SharpMTProto.Tests
             serviceLocator.RegisterType<IMTProtoClientBuilder, MTProtoClientBuilder>();
             serviceLocator.RegisterType<INonceGenerator, NonceGenerator>();
             serviceLocator.RegisterType<IKeyChain, KeyChain>();
+            serviceLocator.RegisterType<IAuthKeysProvider, AuthKeysProvider>();
             serviceLocator.RegisterInstance(
                 Mock.Of<IClientTransportFactory>(
                     factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IClientTransport>()));

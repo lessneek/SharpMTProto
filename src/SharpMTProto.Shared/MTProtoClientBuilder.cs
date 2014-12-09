@@ -35,6 +35,7 @@ namespace SharpMTProto
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
         private readonly IKeyChain _keyChain;
+        private readonly IAuthKeysProvider _authKeysProvider;
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly INonceGenerator _nonceGenerator;
@@ -53,7 +54,8 @@ namespace SharpMTProto
             [NotNull] IHashServices hashServices,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] INonceGenerator nonceGenerator,
-            [NotNull] IKeyChain keyChain)
+            [NotNull] IKeyChain keyChain,
+            [NotNull] IAuthKeysProvider authKeysProvider)
         {
             _clientTransportFactory = clientTransportFactory;
             _tlRig = tlRig;
@@ -63,12 +65,13 @@ namespace SharpMTProto
             _encryptionServices = encryptionServices;
             _nonceGenerator = nonceGenerator;
             _keyChain = keyChain;
+            _authKeysProvider = authKeysProvider;
         }
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
-            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec);
+            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _authKeysProvider);
             return new MTProtoClientConnection(messenger);
         }
 

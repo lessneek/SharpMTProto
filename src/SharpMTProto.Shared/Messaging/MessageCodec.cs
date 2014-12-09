@@ -79,6 +79,13 @@ namespace SharpMTProto.Messaging
         IMessage DecodeEncryptedMessage([NotNull] byte[] messageBytes, [NotNull] byte[] authKey, Sender sender, out UInt64 salt, out UInt64 sessionId);
 
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
+
+        /// <summary>
+        /// Computes auth key id.
+        /// </summary>
+        /// <param name="authKey">Auth key.</param>
+        /// <returns>Auth key id.</returns>
+        ulong ComputeAuthKeyId(byte[] authKey);
     }
 
     public class MessageCodec : IMessageCodec
@@ -286,7 +293,7 @@ namespace SharpMTProto.Messaging
             return new Message(msgId, seqno, body);
         }
 
-        private ulong ComputeAuthKeyId(byte[] authKey)
+        public ulong ComputeAuthKeyId(byte[] authKey)
         {
             byte[] authKeySHA1 = _hashServices.ComputeSHA1(authKey);
             return authKeySHA1.ToUInt64(authKeySHA1.Length - 8, true);

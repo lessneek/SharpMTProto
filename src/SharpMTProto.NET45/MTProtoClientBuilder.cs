@@ -27,6 +27,7 @@ namespace SharpMTProto
             var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);
             var keyChain = new KeyChain(tlRig, hashServices);
             var nonceGenerator = new NonceGenerator();
+            var authKeysProvider = new AuthKeysProvider(messageCodec);
 
             return new MTProtoClientBuilder(clientTransportFactory,
                 tlRig,
@@ -35,7 +36,8 @@ namespace SharpMTProto
                 hashServices,
                 encryptionServices,
                 nonceGenerator,
-                keyChain);
+                keyChain,
+                authKeysProvider);
         }
     }
 }

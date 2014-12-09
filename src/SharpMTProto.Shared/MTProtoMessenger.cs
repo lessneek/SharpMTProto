@@ -71,6 +71,7 @@ namespace SharpMTProto
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
         private readonly IMessageCodec _messageCodec;
+        private readonly IAuthKeysProvider _authKeysProvider;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private ConnectionConfig _config = new ConnectionConfig(null, 0);
         private uint _messageSeqNumber;
@@ -81,7 +82,8 @@ namespace SharpMTProto
 
         public MTProtoMessenger([NotNull] IClientTransport transport,
             [NotNull] IMessageIdGenerator messageIdGenerator,
-            [NotNull] IMessageCodec messageCodec)
+            [NotNull] IMessageCodec messageCodec,
+            [NotNull] IAuthKeysProvider authKeysProvider)
         {
             if (transport == null)
             {
@@ -95,9 +97,14 @@ namespace SharpMTProto
             {
                 throw new ArgumentNullException("messageCodec");
             }
+            if (authKeysProvider == null)
+            {
+                throw new ArgumentNullException("authKeysProvider");
+            }
 
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
+            _authKeysProvider = authKeysProvider;
 
             // Init transport.
             _transport = transport;
@@ -143,7 +150,7 @@ namespace SharpMTProto
             }
 
             _config = config;
-            if (_config.SessionId == 0)
+            if (!IsServerMode && _config.SessionId == 0)
             {
                 _config.SessionId = GetNextSessionId();
             }
@@ -218,7 +225,7 @@ namespace SharpMTProto
 
         private static void LogMessageInOut(byte[] messageBytes, string inOrOut)
         {
-            Log.Debug(string.Format("{0} ({1} bytes): {2}", inOrOut, messageBytes.Length, messageBytes.ToHexString()));
+            Debug(string.Format("{0} ({1} bytes): {2}", inOrOut, messageBytes.Length, messageBytes.ToHexString()));
         }
 
         /// <summary>
@@ -231,14 +238,14 @@ namespace SharpMTProto
 
             try
             {
-                Log.Debug("Processing incoming message.");
+                Debug("Processing incoming message.");
                 ulong authKeyId;
                 using (var streamer = new TLStreamer(messageBytes))
                 {
                     if (messageBytes.Length == 4)
                     {
                         int error = streamer.ReadInt32();
-                        Log.Debug("Received error code: {0}.", error);
+                        Debug(string.Format("Received error code: {0}.", error));
                         return;
                     }
                     if (messageBytes.Length < 20)
@@ -256,7 +263,7 @@ namespace SharpMTProto
                 if (authKeyId == 0)
                 {
                     // Assume the message bytes has a plain (unencrypted) message.
-                    Log.Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", authKeyId));
+                    Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", authKeyId));
 
                     message = _messageCodec.DecodePlainMessage(messageBytes);
 
@@ -268,23 +275,45 @@ namespace SharpMTProto
                 else
                 {
                     // Assume the stream has an encrypted message.
-                    Log.Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", authKeyId));
-                    if (!IsEncryptionSupported)
+                    Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", authKeyId));
+
+                    if (!IsServerMode)
                     {
-                        Log.Debug("Encryption is not supported by this connection.");
-                        return;
+                        if (_config.AuthKey == null)
+                        {
+                            Debug("Encryption is not supported by this connection.");
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        if (_config.AuthKey == null)
+                        {
+                            byte[] authKey;
+                            if (!_authKeysProvider.TryGet(authKeyId, out authKey))
+                            {
+                                Debug(string.Format("Unable to decrypt incoming message with auth key ID '{0}'. Auth key with such ID not found.", authKeyId));
+                                return;
+                            }
+                            _config.AuthKey = authKey;
+                        }
                     }
 
                     ulong salt, sessionId;
                     message = _messageCodec.DecodeEncryptedMessage(messageBytes, _config.AuthKey, IsServerMode ? Sender.Client : Sender.Server, out salt, out sessionId);
                     // TODO: check salt.
-                    if (sessionId != _config.SessionId)
+
+                    if (!_config.SessionId.HasValue)
+                    {
+                        _config.SessionId = sessionId;
+                    }
+                    else if (sessionId != _config.SessionId)
                     {
                         throw new InvalidMessageException(string.Format("Invalid session ID {0}. Expected {1}.",
                             sessionId,
                             _config.SessionId));
                     }
-                    Log.Debug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", message.MsgId));
+                    Debug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", message.MsgId));
                 }
                 ProcessIncomingMessage(message);
             }
@@ -296,17 +325,26 @@ namespace SharpMTProto
 
         private void ProcessIncomingMessage(IMessage message)
         {
-            ThrowIfDisposed();
+            if (IsDisposed)
+            {
+                return;
+            }
             try
             {
-                Log.Debug("Incoming message data of type = {0}.", message.Body.GetType());
+                Debug(string.Format("Incoming message data of type = {0}.", message.Body.GetType()));
 
                 _incomingMessages.OnNext(message);
             }
             catch (Exception e)
             {
-                Log.Debug(e, "Error while processing incoming message.");
+                Debug(string.Format("Error while processing incoming message. {0}", e.Message));
             }
+        }
+
+        [Conditional("DEBUG")]
+        private static void Debug(string message)
+        {
+            Debug(message);
         }
 
         protected bool IsIncomingMessageIdValid(ulong messageId)
@@ -322,8 +360,9 @@ namespace SharpMTProto
                 ThrowIfEncryptionIsNotSupported();
             }
 
-            byte[] messageBytes = isEncrypted
-                ? _messageCodec.EncodeEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId, IsServerMode ? Sender.Server : Sender.Client)
+            var messageBytes = isEncrypted
+                ? _messageCodec.EncodeEncryptedMessage(message, _config.AuthKey, _config.Salt, _config.SessionId.GetValueOrDefault(),
+                    IsServerMode ? Sender.Server : Sender.Client)
                 : _messageCodec.EncodePlainMessage(message);
 
             return messageBytes;
