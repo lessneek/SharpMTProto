@@ -19,7 +19,7 @@ namespace SharpMTProto.Services
             Array.Copy(iv, 0, iv1, 0, iv1.Length);
             Array.Copy(iv, iv.Length/2, iv2, 0, iv2.Length);
 
-            using (var aes = new AesCryptoServiceProvider())
+            using (var aes = new AesManaged())
             {
                 aes.Mode = CipherMode.ECB;
                 aes.KeySize = key.Length*8;
@@ -65,7 +65,7 @@ namespace SharpMTProto.Services
             Array.Copy(iv, 0, iv1, 0, iv1.Length);
             Array.Copy(iv, iv.Length/2, iv2, 0, iv2.Length);
 
-            using (var aes = new AesCryptoServiceProvider())
+            using (var aes = new AesManaged())
             {
                 aes.Mode = CipherMode.ECB;
                 aes.KeySize = key.Length*8;
