@@ -8,8 +8,8 @@ namespace SharpMTProto.Messaging.Handlers
 {
     using System;
     using System.Threading.Tasks;
-    using Catel.Logging;
     using Schema;
+    using Utils;
 
     public class BadMsgNotificationHandler : SingleMessageHandler<IBadMsgNotification>
     {

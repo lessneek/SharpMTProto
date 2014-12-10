@@ -5,7 +5,6 @@
 // --------------------------------------------------------------------------------------------------------------------
 
 using System;
-using Catel.Logging;
 using SharpMTProto.Annotations;
 
 namespace SharpMTProto
@@ -16,7 +15,6 @@ namespace SharpMTProto
     [UsedImplicitly]
     public class MTProtoClient : IDisposable
     {
-        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private bool _isDisposed;
 
         #region Disposable

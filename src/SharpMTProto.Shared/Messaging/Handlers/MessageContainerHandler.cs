@@ -7,8 +7,8 @@
 namespace SharpMTProto.Messaging.Handlers
 {
     using System.Linq;
-    using Catel.Logging;
     using Schema;
+    using Utils;
 
     public class MessageContainerHandler : SingleMessageHandler<IMessageContainer>
     {
@@ -51,7 +51,7 @@ namespace SharpMTProto.Messaging.Handlers
             }
             else
             {
-                Log.Debug("Unsupported message container of type: {0}.", message.Body.GetType());
+                Log.Debug(string.Format("Unsupported message container of type: {0}.", message.Body.GetType()));
             }
         }
     }

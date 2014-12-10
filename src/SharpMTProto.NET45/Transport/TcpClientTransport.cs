@@ -17,7 +17,6 @@ namespace SharpMTProto.Transport
     using System.Threading.Tasks;
     using Annotations;
     using BigMath.Utils;
-    using Catel.Logging;
     using Nito.AsyncEx;
     using SharpTL;
     using Utils;
@@ -243,7 +242,7 @@ namespace SharpMTProto.Transport
                         }
                         catch (Exception e)
                         {
-                            Log.Error(e);
+                            Log.Error(e, "Fatal error on connect.");
                             State = ClientTransportState.Disconnected;
                             throw;
                         }

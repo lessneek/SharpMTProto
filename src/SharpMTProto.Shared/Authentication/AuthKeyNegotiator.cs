@@ -4,24 +4,23 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
-using BigMath;
-using BigMath.Utils;
-using Catel;
-using Catel.Logging;
-using SharpMTProto.Annotations;
-using SharpMTProto.Schema;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
-
 namespace SharpMTProto.Authentication
 {
+    using System;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Runtime.CompilerServices;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using BigMath;
+    using BigMath.Utils;
+    using Annotations;
+    using Schema;
+    using Services;
+    using Transport;
+    using SharpTL;
+    using Utils;
+
     /// <summary>
     ///     Auth key negotiator.
     /// </summary>
@@ -57,7 +56,7 @@ namespace SharpMTProto.Authentication
         private readonly IKeyChain _keyChain;
         private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
-        
+
         public AuthKeyNegotiator(
             [NotNull] IClientTransportConfig clientTransportConfig,
             [NotNull] IMTProtoClientBuilder mtProtoBuilder,
@@ -67,13 +66,20 @@ namespace SharpMTProto.Authentication
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] IKeyChain keyChain)
         {
-            Argument.IsNotNull(() => clientTransportConfig);
-            Argument.IsNotNull(() => mtProtoBuilder);
-            Argument.IsNotNull(() => tlRig);
-            Argument.IsNotNull(() => nonceGenerator);
-            Argument.IsNotNull(() => hashServices);
-            Argument.IsNotNull(() => encryptionServices);
-            Argument.IsNotNull(() => keyChain);
+            if (clientTransportConfig == null)
+                throw new ArgumentNullException("clientTransportConfig");
+            if (mtProtoBuilder == null)
+                throw new ArgumentNullException("mtProtoBuilder");
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (nonceGenerator == null)
+                throw new ArgumentNullException("nonceGenerator");
+            if (hashServices == null)
+                throw new ArgumentNullException("hashServices");
+            if (encryptionServices == null)
+                throw new ArgumentNullException("encryptionServices");
+            if (keyChain == null)
+                throw new ArgumentNullException("keyChain");
 
             _clientTransportConfig = clientTransportConfig;
             _mtProtoBuilder = mtProtoBuilder;

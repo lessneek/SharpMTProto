@@ -8,13 +8,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using BigMath.Utils;
-using Catel;
 using SharpMTProto.Annotations;
 using SharpMTProto.Services;
 using SharpTL;
 
 namespace SharpMTProto.Authentication
 {
+    using System;
+
     /// <summary>
     ///     Key chain interface.
     /// </summary>
@@ -40,8 +41,10 @@ namespace SharpMTProto.Authentication
 
         public KeyChain([NotNull] TLRig tlRig, [NotNull] IHashServices hashServices)
         {
-            Argument.IsNotNull(() => tlRig);
-            Argument.IsNotNull(() => hashServices);
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (hashServices == null)
+                throw new ArgumentNullException("hashServices");
 
             _tlRig = tlRig;
             _hashServices = hashServices;
@@ -49,7 +52,11 @@ namespace SharpMTProto.Authentication
 
         public PublicKey this[ulong keyFingerprint]
         {
-            get { return _keys.ContainsKey(keyFingerprint) ? _keys[keyFingerprint] : null; }
+            get
+            {
+                PublicKey value;
+                return _keys.TryGetValue(keyFingerprint, out value) ? value : null;
+            }
         }
 
         public IEnumerator<PublicKey> GetEnumerator()

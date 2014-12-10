@@ -12,7 +12,6 @@ using System.Reactive.Linq;
 using System.Reactive.Threading.Tasks;
 using System.Threading.Tasks;
 using BigMath.Utils;
-using Catel.Logging;
 using FluentAssertions;
 using Nito.AsyncEx;
 using NUnit.Framework;
@@ -28,8 +27,6 @@ namespace SharpMTProto.Tests.Transport
         [SetUp]
         public void SetUp()
         {
-            LogManager.AddDebugListener(true);
-
             _serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             _serverSocket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             _serverSocket.Listen(1);
@@ -45,8 +42,6 @@ namespace SharpMTProto.Tests.Transport
                 _serverSocket = null;
             }
             _serverEndPoint = null;
-
-            LogManager.FlushAll();
         }
 
         private Socket _serverSocket;

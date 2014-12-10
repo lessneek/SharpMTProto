@@ -8,8 +8,8 @@ namespace SharpMTProto.Messaging.Handlers
 {
     using System;
     using System.Collections.Immutable;
-    using Catel.Logging;
     using Schema;
+    using Utils;
 
     public class FirstRequestResponseHandler : MessageHandler
     {

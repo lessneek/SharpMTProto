@@ -17,7 +17,6 @@ namespace SharpMTProto
     using System.Threading.Tasks;
     using Annotations;
     using BigMath.Utils;
-    using Catel.Logging;
     using Messaging;
     using Schema;
     using Services;

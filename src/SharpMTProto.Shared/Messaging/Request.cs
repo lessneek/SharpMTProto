@@ -7,9 +7,9 @@
 namespace SharpMTProto.Messaging
 {
     using System;
+    using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
-    using Catel.Reflection;
     using Schema;
 
     public interface IRequest
@@ -103,7 +103,7 @@ namespace SharpMTProto.Messaging
 
         public bool CanSetResponse(Type responseType)
         {
-            return !IsResponseReceived && ResponseTypeInternal.IsAssignableFromEx(responseType);
+            return !IsResponseReceived && ResponseTypeInternal.GetTypeInfo().IsAssignableFrom(responseType.GetTypeInfo());
         }
 
         public Task SendAsync()

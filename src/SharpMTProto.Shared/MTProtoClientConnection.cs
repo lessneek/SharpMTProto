@@ -21,9 +21,6 @@ namespace SharpMTProto
     using System.Threading;
     using System.Threading.Tasks;
     using Annotations;
-    using Catel;
-    using Catel.Collections;
-    using Catel.Logging;
     using Messaging;
     using Messaging.Handlers;
     using Schema;
@@ -95,7 +92,9 @@ namespace SharpMTProto
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
-        private readonly Dictionary<Type, MessageSendingFlags> _messageSendingFlags = new Dictionary<Type, MessageSendingFlags>();
+        private ImmutableDictionary<Type, MessageSendingFlags> _messageSendingFlags = ImmutableDictionary<Type, MessageSendingFlags>.Empty;
+        private readonly object _messageSendingFlagsSyncRoot = new object();
+
         private IMTProtoMessenger _messenger;
 
         private readonly MTProtoAsyncMethods _methods;
@@ -172,12 +171,14 @@ namespace SharpMTProto
             return RequestAsync<TResponse>(requestBody, flags, DefaultResponseTimeout, cancellationToken);
         }
 
-        public async Task<TResponse> RequestAsync<TResponse>(object requestBody,
+        public async Task<TResponse> RequestAsync<TResponse>([NotNull] object requestBody,
             MessageSendingFlags flags,
             TimeSpan timeout,
             CancellationToken cancellationToken)
         {
-            Argument.IsNotNull(() => requestBody);
+            if (requestBody == null)
+                throw new ArgumentNullException("requestBody");
+
             cancellationToken.ThrowIfCancellationRequested();
 
             var timeoutCancellationTokenSource = new CancellationTokenSource(timeout);
@@ -186,7 +187,7 @@ namespace SharpMTProto
                     cancellationToken))
             {
                 Request<TResponse> request = CreateRequest<TResponse>(requestBody, flags, cts.Token);
-                Log.Info("Sending request ({0}) '{1}'.", flags, requestBody);
+                Log.Debug(string.Format("Sending request ({0}) '{1}'.", flags, requestBody));
                 await request.SendAsync();
                 return await request.GetResponseAsync();
                 // TODO: make observable timeout.
@@ -206,7 +207,10 @@ namespace SharpMTProto
 
         public void SetMessageSendingFlags(Dictionary<Type, MessageSendingFlags> flags)
         {
-            _messageSendingFlags.AddRange(flags);
+            lock (_messageSendingFlagsSyncRoot)
+            {
+                _messageSendingFlags = _messageSendingFlags.AddRange(flags);
+            }
         }
 
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)

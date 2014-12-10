@@ -4,31 +4,31 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using BigMath.Utils;
-using Catel.IoC;
-using FluentAssertions;
-using NUnit.Framework;
-using SharpMTProto.Messaging;
-using SharpMTProto.Schema;
-using SharpMTProto.Services;
-
 namespace SharpMTProto.Tests.Messaging
 {
+    using System;
+    using BigMath.Utils;
+    using FluentAssertions;
+    using NUnit.Framework;
+    using SharpMTProto.Messaging;
+    using Schema;
+    using SharpMTProto.Services;
+    using Autofac;
+    using SetUp;
+
     [TestFixture]
     [Category("Messaging")]
-    public class MessageCodecFacts
+    public class MessageCodecFacts : SharpMTProtoTestBase
     {
-        private IMessageCodec GetMessageCodec()
+        [SetUp]
+        public void SetUp()
         {
-            IServiceLocator serviceLocator = TestRig.CreateTestServiceLocator();
-            serviceLocator.RegisterInstance<IRandomGenerator>(new RandomGenerator(9));
-            return serviceLocator.ResolveType<IMessageCodec>();
+            Override(builder => builder.Register(context => new RandomGenerator(9)).As<IRandomGenerator>());
         }
 
         private static readonly byte[] TestPlainMessageBytes =
             ("0000000000000000" + "0807060504030201" + "10000000" + "9EB6EFEB" + "09" + "000102030405060708" + "0000").HexToBytes();
-        
+
         private static readonly byte[] TestEncryptedClientMessageBytes =
             ("14AECD2F927A0A1AF383C85065EC4F3CA0A44838990AC9CD70C2FBE4E49FF346DA91A0F431EC9694056C3DE623B753CC12E720293B3D2955280FDD3C4AC445F8379557D9E078B232").HexToBytes();
 
@@ -40,7 +40,7 @@ namespace SharpMTProto.Tests.Messaging
         [Test]
         public void Should_throw_on_unwrap_plain_message_with_wrong_body_length()
         {
-            IMessageCodec messageCodec = GetMessageCodec();
+            IMessageCodec messageCodec = Resolve<IMessageCodec>();
             byte[] messageBytes = ("0000000000000000" + "0807060504030201" + "11000000" + "9EB6EFEB" + "09" + "000102030405060708" + "0000").HexToBytes();
             var action = new Action(() => messageCodec.DecodePlainMessage(messageBytes));
             action.ShouldThrow<InvalidMessageException>();
@@ -49,7 +49,7 @@ namespace SharpMTProto.Tests.Messaging
         [Test]
         public void Should_unwrap_plain_message()
         {
-            IMessageCodec messageCodec = GetMessageCodec();
+            IMessageCodec messageCodec = Resolve<IMessageCodec>();
             IMessage message = messageCodec.DecodePlainMessage(TestPlainMessageBytes);
             message.ShouldBeEquivalentTo(TestMessage);
         }
@@ -57,7 +57,7 @@ namespace SharpMTProto.Tests.Messaging
         [Test]
         public void Should_wrap_plain_message()
         {
-            IMessageCodec messageCodec = GetMessageCodec();
+            IMessageCodec messageCodec = Resolve<IMessageCodec>();
             byte[] wrappedMessageBytes = messageCodec.EncodePlainMessage(TestMessage);
             wrappedMessageBytes.ShouldBeEquivalentTo(TestPlainMessageBytes);
         }
@@ -65,7 +65,7 @@ namespace SharpMTProto.Tests.Messaging
         [Test]
         public void Should_unwrap_encrypted_message()
         {
-            IMessageCodec messageCodec = GetMessageCodec();
+            IMessageCodec messageCodec = Resolve<IMessageCodec>();
             IMessage message = messageCodec.DecodePlainMessage(TestPlainMessageBytes);
             message.ShouldBeEquivalentTo(TestMessage);
         }
@@ -74,8 +74,8 @@ namespace SharpMTProto.Tests.Messaging
         [TestCase(Sender.Server)]
         public void Should_wrap_encrypted_message(Sender sender)
         {
-            IMessageCodec messageCodec = GetMessageCodec();
-            byte[] wrappedMessageBytes = messageCodec.EncodeEncryptedMessage(TestMessage, TestRig.AuthKey, 0x999UL, 0x777UL, sender);
+            IMessageCodec messageCodec = Resolve<IMessageCodec>();
+            byte[] wrappedMessageBytes = messageCodec.EncodeEncryptedMessage(TestMessage, AuthKey, 0x999UL, 0x777UL, sender);
             byte[] expectedMessageBytes;
             switch (sender)
             {

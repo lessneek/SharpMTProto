@@ -9,8 +9,8 @@ namespace SharpMTProto.Messaging.Handlers
     using System;
     using System.Collections.Immutable;
     using System.Reactive.Subjects;
-    using Catel.Logging;
     using Schema;
+    using Utils;
 
     public class MessageHandlersHub : MessageHandler
     {

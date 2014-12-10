@@ -6,16 +6,17 @@
 
 using System;
 using System.Collections.Generic;
-using Catel.Reflection;
 using SharpMTProto.Messaging;
 
 namespace SharpMTProto.Schema
 {
+    using System.Reflection;
+
     public partial class MTProtoAsyncMethods
     {
         partial void SetupRemoteProcedureCaller(IRemoteProcedureCaller remoteProcedureCaller)
         {
-            remoteProcedureCaller.PrepareSerializersForAllTLObjectsInAssembly(typeof (IMTProtoAsyncMethods).GetAssemblyEx());
+            remoteProcedureCaller.PrepareSerializersForAllTLObjectsInAssembly(typeof (IMTProtoAsyncMethods).GetTypeInfo().Assembly);
 
             var flags = new Dictionary<Type, MessageSendingFlags>
             {

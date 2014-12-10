@@ -8,7 +8,6 @@ namespace SharpMTProto.Tests
 {
     using System;
     using BigMath.Utils;
-    using Catel.IoC;
     using Moq;
     using SharpMTProto.Authentication;
     using SharpMTProto.Messaging;
@@ -147,34 +146,6 @@ namespace SharpMTProto.Tests
         public byte[] GetNonce(uint length)
         {
             return _nonceStream.ReadBytes((int) length);
-        }
-    }
-
-    internal static class TestRig
-    {
-        public static readonly byte[] AuthKey =
-            "752BC8FC163832CB2606F7F3DC444D39A6D725761CA2FC984958E20EB7FDCE2AA1A65EB92D224CEC47EE8339AA44DF3906D79A01148CB6AACF70D53F98767EBD7EADA5A63C4229117EFBDB50DA4399C9E1A5D8B2550F263F3D43B936EF9259289647E7AAC8737C4E007C0C9108631E2B53C8900C372AD3CCA25E314FBD99AFFD1B5BCB29C5E40BB8366F1DFD07B053F1FBBBE0AA302EEEE5CF69C5A6EA7DEECDD965E0411E3F00FE112428330EBD432F228149FD2EC9B5775050F079C69CED280FE7E13B968783E3582B9C58CEAC2149039B3EF5A4265905D661879A41AF81098FBCA6D0B91D5B595E1E27E166867C155A3496CACA9FD6CF5D16DB2ADEBB2D3E"
-                .HexToBytes();
-
-        public static IServiceLocator CreateTestServiceLocator()
-        {
-            IServiceLocator serviceLocator = ServiceLocator.Default;
-
-            serviceLocator.RegisterInstance(TLRig.Default);
-            serviceLocator.RegisterInstance<IMessageIdGenerator>(new TestMessageIdsGenerator());
-            serviceLocator.RegisterType<IHashServices, HashServices>();
-            serviceLocator.RegisterType<IEncryptionServices, EncryptionServices>();
-            serviceLocator.RegisterType<IRandomGenerator, RandomGenerator>();
-            serviceLocator.RegisterType<IMessageCodec, MessageCodec>();
-            serviceLocator.RegisterType<IMTProtoClientBuilder, MTProtoClientBuilder>();
-            serviceLocator.RegisterType<INonceGenerator, NonceGenerator>();
-            serviceLocator.RegisterType<IKeyChain, KeyChain>();
-            serviceLocator.RegisterType<IAuthKeysProvider, AuthKeysProvider>();
-            serviceLocator.RegisterInstance(
-                Mock.Of<IClientTransportFactory>(
-                    factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IClientTransport>()));
-
-            return serviceLocator;
         }
     }
 }

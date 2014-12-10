@@ -6,8 +6,8 @@
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    using Catel.Logging;
     using Schema;
+    using Utils;
 
     public class RpcResultHandler : SingleMessageHandler<IRpcResult>
     {

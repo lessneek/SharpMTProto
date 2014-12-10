@@ -84,9 +84,6 @@
     <Reference Include="BigMath">
       <HintPath>..\packages\BigMath.0.4.4\lib\portable-net45+netcore45+wpa81+wp8+MonoAndroid1+MonoTouch1\BigMath.dll</HintPath>
     </Reference>
-    <Reference Include="Catel.Core">
-      <HintPath>..\packages\Catel.Core.3.9.0\lib\portable-net45+sl5+wp8+win8\Catel.Core.dll</HintPath>
-    </Reference>
     <Reference Include="Dynamitey">
       <HintPath>..\packages\Dynamitey.1.0.2.0\lib\portable-win+net45+sl40+wp80\Dynamitey.dll</HintPath>
     </Reference>

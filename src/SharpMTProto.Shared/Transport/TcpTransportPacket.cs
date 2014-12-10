@@ -6,11 +6,12 @@
 
 using System;
 using System.IO;
-using Catel.Logging;
 using SharpTL;
 
 namespace SharpMTProto.Transport
 {
+    using Utils;
+
     /// <summary>
     ///     TCP transport packet.
     /// </summary>
