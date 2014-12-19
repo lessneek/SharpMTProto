@@ -29,22 +29,22 @@ namespace SharpMTProto
 
         public static IBytesOcean CreateDefaultTcpTransportBytesOcean()
         {
-            return BytesOcean.WithBuckets(10, MaximumMessageLength).Build();
+            return BytesOcean.WithBuckets(10, MaximumMessageLength).WithBuckets(1000, MaximumMessageLength / 100).Build();
         }
 
         public static IBytesOcean CreateDefaultMessageCodecBytesOcean()
         {
-            return BytesOcean.WithBuckets(10, MaximumMessageLength).Build();
+            return BytesOcean.WithBuckets(10, MaximumMessageLength).WithBuckets(1000, MaximumMessageLength / 100).Build();
         }
 
         public static IBytesOcean CreateDefaultMTProtoMessengerBytesOcean()
         {
-            return BytesOcean.WithBuckets(10, MaximumMessageLength).Build();
+            return BytesOcean.WithBuckets(10, MaximumMessageLength).WithBuckets(1000, MaximumMessageLength / 100).Build();
         }
 
         public static IBytesOcean CreateDefaultTcpTransportPacketProcessorBytesOcean()
         {
-            return BytesOcean.WithBuckets(10, MaximumMessageLength).Build();
+            return BytesOcean.WithBuckets(10, MaximumMessageLength).WithBuckets(1000, MaximumMessageLength / 100).Build();
         }
     }
 }
