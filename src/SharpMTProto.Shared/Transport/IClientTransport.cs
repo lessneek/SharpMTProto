@@ -42,4 +42,12 @@ namespace SharpMTProto.Transport
         Task DisconnectAsync();
         Task SendAsync(IBytesBucket payload, CancellationToken token);
     }
+
+    public static class ClientTransportExtensions
+    {
+        public static Task SendAsync(this IClientTransport clientTransport, IBytesBucket payload)
+        {
+            return clientTransport.SendAsync(payload, CancellationToken.None);
+        }
+    }
 }
