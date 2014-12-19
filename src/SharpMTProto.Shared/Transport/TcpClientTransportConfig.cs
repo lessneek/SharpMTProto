@@ -16,7 +16,7 @@ namespace SharpMTProto.Transport
             Port = port;
             ConnectTimeout = MTProtoDefaults.ConnectTimeout;
             SendingTimeout = MTProtoDefaults.SendingTimeout;
-            MaxBufferSize = 2048;
+            MaxBufferSize = MTProtoDefaults.MaximumMessageLength;
         }
 
         public string IPAddress { get; set; }

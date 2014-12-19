@@ -83,6 +83,15 @@ namespace SharpMTProto.Transport
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportBytesOcean();
 
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
+            if (_remoteEndPoint == null)
+            {
+                throw new TransportException(
+                    string.Format(
+                        "TcpClientTransport accepts sockets only with RemoteEndPoint of type IPEndPoint, but socket with {0} RemoteEndPoint is found.",
+                        _socket.RemoteEndPoint.GetType()));
+            }
+
+            _config = new TcpClientTransportConfig(_remoteEndPoint.Address.ToString(), _remoteEndPoint.Port);
 
             InternalConnectAsync().Wait();
         }
