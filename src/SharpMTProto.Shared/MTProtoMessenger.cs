@@ -220,15 +220,17 @@ namespace SharpMTProto
         /// <summary>
         ///     Processes incoming message bytes.
         /// </summary>
-        /// <param name="messageBytes">Incoming bytes.</param>
-        private async void ProcessIncomingMessageBytes(IBytesBucket messageBytes)
+        /// <param name="messageBucket">Incoming bytes in a bucket.</param>
+        private async void ProcessIncomingMessageBytes(IBytesBucket messageBucket)
         {
             ThrowIfDisposed();
 
             try
             {
                 Debug("Processing incoming message.");
-                using (var streamer = new TLStreamer(messageBytes.UsedBytes))
+
+                using (messageBucket)
+                using (var streamer = new TLStreamer(messageBucket.UsedBytes))
                 {
                     if (streamer.Length == 4)
                     {
@@ -241,7 +243,7 @@ namespace SharpMTProto
                         throw new InvalidMessageException(
                             string.Format(
                                 "Invalid message length: {0} bytes. Expected to be at least 20 bytes for message or 4 bytes for error code.",
-                                messageBytes.Size));
+                                messageBucket.Size));
                     }
                     ulong authKeyId = streamer.ReadUInt64();
                     streamer.Position = 0;
