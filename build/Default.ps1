@@ -24,7 +24,7 @@ Task ValidateConfig {
     Assert ( 'Debug','Release' -contains $config) -failureMessage "Invalid config: $config; Valid values are 'Debug' and 'Release'."
 }
 
-Task Build -depends ValidateConfig, RestoreNuGetPackages, UpdateAssemblyInfo -description "Builds outdated artifacts." {
+Task Build -depends ValidateConfig, RestoreNuGetPackages -description "Builds outdated artifacts." {
     Write-Host "Building soulution..." -ForegroundColor Green
     Exec { msbuild "$solution_path" /t:Build /p:Configuration=$config /v:quiet }
 }
@@ -57,8 +57,4 @@ Task PackNuGetPackages -depends Rebuild {
     }
 
     Exec { nuget.exe pack $nuspec_file -Version $version -Prop config=$config -Symbols -Verbosity detailed -OutputDirectory "$packages_dir" }
-}
-
-Task UpdateAssemblyInfo {
-    Exec { gitversion.exe /updateassemblyinfo true }
 }
