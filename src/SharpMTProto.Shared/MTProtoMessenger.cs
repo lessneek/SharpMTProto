@@ -223,7 +223,8 @@ namespace SharpMTProto
         /// <param name="messageBucket">Incoming bytes in a bucket.</param>
         private async void ProcessIncomingMessageBytes(IBytesBucket messageBucket)
         {
-            ThrowIfDisposed();
+            if (IsDisposed)
+                return;
 
             try
             {
@@ -391,6 +392,16 @@ namespace SharpMTProto
         {
             if (isDisposing)
             {
+                if (_transportSubscription != null)
+                {
+                    _transportSubscription.Dispose();
+                    _transportSubscription = null;
+                }
+                if (Transport != null)
+                {
+                    Transport.Dispose();
+                    Transport = null;
+                }
                 if (_incomingMessages != null)
                 {
                     _incomingMessages.OnCompleted();
@@ -402,16 +413,6 @@ namespace SharpMTProto
                     _outgoingMessages.OnCompleted();
                     _outgoingMessages.Dispose();
                     _outgoingMessages = null;
-                }
-                if (Transport != null)
-                {
-                    Transport.Dispose();
-                    Transport = null;
-                }
-                if (_transportSubscription != null)
-                {
-                    _transportSubscription.Dispose();
-                    _transportSubscription = null;
                 }
             }
             base.Dispose(isDisposing);

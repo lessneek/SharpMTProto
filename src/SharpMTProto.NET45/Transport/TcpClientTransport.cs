@@ -181,7 +181,9 @@ namespace SharpMTProto.Transport
 
         public Task SendAsync(IBytesBucket payload, CancellationToken token)
         {
-            ThrowIfDisposed();
+            if (IsDisposed)
+                return TaskConstants.Completed;
+
             return _outgoingQueue.SendAsync(payload, token);
         }
 
