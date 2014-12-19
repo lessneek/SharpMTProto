@@ -39,7 +39,7 @@ namespace SharpMTProto.Tests.Transport
             _serverSocket.Bind(new IPEndPoint(IPAddress.Loopback, 0));
             _serverSocket.Listen(1);
             _serverEndPoint = _serverSocket.LocalEndPoint as IPEndPoint;
-            _bytesOcean = BytesOcean.WithBuckets(10, Defaults.MaximumMessageLength).Build();
+            _bytesOcean = BytesOcean.WithBuckets(10, MTProtoDefaults.MaximumMessageLength).Build();
         }
 
         [TearDown]

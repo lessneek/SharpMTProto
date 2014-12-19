@@ -21,7 +21,7 @@ namespace SharpMTProto
         private static MTProtoClientBuilder CreateDefault()
         {
             // TODO: bytes ocean.
-            IBytesOcean bytesOcean = BytesOcean.WithBuckets(100, Defaults.MaximumMessageLength).Build();
+            IBytesOcean bytesOcean = BytesOcean.WithBuckets(100, MTProtoDefaults.MaximumMessageLength).Build();
 
             var clientTransportFactory =
                 new ClientTransportFactory(config => new TcpClientTransport(config, new TcpFullTransportPacketProcessor(bytesOcean), bytesOcean));

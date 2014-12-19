@@ -80,7 +80,7 @@ namespace SharpMTProto
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec,
             [NotNull] IAuthKeysProvider authKeysProvider,
-            [NotNull] IBytesOcean bytesOcean)
+            IBytesOcean bytesOcean = null)
         {
             if (transport == null)
                 throw new ArgumentNullException("transport");
@@ -90,13 +90,11 @@ namespace SharpMTProto
                 throw new ArgumentNullException("messageCodec");
             if (authKeysProvider == null)
                 throw new ArgumentNullException("authKeysProvider");
-            if (bytesOcean == null)
-                throw new ArgumentNullException("bytesOcean");
 
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
             _authKeysProvider = authKeysProvider;
-            _bytesOcean = bytesOcean;
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultMTProtoMessengerBytesOcean();
 
             // Init transport.
             Transport = transport;
@@ -171,7 +169,7 @@ namespace SharpMTProto
         {
             return Task.Run(async () =>
             {
-                IBytesBucket messageBytesBucket = await _bytesOcean.TakeAsync(Defaults.MaximumMessageLength);
+                IBytesBucket messageBytesBucket = await _bytesOcean.TakeAsync(MTProtoDefaults.MaximumMessageLength);
                 using (var streamer = new TLStreamer(messageBytesBucket.Bytes))
                 {
                     await EncodeMessageAsync(message, streamer, flags.HasFlag(MessageSendingFlags.Encrypted));

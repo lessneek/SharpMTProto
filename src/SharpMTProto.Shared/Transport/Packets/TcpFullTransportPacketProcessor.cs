@@ -40,9 +40,9 @@ namespace SharpMTProto.Transport.Packets
         private readonly IBytesOcean _bytesOcean;
         private readonly byte[] _tempLengthBuffer = new byte[PacketLengthBytesCount];
 
-        public TcpFullTransportPacketProcessor(IBytesOcean bytesOcean)
+        public TcpFullTransportPacketProcessor(IBytesOcean bytesOcean = null)
         {
-            _bytesOcean = bytesOcean;
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportPacketProcessorBytesOcean();
         }
 
         public byte[] WriteTcpPacket(int packetNumber, byte[] payload)

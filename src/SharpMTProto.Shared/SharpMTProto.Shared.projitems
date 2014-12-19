@@ -23,7 +23,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesBucket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesOcean.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\StandaloneBytesBucket.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Defaults.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoDefaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)IRemoteProcedureCaller.cs" />

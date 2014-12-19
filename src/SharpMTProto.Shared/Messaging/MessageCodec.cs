@@ -274,7 +274,7 @@ namespace SharpMTProto.Messaging
             _randomGenerator = randomGenerator;
 
             // TODO: bytes ocean.
-            _bytesOcean = bytesOcean ?? BytesOcean.WithBuckets(10, Defaults.MaximumMessageLength).Build();
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultMessageCodecBytesOcean();
         }
 
         #endregion
@@ -303,7 +303,7 @@ namespace SharpMTProto.Messaging
 
         private const int MsgKeyLength = 16;
         private const int Alignment = 16;
-        private const int MaximumMessageLength = Defaults.MaximumMessageLength;
+        private const int MaximumMessageLength = MTProtoDefaults.MaximumMessageLength;
         private const int MaximumMsgDataLength = MaximumMessageLength - EncryptedInnerHeaderLength;
 
         #endregion

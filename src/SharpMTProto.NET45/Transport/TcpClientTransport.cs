@@ -44,18 +44,16 @@ namespace SharpMTProto.Transport
 
         public TcpClientTransport([NotNull] TcpClientTransportConfig config,
             [NotNull] ITcpTransportPacketProcessor packetProcessor,
-            [NotNull] IBytesOcean bytesOcean)
+            IBytesOcean bytesOcean = null)
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
                 throw new ArgumentException(string.Format("Port {0} is incorrect.", config.Port));
             if (packetProcessor == null)
                 throw new ArgumentNullException("packetProcessor");
-            if (bytesOcean == null)
-                throw new ArgumentNullException("bytesOcean");
 
             _config = config;
             _packetProcessor = packetProcessor;
-            _bytesOcean = bytesOcean;
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportBytesOcean();
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
@@ -72,7 +70,8 @@ namespace SharpMTProto.Transport
         ///     Create a new instance of <see cref="TcpClientTransport" /> with connected socket.
         /// </summary>
         /// <param name="socket">Connected socket.</param>
-        public TcpClientTransport([NotNull] Socket socket)
+        /// <param name="bytesOcean">Bytes ocean.</param>
+        public TcpClientTransport([NotNull] Socket socket, IBytesOcean bytesOcean = null)
         {
             if (socket == null)
             {
@@ -81,6 +80,7 @@ namespace SharpMTProto.Transport
 
             _isConnectedSocket = true;
             _socket = socket;
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportBytesOcean();
 
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
 

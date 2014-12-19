@@ -72,8 +72,7 @@ namespace SharpMTProto
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
             // TODO: add bytes ocean external config.
-            IBytesOcean bytesOcean = BytesOcean.WithBuckets(10, Defaults.MaximumMessageLength).Build();
-            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _authKeysProvider, bytesOcean);
+            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _authKeysProvider);
             return new MTProtoClientConnection(messenger);
         }
 

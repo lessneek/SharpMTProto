@@ -114,7 +114,7 @@ namespace SharpMTProto
             _messenger = messenger;
             _methods = new MTProtoAsyncMethods(this);
 
-            DefaultResponseTimeout = Defaults.ResponseTimeout;
+            DefaultResponseTimeout = MTProtoDefaults.ResponseTimeout;
 
             InitMessageDispatcher();
         }
