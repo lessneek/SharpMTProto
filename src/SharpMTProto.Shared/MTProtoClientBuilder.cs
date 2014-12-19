@@ -14,6 +14,7 @@ namespace SharpMTProto
 {
     using Annotations;
     using Authentication;
+    using Dataflows;
     using Messaging;
     using Services;
     using SharpTL;
@@ -31,21 +32,15 @@ namespace SharpMTProto
     public partial class MTProtoClientBuilder : IMTProtoClientBuilder
     {
         public static readonly IMTProtoClientBuilder Default;
-
+        private readonly IAuthKeysProvider _authKeysProvider;
+        private readonly IClientTransportFactory _clientTransportFactory;
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashServices _hashServices;
         private readonly IKeyChain _keyChain;
-        private readonly IAuthKeysProvider _authKeysProvider;
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
-        private readonly IClientTransportFactory _clientTransportFactory;
-
-        static MTProtoClientBuilder()
-        {
-            Default = CreateDefault();
-        }
 
         public MTProtoClientBuilder([NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
@@ -68,10 +63,17 @@ namespace SharpMTProto
             _authKeysProvider = authKeysProvider;
         }
 
+        static MTProtoClientBuilder()
+        {
+            Default = CreateDefault();
+        }
+
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
-            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _authKeysProvider);
+            // TODO: add bytes ocean external config.
+            IBytesOcean bytesOcean = BytesOcean.WithBuckets(10, Defaults.MaximumMessageLength).Build();
+            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _authKeysProvider, bytesOcean);
             return new MTProtoClientConnection(messenger);
         }
 

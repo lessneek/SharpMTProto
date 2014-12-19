@@ -21,6 +21,7 @@ namespace SharpMTProto.Tests
 {
     using Autofac;
     using SetUp;
+    using SharpMTProto.Dataflows;
 
     [TestFixture]
     [Category("Core")]
@@ -50,16 +51,17 @@ namespace SharpMTProto.Tests
                 {
                     var messageProcessor = context.Resolve<IMessageCodec>();
 
-                    var expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(new Message(0x0102030405060708, 3, rpcResult),
-                        config.AuthKey,
+                    var messageEnvelope = new MessageEnvelope(
+                        new Message(0x0102030405060708, 3, rpcResult),
                         config.Salt,
-                        config.SessionId.GetValueOrDefault(),
-                        Sender.Server);
+                        config.SessionId.GetValueOrDefault());
+
+                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, config.AuthKey, Sender.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
             });
-            
+
             var builder = Resolve<IMTProtoClientBuilder>();
             using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
@@ -87,11 +89,12 @@ namespace SharpMTProto.Tests
                 {
                     var messageProcessor = context.Resolve<IMessageCodec>();
 
-                    var expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(new Message(0x0102030405060708, 3, expectedResponse),
-                        config.AuthKey,
+                    var messageEnvelope = new MessageEnvelope(
+                        new Message(0x0102030405060708, 3, expectedResponse),
                         config.Salt,
-                        config.SessionId.GetValueOrDefault(),
-                        Sender.Server);
+                        config.SessionId.GetValueOrDefault());
+
+                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, config.AuthKey, Sender.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
@@ -148,28 +151,27 @@ namespace SharpMTProto.Tests
         {
             Override(builder => builder.RegisterInstance(CreateMockTransportFactory(CreateMockTransport().Object).Object));
 
-            var testAction = new Func<Task>(
-                async () =>
+            var testAction = new Func<Task>(async () =>
+            {
+                var builder = Resolve<IMTProtoClientBuilder>();
+                using (IMTProtoClientConnection connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
                 {
-                    var builder = Resolve<IMTProtoClientBuilder>();
-                    using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
-                    {
-                        await connection.ConnectAsync();
-                        await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
-                    }
-                });
+                    await connection.ConnectAsync();
+                    await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
+                }
+            });
             testAction.ShouldThrow<TaskCanceledException>();
         }
 
         private Mock<IClientTransport> CreateMockTransportWhichReturnsBytes(byte[] expectedResponseMessageBytes)
         {
-            var inConnector = new Subject<byte[]>();
+            var inConnector = new Subject<IBytesBucket>();
             var mockTransport = CreateMockTransport();
 
-            mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<byte[]>>())).Callback<IObserver<byte[]>>(observer => inConnector.Subscribe(observer));
+            mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<IBytesBucket>>())).Callback<IObserver<IBytesBucket>>(observer => inConnector.Subscribe(observer));
 
-            mockTransport.Setup(transport => transport.SendAsync(It.IsAny<byte[]>(), It.IsAny<CancellationToken>()))
-                .Callback(() => inConnector.OnNext(expectedResponseMessageBytes))
+            mockTransport.Setup(transport => transport.SendAsync(It.IsAny<IBytesBucket>(), It.IsAny<CancellationToken>()))
+                .Callback(() => inConnector.OnNext(Mock.Of<IBytesBucket>(bucket => bucket.UsedBytes == new ArraySegment<byte>(expectedResponseMessageBytes))))
                 .Returns(() => TaskConstants.Completed);
 
             return mockTransport;

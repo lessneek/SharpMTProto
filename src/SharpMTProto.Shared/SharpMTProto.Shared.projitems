@@ -16,6 +16,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\PublicKey.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ConnectionConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOcean.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOceanConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOceanConfigurator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesBucket.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesOcean.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Defaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />
@@ -54,8 +59,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportFactory.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\Packets\ITcpTransportPacketProcessor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\Packets\TcpFullTransportPacketProcessor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpClientTransportConfig.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportPacket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\Cancelable.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\LogManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />

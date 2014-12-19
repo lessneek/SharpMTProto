@@ -15,9 +15,12 @@ namespace SharpMTProto.Transport
     using System.Reactive.Threading.Tasks;
     using System.Threading;
     using System.Threading.Tasks;
+    using System.Threading.Tasks.Dataflow;
     using Annotations;
     using BigMath.Utils;
+    using Dataflows;
     using Nito.AsyncEx;
+    using Packets;
     using SharpTL;
     using Utils;
 
@@ -26,43 +29,43 @@ namespace SharpMTProto.Transport
     /// </summary>
     public class TcpClientTransport : Cancelable, IClientTransport
     {
-        private const int PacketLengthBytesCount = 4;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly bool _isConnectedSocket;
-        private readonly byte[] _readerBuffer;
-        private readonly IPEndPoint _remoteEndPoint;
-
-        private readonly AsyncLock _stateAsyncLock = new AsyncLock();
-        private readonly byte[] _tempLengthBuffer = new byte[PacketLengthBytesCount];
-
         private CancellationTokenSource _connectionCancellationTokenSource;
-        private Subject<byte[]> _in = new Subject<byte[]>();
-        private int _nextPacketBytesCountLeft;
-        private byte[] _nextPacketDataBuffer;
-        private TLStreamer _nextPacketStreamer;
         private int _packetNumber;
+        private ITcpTransportPacketProcessor _packetProcessor;
         private Socket _socket;
-        private int _tempLengthBufferFill;
         private BehaviorSubject<ClientTransportState> _stateChanges = new BehaviorSubject<ClientTransportState>(ClientTransportState.Disconnected);
+        private readonly IBytesOcean _bytesOcean;
+        private readonly TcpClientTransportConfig _config;
+        private readonly bool _isConnectedSocket;
+        private readonly BufferBlock<IBytesBucket> _outgoingQueue = new BufferBlock<IBytesBucket>();
+        private readonly IPEndPoint _remoteEndPoint;
+        private readonly AsyncLock _stateAsyncLock = new AsyncLock();
 
-        public TcpClientTransport(TcpClientTransportConfig config)
+        public TcpClientTransport([NotNull] TcpClientTransportConfig config,
+            [NotNull] ITcpTransportPacketProcessor packetProcessor,
+            [NotNull] IBytesOcean bytesOcean)
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
-            {
                 throw new ArgumentException(string.Format("Port {0} is incorrect.", config.Port));
-            }
+            if (packetProcessor == null)
+                throw new ArgumentNullException("packetProcessor");
+            if (bytesOcean == null)
+                throw new ArgumentNullException("bytesOcean");
+
+            _config = config;
+            _packetProcessor = packetProcessor;
+            _bytesOcean = bytesOcean;
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
             {
                 throw new ArgumentException(string.Format("IP address [{0}] is incorrect.", config.IPAddress));
             }
-
             _remoteEndPoint = new IPEndPoint(ipAddress, config.Port);
+
             ConnectTimeout = config.ConnectTimeout;
             SendingTimeout = config.SendingTimeout;
-
-            _readerBuffer = new byte[config.MaxBufferSize];
         }
 
         /// <summary>
@@ -80,15 +83,14 @@ namespace SharpMTProto.Transport
             _socket = socket;
 
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
-            _readerBuffer = new byte[_socket.ReceiveBufferSize];
 
             InternalConnectAsync().Wait();
         }
 
-        public IDisposable Subscribe(IObserver<byte[]> observer)
+        public IDisposable Subscribe(IObserver<IBytesBucket> observer)
         {
             ThrowIfDisposed();
-            return _in.Subscribe(observer);
+            return _packetProcessor.Subscribe(observer);
         }
 
         public bool IsConnected
@@ -166,31 +168,15 @@ namespace SharpMTProto.Transport
             }
         }
 
-        public void Send(byte[] payload)
-        {
-            SendAsync(payload).Wait();
-        }
-
-        public Task SendAsync(byte[] payload)
-        {
-            return SendAsync(payload, CancellationToken.None);
-        }
-
-        public Task SendAsync(byte[] payload, CancellationToken token)
+        public Task SendAsync(IBytesBucket payload, CancellationToken token)
         {
             ThrowIfDisposed();
-            return Task.Run(async () =>
-            {
-                var packet = new TcpTransportPacket(_packetNumber++, payload);
+            return _outgoingQueue.SendAsync(payload, token);
+        }
 
-                var args = new SocketAsyncEventArgs();
-                args.SetBuffer(packet.Data, 0, packet.Data.Length);
-
-                var awaitable = new SocketAwaitable(args);
-                await _socket.SendAsync(awaitable);
-                // TODO: add timeout and exception catcher.
-            },
-                token);
+        public Task SendAsync(IBytesBucket payload)
+        {
+            return SendAsync(payload, CancellationToken.None);
         }
 
         private async Task<TransportConnectResult> InternalConnectAsync()
@@ -283,7 +269,9 @@ namespace SharpMTProto.Transport
                 }
 
                 _connectionCancellationTokenSource = new CancellationTokenSource();
+
                 StartReceiver(_connectionCancellationTokenSource.Token);
+                StartSender(_connectionCancellationTokenSource.Token);
 
                 return result;
             }
@@ -293,48 +281,50 @@ namespace SharpMTProto.Transport
         {
             Func<Task> receiver = async () =>
             {
-                Log.Debug(string.Format("Receiver task ({0}) was started.", _remoteEndPoint));
-                bool canceled = false;
+                Log.Debug(string.Format("[{0}] Receiver task was started.", _remoteEndPoint));
+                var canceled = false;
+
+                // TODO: add timeout.
+                IBytesBucket receiverBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
+                var args = new SocketAsyncEventArgs();
                 try
                 {
-                    using (var args = new SocketAsyncEventArgs())
+                    ArraySegment<byte> bytes = receiverBucket.Bytes;
+                    args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
+                    var awaitable = new SocketAwaitable(args);
+
+                    while (!token.IsCancellationRequested && _socket.IsConnected())
                     {
-                        args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
-                        var awaitable = new SocketAwaitable(args);
-
-                        while (!token.IsCancellationRequested && _socket.IsConnected())
+                        try
                         {
-                            try
-                            {
-                                Log.Debug(string.Format("Awaiting socket ({0}) receive async...", _remoteEndPoint));
+                            Log.Debug(string.Format("[{0}] Awaiting socket receive async...", _remoteEndPoint));
 
-                                await _socket.ReceiveAsync(awaitable);
+                            await _socket.ReceiveAsync(awaitable);
 
-                                Log.Debug(string.Format("Socket ({0}) has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
-                            }
-                            catch (SocketException e)
-                            {
-                                Log.Debug(e);
-                            }
-                            if (args.SocketError != SocketError.Success)
-                            {
-                                break;
-                            }
-                            int bytesRead = args.BytesTransferred;
-                            if (bytesRead <= 0)
-                            {
-                                break;
-                            }
-
-                            try
-                            {
-                                ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
-                            }
-                            catch (Exception e)
-                            {
-                                Log.Error(e, "Critical error while precessing received data.");
-                                break;
-                            }
+                            Log.Debug(string.Format("[{0}] Socket has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                        }
+                        catch (SocketException e)
+                        {
+                            Log.Debug(e);
+                        }
+                        if (args.SocketError != SocketError.Success)
+                        {
+                            break;
+                        }
+                        int bytesRead = args.BytesTransferred;
+                        if (bytesRead <= 0)
+                        {
+                            break;
+                        }
+                        receiverBucket.Used = bytesRead;
+                        try
+                        {
+                            await _packetProcessor.ProcessPacketAsync(receiverBucket.UsedBytes);
+                        }
+                        catch (Exception e)
+                        {
+                            Log.Error(e, "Critical error while precessing received data.");
+                            break;
                         }
                     }
                 }
@@ -346,96 +336,101 @@ namespace SharpMTProto.Transport
                 {
                     Log.Debug(e);
                 }
+                finally
+                {
+                    receiverBucket.Dispose();
+                    args.Dispose();
+                }
 
                 if (State == ClientTransportState.Connected)
                 {
                     await DisconnectAsync();
                 }
 
-                Log.Debug(string.Format("Receiver task ({0}) was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+                Log.Debug(string.Format("[{0}] Receiver task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
             };
 
             Task.Run(receiver, token);
         }
 
-        private void ProcessReceivedDataAsync(ArraySegment<byte> buffer)
+        private void StartSender(CancellationToken token)
         {
-            try
+            Func<Task> sender = async () =>
             {
-                int bytesRead = 0;
-                while (bytesRead < buffer.Count)
+                Log.Debug(string.Format("[{0}] Sender task was started.", _remoteEndPoint));
+                var canceled = false;
+
+                // TODO: add timeout.
+                IBytesBucket senderBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
+                var senderStreamer = new TLStreamer(senderBucket.Bytes);
+                var args = new SocketAsyncEventArgs();
+                try
                 {
-                    int startIndex = buffer.Offset + bytesRead;
-                    int bytesToRead = buffer.Count - bytesRead;
+                    ArraySegment<byte> bytes = senderBucket.Bytes;
+                    args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
+                    var awaitable = new SocketAwaitable(args);
 
-                    if (_nextPacketBytesCountLeft == 0)
+                    while (!token.IsCancellationRequested && _socket.IsConnected())
                     {
-                        int tempLengthBytesToRead = PacketLengthBytesCount - _tempLengthBufferFill;
-                        tempLengthBytesToRead = (bytesToRead < tempLengthBytesToRead) ? bytesToRead : tempLengthBytesToRead;
-                        Buffer.BlockCopy(buffer.Array, startIndex, _tempLengthBuffer, _tempLengthBufferFill, tempLengthBytesToRead);
+                        senderStreamer.Position = 0;
+                        try
+                        {
+                            Log.Debug(string.Format("[{0}] Awaiting for outgoing queue items...", _remoteEndPoint));
 
-                        _tempLengthBufferFill += tempLengthBytesToRead;
-                        if (_tempLengthBufferFill < PacketLengthBytesCount)
+                            using (IBytesBucket payloadBucket = await _outgoingQueue.ReceiveAsync(token))
+                            {
+                                int packetNumber = Interlocked.Increment(ref _packetNumber);
+                                int packetLength = _packetProcessor.WriteTcpPacket(packetNumber, payloadBucket.UsedBytes, senderStreamer);
+                                args.SetBuffer(bytes.Offset, packetLength);
+#if DEBUG
+                                var packetBytes = new ArraySegment<byte>(bytes.Array, bytes.Offset, packetLength);
+                                Log.Debug(string.Format("[{0}] Sending packet data: {1}.", _remoteEndPoint, packetBytes.ToHexString()));
+#endif
+                            }
+
+                            await _socket.SendAsync(awaitable);
+
+                            Log.Debug(string.Format("[{0}] Socket has sent {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                        }
+                        catch (SocketException e)
+                        {
+                            Log.Debug(e);
+                        }
+                        if (args.SocketError != SocketError.Success)
                         {
                             break;
                         }
-
-                        startIndex += tempLengthBytesToRead;
-                        bytesToRead -= tempLengthBytesToRead;
-
-                        _tempLengthBufferFill = 0;
-                        _nextPacketBytesCountLeft = _tempLengthBuffer.ToInt32();
-
-                        if (_nextPacketDataBuffer == null || _nextPacketDataBuffer.Length < _nextPacketBytesCountLeft ||
-                            _nextPacketStreamer == null)
+                        int bytesRead = args.BytesTransferred;
+                        if (bytesRead <= 0)
                         {
-                            _nextPacketDataBuffer = new byte[_nextPacketBytesCountLeft];
-                            _nextPacketStreamer = new TLStreamer(_nextPacketDataBuffer);
+                            break;
                         }
-
-                        // Writing packet length.
-                        _nextPacketStreamer.Write(_tempLengthBuffer);
-                        _nextPacketBytesCountLeft -= PacketLengthBytesCount;
-                        bytesRead += PacketLengthBytesCount;
                     }
-
-                    bytesToRead = bytesToRead > _nextPacketBytesCountLeft ? _nextPacketBytesCountLeft : bytesToRead;
-
-                    _nextPacketStreamer.Write(buffer.Array, startIndex, bytesToRead);
-
-                    bytesRead += bytesToRead;
-                    _nextPacketBytesCountLeft -= bytesToRead;
-
-                    if (_nextPacketBytesCountLeft > 0)
-                    {
-                        break;
-                    }
-
-                    var packet = new TcpTransportPacket(_nextPacketDataBuffer, 0, (int) _nextPacketStreamer.Position);
-
-                    ProcessReceivedPacket(packet);
-
-                    _nextPacketBytesCountLeft = 0;
-                    _nextPacketStreamer.Position = 0;
                 }
-            }
-            catch (Exception)
-            {
-                if (_nextPacketStreamer != null)
+                catch (TaskCanceledException)
                 {
-                    _nextPacketStreamer.Dispose();
-                    _nextPacketStreamer = null;
+                    canceled = true;
                 }
-                _nextPacketDataBuffer = null;
-                _nextPacketBytesCountLeft = 0;
+                catch (Exception e)
+                {
+                    Log.Debug(e);
+                }
+                finally
+                {
+                    args.Dispose();
+                    senderStreamer.Dispose();
+                    senderBucket.Dispose();
+                }
 
-                throw;
-            }
-        }
+                if (State == ClientTransportState.Connected)
+                {
+                    await DisconnectAsync();
+                }
 
-        private void ProcessReceivedPacket(TcpTransportPacket packet)
-        {
-            _in.OnNext(packet.GetPayloadCopy());
+                Log.Debug(string.Format("[{0}] Sender task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+            };
+
+            Task.Run(sender, token);
         }
 
         private void ThrowIfConnectedSocket()
@@ -456,17 +451,14 @@ namespace SharpMTProto.Transport
                 {
                     await DisconnectAsync();
                 }
-
-                if (_nextPacketStreamer != null)
+                if (_outgoingQueue != null)
                 {
-                    _nextPacketStreamer.Dispose();
-                    _nextPacketStreamer = null;
+                    _outgoingQueue.Complete();
                 }
-                if (_in != null)
+                if (_packetProcessor != null)
                 {
-                    _in.OnCompleted();
-                    _in.Dispose();
-                    _in = null;
+                    _packetProcessor.Dispose();
+                    _packetProcessor = null;
                 }
                 if (_stateChanges != null)
                 {

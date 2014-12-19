@@ -4,10 +4,11 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using SharpMTProto.Authentication;
-
 namespace SharpMTProto.Services
 {
+    using System.IO;
+    using Authentication;
+
     public class DHOutParams
     {
         public DHOutParams(byte[] gb, byte[] s)
@@ -23,9 +24,10 @@ namespace SharpMTProto.Services
     public interface IEncryptionServices
     {
         byte[] RSAEncrypt(byte[] data, PublicKey publicKey);
-
-        byte[] Aes256IgeDecrypt(byte[] encryptedData, byte[] key, byte[] iv);
         DHOutParams DH(byte[] b, byte[] g, byte[] ga, byte[] p);
+        void Aes256IgeDecrypt(Stream src, Stream dst, byte[] key, byte[] iv);
+        void Aes256IgeEncrypt(Stream src, Stream dst, byte[] key, byte[] iv);
+        byte[] Aes256IgeDecrypt(byte[] data, byte[] key, byte[] iv);
         byte[] Aes256IgeEncrypt(byte[] data, byte[] key, byte[] iv);
     }
 }

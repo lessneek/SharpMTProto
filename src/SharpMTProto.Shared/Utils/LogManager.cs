@@ -54,7 +54,7 @@
 
         private void Write(string message, string category)
         {
-            System.Diagnostics.Debug.WriteLine("[{0}] {1}", category, message);
+            System.Diagnostics.Debug.Print("[{0}] {1}", category, message);
         }
     }
 

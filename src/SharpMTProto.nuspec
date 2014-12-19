@@ -11,27 +11,20 @@
     <projectUrl>https://github.com/inTagger/SharpMTProto</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
-      Portable class library contains MTProto Mobile Protocol (https://core.telegram.org/mtproto) implementation.
+      MTProto Mobile Protocol (https://core.telegram.org/mtproto) implementation.
       Supported platforms:
-
-      .NET Framework 4.5
-      .NET for Windows Store apps
-      .NET for Windows Phone 8 apps
-      Portable Class Libraries
+        .NET Framework 4.5
     </description>
     <dependencies>
-      <dependency id="SharpTL" version="0.8.0" />
+      <dependency id="SharpTL" version="0.9.0" />
       <dependency id="Rx-Main" version="2.2.5" />
       <dependency id="Nito.AsyncEx" version="3.0.0" />
       <dependency id="Raksha" version="0.3" />
-      <dependency id="System.Collections.Immutable" version="1.1.32-beta" />
+      <dependency id="System.Collections.Immutable" version="1.1.33-beta" />
+	  <dependency id="Microsoft.Tpl.Dataflow" version="4.5.24" />
     </dependencies>
   </metadata>
   <files>
-    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.dll" target="lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\" />
-    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.pdb" target="lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\" />
-    <file src="SharpMTProto.PCL\bin\$config$\SharpMTProto.XML" target="lib\portable-net45+netcore45+wp8+MonoAndroid1+MonoTouch1\" />
-    <file src="SharpMTProto.PCL\**\*.cs" target="src\SharpMTProto.PCL\" exclude="**\obj\**" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.dll" target="lib\net45\" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.pdb" target="lib\net45\" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.XML" target="lib\net45\" />

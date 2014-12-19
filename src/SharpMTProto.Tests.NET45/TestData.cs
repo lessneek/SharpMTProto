@@ -8,11 +8,8 @@ namespace SharpMTProto.Tests
 {
     using System;
     using BigMath.Utils;
-    using Moq;
     using SharpMTProto.Authentication;
-    using SharpMTProto.Messaging;
     using SharpMTProto.Services;
-    using SharpMTProto.Transport;
     using SharpTL;
 
     public static class TestData

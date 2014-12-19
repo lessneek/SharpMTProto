@@ -10,6 +10,7 @@ namespace SharpMTProto.Transport
     using System.Reactive.Disposables;
     using System.Threading;
     using System.Threading.Tasks;
+    using Dataflows;
 
     public enum ClientTransportState
     {
@@ -30,7 +31,7 @@ namespace SharpMTProto.Transport
         Timeout = 3
     }
 
-    public interface IClientTransport : IObservable<byte[]>, ICancelable
+    public interface IClientTransport : IObservable<IBytesBucket>, ICancelable
     {
         bool IsConnected { get; }
         ClientTransportState State { get; }
@@ -39,8 +40,6 @@ namespace SharpMTProto.Transport
         IObservable<ClientTransportState> StateChanges { get; }
         Task<TransportConnectResult> ConnectAsync();
         Task DisconnectAsync();
-        void Send(byte[] payload);
-        Task SendAsync(byte[] payload);
-        Task SendAsync(byte[] payload, CancellationToken token);
+        Task SendAsync(IBytesBucket payload, CancellationToken token);
     }
 }
