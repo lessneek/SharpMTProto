@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/inTagger/SharpMTProto</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
-      MTProto Mobile Protocol (https://core.telegram.org/mtproto) implementation.
+      MTProto (https://core.telegram.org/mtproto) client library.
       Supported platforms:
         .NET Framework 4.5
     </description>
