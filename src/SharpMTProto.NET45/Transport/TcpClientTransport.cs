@@ -292,158 +292,158 @@ namespace SharpMTProto.Transport
 
         private void StartReceiver(CancellationToken token)
         {
-            Func<Task> receiver = async () =>
-            {
-                Log.Debug(string.Format("[{0}] Receiver task was started.", _remoteEndPoint));
-                var canceled = false;
-
-                // TODO: add timeout.
-                IBytesBucket receiverBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
-                var args = new SocketAsyncEventArgs();
-                try
-                {
-                    ArraySegment<byte> bytes = receiverBucket.Bytes;
-                    args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
-                    var awaitable = new SocketAwaitable(args);
-
-                    while (!token.IsCancellationRequested && _socket.IsConnected())
-                    {
-                        try
-                        {
-                            Log.Debug(string.Format("[{0}] Awaiting socket receive async...", _remoteEndPoint));
-
-                            await _socket.ReceiveAsync(awaitable);
-
-                            Log.Debug(string.Format("[{0}] Socket has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
-                        }
-                        catch (SocketException e)
-                        {
-                            Log.Debug(e);
-                        }
-                        if (args.SocketError != SocketError.Success)
-                        {
-                            break;
-                        }
-                        int bytesRead = args.BytesTransferred;
-                        if (bytesRead <= 0)
-                        {
-                            break;
-                        }
-                        receiverBucket.Used = bytesRead;
-                        try
-                        {
-                            await _packetProcessor.ProcessPacketAsync(receiverBucket.UsedBytes);
-                        }
-                        catch (Exception e)
-                        {
-                            Log.Error(e, "Critical error while precessing received data.");
-                            break;
-                        }
-                    }
-                }
-                catch (TaskCanceledException)
-                {
-                    canceled = true;
-                }
-                catch (Exception e)
-                {
-                    Log.Debug(e);
-                }
-                finally
-                {
-                    receiverBucket.Dispose();
-                    args.Dispose();
-                }
-
-                if (State == ClientTransportState.Connected)
-                {
-                    await DisconnectAsync();
-                }
-
-                Log.Debug(string.Format("[{0}] Receiver task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
-            };
-
-            Task.Run(receiver, token);
+            Task.Run(() => ReceiverTask(token), token);
         }
 
         private void StartSender(CancellationToken token)
         {
-            Func<Task> sender = async () =>
+            Task.Run(() => SenderTask(token), token);
+        }
+
+        private async Task ReceiverTask(CancellationToken token)
+        {
+            Log.Debug(string.Format("[{0}] Receiver task was started.", _remoteEndPoint));
+            var canceled = false;
+
+            // TODO: add timeout.
+            IBytesBucket receiverBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
+            var args = new SocketAsyncEventArgs();
+            try
             {
-                Log.Debug(string.Format("[{0}] Sender task was started.", _remoteEndPoint));
-                var canceled = false;
+                ArraySegment<byte> bytes = receiverBucket.Bytes;
+                args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
+                var awaitable = new SocketAwaitable(args);
 
-                // TODO: add timeout.
-                IBytesBucket senderBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
-                var senderStreamer = new TLStreamer(senderBucket.Bytes);
-                var args = new SocketAsyncEventArgs();
-                try
+                while (!token.IsCancellationRequested && _socket.IsConnected())
                 {
-                    ArraySegment<byte> bytes = senderBucket.Bytes;
-                    args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
-                    var awaitable = new SocketAwaitable(args);
-
-                    while (!token.IsCancellationRequested && _socket.IsConnected())
+                    try
                     {
-                        senderStreamer.Position = 0;
-                        try
-                        {
-                            Log.Debug(string.Format("[{0}] Awaiting for outgoing queue items...", _remoteEndPoint));
+                        Log.Debug(string.Format("[{0}] Awaiting socket receive async...", _remoteEndPoint));
 
-                            using (IBytesBucket payloadBucket = await _outgoingQueue.ReceiveAsync(token))
-                            {
-                                int packetNumber = Interlocked.Increment(ref _packetNumber);
-                                int packetLength = _packetProcessor.WriteTcpPacket(packetNumber, payloadBucket.UsedBytes, senderStreamer);
-                                args.SetBuffer(bytes.Offset, packetLength);
+                        await _socket.ReceiveAsync(awaitable);
+
+                        Log.Debug(string.Format("[{0}] Socket has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                    }
+                    catch (SocketException e)
+                    {
+                        Log.Debug(e);
+                    }
+                    if (args.SocketError != SocketError.Success)
+                    {
+                        break;
+                    }
+                    int bytesRead = args.BytesTransferred;
+                    if (bytesRead <= 0)
+                    {
+                        break;
+                    }
+                    receiverBucket.Used = bytesRead;
+                    try
+                    {
+                        await _packetProcessor.ProcessPacketAsync(receiverBucket.UsedBytes).ConfigureAwait(false);
+                    }
+                    catch (Exception e)
+                    {
+                        Log.Error(e, "Critical error while precessing received data.");
+                        break;
+                    }
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                canceled = true;
+            }
+            catch (Exception e)
+            {
+                Log.Debug(e);
+            }
+            finally
+            {
+                receiverBucket.Dispose();
+                args.Dispose();
+            }
+
+            if (State == ClientTransportState.Connected)
+            {
+                await DisconnectAsync();
+            }
+
+            Log.Debug(string.Format("[{0}] Receiver task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+        }
+
+        private async Task SenderTask(CancellationToken token)
+        {
+            Log.Debug(string.Format("[{0}] Sender task was started.", _remoteEndPoint));
+            var canceled = false;
+
+            // TODO: add timeout.
+            IBytesBucket senderBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
+            var senderStreamer = new TLStreamer(senderBucket.Bytes);
+            var args = new SocketAsyncEventArgs();
+            try
+            {
+                ArraySegment<byte> bytes = senderBucket.Bytes;
+                args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
+                var awaitable = new SocketAwaitable(args);
+
+                while (!token.IsCancellationRequested && _socket.IsConnected())
+                {
+                    senderStreamer.Position = 0;
+                    try
+                    {
+                        Log.Debug(string.Format("[{0}] Awaiting for outgoing queue items...", _remoteEndPoint));
+
+                        using (IBytesBucket payloadBucket = await _outgoingQueue.ReceiveAsync(token).ConfigureAwait(false))
+                        {
+                            int packetNumber = Interlocked.Increment(ref _packetNumber);
+                            int packetLength = _packetProcessor.WriteTcpPacket(packetNumber, payloadBucket.UsedBytes, senderStreamer);
+                            args.SetBuffer(bytes.Offset, packetLength);
 #if DEBUG
                                 var packetBytes = new ArraySegment<byte>(bytes.Array, bytes.Offset, packetLength);
                                 Log.Debug(string.Format("[{0}] Sending packet data: {1}.", _remoteEndPoint, packetBytes.ToHexString()));
 #endif
-                            }
+                        }
 
-                            await _socket.SendAsync(awaitable);
+                        await _socket.SendAsync(awaitable);
 
-                            Log.Debug(string.Format("[{0}] Socket has sent {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
-                        }
-                        catch (SocketException e)
-                        {
-                            Log.Debug(e);
-                        }
-                        if (args.SocketError != SocketError.Success)
-                        {
-                            break;
-                        }
-                        int bytesRead = args.BytesTransferred;
-                        if (bytesRead <= 0)
-                        {
-                            break;
-                        }
+                        Log.Debug(string.Format("[{0}] Socket has sent {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                    }
+                    catch (SocketException e)
+                    {
+                        Log.Debug(e);
+                    }
+                    if (args.SocketError != SocketError.Success)
+                    {
+                        break;
+                    }
+                    int bytesRead = args.BytesTransferred;
+                    if (bytesRead <= 0)
+                    {
+                        break;
                     }
                 }
-                catch (TaskCanceledException)
-                {
-                    canceled = true;
-                }
-                catch (Exception e)
-                {
-                    Log.Debug(e);
-                }
-                finally
-                {
-                    args.Dispose();
-                    senderStreamer.Dispose();
-                    senderBucket.Dispose();
-                }
+            }
+            catch (TaskCanceledException)
+            {
+                canceled = true;
+            }
+            catch (Exception e)
+            {
+                Log.Debug(e);
+            }
+            finally
+            {
+                args.Dispose();
+                senderStreamer.Dispose();
+                senderBucket.Dispose();
+            }
 
-                if (State == ClientTransportState.Connected)
-                {
-                    await DisconnectAsync();
-                }
+            if (State == ClientTransportState.Connected)
+            {
+                await DisconnectAsync();
+            }
 
-                Log.Debug(string.Format("[{0}] Sender task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
-            };
-
-            Task.Run(sender, token);
+            Log.Debug(string.Format("[{0}] Sender task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
         }
 
         private void ThrowIfConnectedSocket()
