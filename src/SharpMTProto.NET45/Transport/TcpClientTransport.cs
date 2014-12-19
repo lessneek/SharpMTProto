@@ -70,16 +70,18 @@ namespace SharpMTProto.Transport
         ///     Create a new instance of <see cref="TcpClientTransport" /> with connected socket.
         /// </summary>
         /// <param name="socket">Connected socket.</param>
+        /// <param name="packetProcessor">Packet processor.</param>
         /// <param name="bytesOcean">Bytes ocean.</param>
-        public TcpClientTransport([NotNull] Socket socket, IBytesOcean bytesOcean = null)
+        public TcpClientTransport([NotNull] Socket socket, [NotNull] ITcpTransportPacketProcessor packetProcessor, IBytesOcean bytesOcean = null)
         {
             if (socket == null)
-            {
                 throw new ArgumentNullException("socket");
-            }
+            if (packetProcessor == null)
+                throw new ArgumentNullException("packetProcessor");
 
             _isConnectedSocket = true;
             _socket = socket;
+            _packetProcessor = packetProcessor;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportBytesOcean();
 
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
