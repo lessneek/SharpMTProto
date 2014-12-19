@@ -76,8 +76,8 @@ namespace SharpMTProto.Dataflows
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            int sizeKey = _buckets.Keys.Single(size => size >= minimalSize);
-            BytesBucket bucket = await _buckets[sizeKey].ReceiveAsync(cancellationToken);
+            int sizeKey = _buckets.Keys.FirstOrDefault(size => size >= minimalSize);
+            BytesBucket bucket = await _buckets[sizeKey].ReceiveAsync(cancellationToken).ConfigureAwait(false);
             bucket.SetTaken();
             return bucket;
         }
