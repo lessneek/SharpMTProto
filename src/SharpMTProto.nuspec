@@ -12,6 +12,7 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
       MTProto (https://core.telegram.org/mtproto) client library.
+	  
       Supported platforms:
         .NET Framework 4.5
     </description>
