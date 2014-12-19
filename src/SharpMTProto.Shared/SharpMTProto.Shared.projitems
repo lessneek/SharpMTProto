@@ -16,11 +16,13 @@
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\PublicKey.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ConnectionConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesBucketBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOcean.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOceanConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOceanConfigurator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesBucket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesOcean.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Dataflows\StandaloneBytesBucket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Defaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />

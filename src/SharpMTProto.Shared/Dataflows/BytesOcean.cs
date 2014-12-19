@@ -92,7 +92,7 @@ namespace SharpMTProto.Dataflows
             _buckets[bytesBucket.Size].Post(bytesBucket);
         }
 
-        private class BytesBucket : IBytesBucket
+        private class BytesBucket : BytesBucketBase
         {
             private const int Taken = 1;
             private const int NotTaken = 0;
@@ -104,76 +104,28 @@ namespace SharpMTProto.Dataflows
                 new InvalidOperationException("Used bytes count must be zero or higher.");
 
             private int _isTaken;
-            private int _offset;
-            private int _used;
-            private readonly ArraySegment<byte> _bytes;
             private readonly BytesOcean _ocean;
 
-            public BytesBucket(BytesOcean ocean, ArraySegment<byte> bytes)
+            public BytesBucket(BytesOcean ocean, ArraySegment<byte> bytes) : base(bytes)
             {
                 _ocean = ocean;
-                _bytes = bytes;
             }
 
-            public int Offset
+            public override bool IsTaken
             {
-                get { return _offset; }
-                set
-                {
-                    if (value + _used > _bytes.Count)
-                    {
-                        ThrowInvalidOffsetAndUsed();
-                    }
-                    _offset = value;
-                }
+                get { return _isTaken == Taken; }
             }
 
-            public ArraySegment<byte> UsedBytes
-            {
-                get { return new ArraySegment<byte>(_bytes.Array, _bytes.Offset + _offset, _used); }
-            }
-
-            public void Dispose()
+            public override void Dispose()
             {
                 if (Interlocked.CompareExchange(ref _isTaken, NotTaken, Taken) == NotTaken)
-                {
                     return;
-                }
 
-                Used = 0;
-                Offset = 0;
-                Array.Clear(_bytes.Array, _bytes.Offset, _bytes.Count);
+                base.Dispose();
                 _ocean.Return(this);
             }
 
-            public int Size
-            {
-                get { return _bytes.Count; }
-            }
-
-            public int Used
-            {
-                get { return _used; }
-                set
-                {
-                    if (value < 0)
-                    {
-                        ThrowInvalidUsed();
-                    }
-                    if (value + _offset > _bytes.Count)
-                    {
-                        ThrowInvalidOffsetAndUsed();
-                    }
-                    _used = value;
-                }
-            }
-
-            public ArraySegment<byte> Bytes
-            {
-                get { return _bytes; }
-            }
-
-            public IBytesOcean Ocean
+            public override IBytesOcean Ocean
             {
                 get { return _ocean; }
             }

@@ -85,41 +85,27 @@ namespace SharpMTProto.Tests.Authentication
             mockTransport.Setup(
                 transport =>
                     transport.SendAsync(It.Is<IBytesBucket>(bucket => bucket.UsedBytes.SequenceEqual(TestData.ReqPQ)), It.IsAny<CancellationToken>()))
-                .Callback(() => inTransport.OnNext(CreateMockBytesBucket(TestData.ResPQ)))
+                .Callback(() => inTransport.OnNext(new StandaloneBytesBucket(TestData.ResPQ)))
                 .Returns(() => TaskConstants.Completed);
 
             mockTransport.Setup(
                 transport =>
                     transport.SendAsync(It.Is<IBytesBucket>(bucket => bucket.UsedBytes.SequenceEqual(TestData.ReqDHParams)),
                         It.IsAny<CancellationToken>()))
-                .Callback(() => inTransport.OnNext(CreateMockBytesBucket(TestData.ServerDHParams)))
+                .Callback(() => inTransport.OnNext(new StandaloneBytesBucket(TestData.ServerDHParams)))
                 .Returns(() => TaskConstants.Completed);
 
             mockTransport.Setup(
                 transport =>
                     transport.SendAsync(It.Is<IBytesBucket>(bucket => bucket.UsedBytes.SequenceEqual(TestData.SetClientDHParams)),
                         It.IsAny<CancellationToken>()))
-                .Callback(() => inTransport.OnNext(CreateMockBytesBucket(TestData.DhGenOk)))
+                .Callback(() => inTransport.OnNext(new StandaloneBytesBucket(TestData.DhGenOk)))
                 .Returns(() => TaskConstants.Completed);
 
             var mockTransportFactory = new Mock<IClientTransportFactory>();
             mockTransportFactory.Setup(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>())).Returns(mockTransport.Object);
 
             return mockTransportFactory;
-        }
-
-        private static IBytesBucket CreateMockBytesBucket(byte[] bytes)
-        {
-            var mockBytesBucket = new Mock<IBytesBucket>();
-
-            var arraySegment = new ArraySegment<byte>(bytes);
-
-            mockBytesBucket.Setup(bucket => bucket.Bytes).Returns(() => arraySegment);
-            mockBytesBucket.Setup(bucket => bucket.UsedBytes).Returns(() => arraySegment);
-            mockBytesBucket.Setup(bucket => bucket.Used).Returns(() => arraySegment.Count);
-            mockBytesBucket.Setup(bucket => bucket.Size).Returns(() => arraySegment.Count);
-
-            return mockBytesBucket.Object;
         }
     }
 }
