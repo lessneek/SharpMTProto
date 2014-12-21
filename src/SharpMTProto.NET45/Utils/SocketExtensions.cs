@@ -60,11 +60,11 @@ namespace SharpMTProto.Utils
             return awaitable;
         }
 
-        public static bool IsConnected(this Socket socket)
+        public static bool IsConnected(this Socket socket, int microSecondsTimeout = 10)
         {
             try
             {
-                return !(socket.Poll(1, SelectMode.SelectRead) && socket.Available == 0);
+                return !(socket.Poll(microSecondsTimeout, SelectMode.SelectRead) && socket.Available == 0);
             }
             catch (SocketException)
             {
