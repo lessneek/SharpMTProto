@@ -29,7 +29,6 @@ namespace SharpMTProto.Transport
     /// </summary>
     public class TcpClientTransport : Cancelable, IClientTransport
     {
-        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private CancellationTokenSource _connectionCancellationTokenSource;
         private int _packetNumber;
         private ITcpTransportPacketProcessor _packetProcessor;
@@ -138,11 +137,11 @@ namespace SharpMTProto.Transport
 
                 if (State != ClientTransportState.Connected)
                 {
-                    Log.Debug(string.Format("Client transport ({0}) could not disconnect in non connected state.", _remoteEndPoint));
+                    LogDebug(string.Format("Could not disconnect in non connected state."));
                     return;
                 }
                 State = ClientTransportState.Disconnecting;
-                Log.Debug(string.Format("Client transport ({0}) disconnecting.", _remoteEndPoint));
+                LogDebug(string.Format("Disconnecting."));
 
                 if (_connectionCancellationTokenSource != null)
                 {
@@ -165,7 +164,7 @@ namespace SharpMTProto.Transport
                     }
                     catch (SocketException e)
                     {
-                        Log.Debug(e);
+                        LogDebug(e);
                     }
                     finally
                     {
@@ -175,7 +174,7 @@ namespace SharpMTProto.Transport
                 }
 
                 State = ClientTransportState.Disconnected;
-                Log.Debug(string.Format("Client transport ({0}) disconnected.", _remoteEndPoint));
+                LogDebug(string.Format("Disconnected."));
             }
         }
 
@@ -194,7 +193,7 @@ namespace SharpMTProto.Transport
 
         private async Task<TransportConnectResult> InternalConnectAsync()
         {
-            Log.Debug(string.Format("Client transport ({0}) connecting...", _remoteEndPoint));
+            LogDebug(string.Format("Connecting..."));
 
             ThrowIfDisposed();
 
@@ -207,7 +206,7 @@ namespace SharpMTProto.Transport
 
                 if (State == ClientTransportState.Connected)
                 {
-                    Log.Debug(string.Format("Client transport ({0}) already connected.", _remoteEndPoint));
+                    LogDebug(string.Format("Client transport ({0}) already connected.", _remoteEndPoint));
                     return TransportConnectResult.Success;
                 }
                 State = ClientTransportState.Connecting;
@@ -237,11 +236,11 @@ namespace SharpMTProto.Transport
                         catch (SocketException e)
                         {
                             // Log only. Process actual SocketError below.
-                            Log.Debug(e);
+                            LogDebug(e);
                         }
                         catch (Exception e)
                         {
-                            Log.Error(e, "Fatal error on connect.");
+                            LogDebug(e, "Fatal error on connect.");
                             State = ClientTransportState.Disconnected;
                             throw;
                         }
@@ -302,7 +301,7 @@ namespace SharpMTProto.Transport
 
         private async Task ReceiverTask(CancellationToken token)
         {
-            Log.Debug(string.Format("[{0}] Receiver task was started.", _remoteEndPoint));
+            LogDebug(string.Format("Receiver task was started."));
             var canceled = false;
 
             // TODO: add timeout.
@@ -318,15 +317,15 @@ namespace SharpMTProto.Transport
                 {
                     try
                     {
-                        Log.Debug(string.Format("[{0}] Awaiting socket receive async...", _remoteEndPoint));
+                        LogDebug(string.Format("Awaiting socket receive async..."));
 
                         await _socket.ReceiveAsync(awaitable);
 
-                        Log.Debug(string.Format("[{0}] Socket has received {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                        LogDebug(string.Format("Socket has received {0} bytes async.", args.BytesTransferred));
                     }
                     catch (SocketException e)
                     {
-                        Log.Debug(e);
+                        LogDebug(e);
                     }
                     if (args.SocketError != SocketError.Success)
                     {
@@ -344,7 +343,7 @@ namespace SharpMTProto.Transport
                     }
                     catch (Exception e)
                     {
-                        Log.Error(e, "Critical error while precessing received data.");
+                        LogDebug(e, "Critical error while precessing received data.");
                         break;
                     }
                 }
@@ -355,7 +354,7 @@ namespace SharpMTProto.Transport
             }
             catch (Exception e)
             {
-                Log.Debug(e);
+                LogDebug(e);
             }
             finally
             {
@@ -368,12 +367,12 @@ namespace SharpMTProto.Transport
                 await DisconnectAsync();
             }
 
-            Log.Debug(string.Format("[{0}] Receiver task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+            LogDebug(string.Format("Receiver task was {0}.", canceled ? "canceled" : "ended"));
         }
 
         private async Task SenderTask(CancellationToken token)
         {
-            Log.Debug(string.Format("[{0}] Sender task was started.", _remoteEndPoint));
+            LogDebug(string.Format("Sender task was started."));
             var canceled = false;
 
             // TODO: add timeout.
@@ -391,7 +390,7 @@ namespace SharpMTProto.Transport
                     senderStreamer.Position = 0;
                     try
                     {
-                        Log.Debug(string.Format("[{0}] Awaiting for outgoing queue items...", _remoteEndPoint));
+                        LogDebug(string.Format("Awaiting for outgoing queue items..."));
 
                         using (IBytesBucket payloadBucket = await _outgoingQueue.ReceiveAsync(token).ConfigureAwait(false))
                         {
@@ -400,17 +399,17 @@ namespace SharpMTProto.Transport
                             args.SetBuffer(bytes.Offset, packetLength);
 #if DEBUG
                                 var packetBytes = new ArraySegment<byte>(bytes.Array, bytes.Offset, packetLength);
-                                Log.Debug(string.Format("[{0}] Sending packet data: {1}.", _remoteEndPoint, packetBytes.ToHexString()));
+                                LogDebug(string.Format("Sending packet data: {0}.", packetBytes.ToHexString()));
 #endif
                         }
 
                         await _socket.SendAsync(awaitable);
 
-                        Log.Debug(string.Format("[{0}] Socket has sent {1} bytes async.", _remoteEndPoint, args.BytesTransferred));
+                        LogDebug(string.Format("Socket has sent {0} bytes async.", args.BytesTransferred));
                     }
                     catch (SocketException e)
                     {
-                        Log.Debug(e);
+                        LogDebug(e);
                     }
                     if (args.SocketError != SocketError.Success)
                     {
@@ -429,7 +428,7 @@ namespace SharpMTProto.Transport
             }
             catch (Exception e)
             {
-                Log.Debug(e);
+                LogDebug(e);
             }
             finally
             {
@@ -443,8 +442,32 @@ namespace SharpMTProto.Transport
                 await DisconnectAsync();
             }
 
-            Log.Debug(string.Format("[{0}] Sender task was {1}.", _remoteEndPoint, canceled ? "canceled" : "ended"));
+            LogDebug(string.Format("Sender task was {0}.", canceled ? "canceled" : "ended"));
         }
+
+        #region Logging
+
+        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
+
+        [Conditional("DEBUG")]
+        private void LogDebug(string text)
+        {
+            Log.Debug(string.Format("[TcpClientTransport] [{0}]: {1}", _remoteEndPoint, text));
+        }
+
+        [Conditional("DEBUG")]
+        private void LogDebug(Exception exception)
+        {
+            Log.Debug(exception, string.Format("[TcpClientTransport] [{0}]", _remoteEndPoint));
+        }
+
+        [Conditional("DEBUG")]
+        private void LogDebug(Exception exception, string message)
+        {
+            Log.Debug(exception, string.Format("[TcpClientTransport] [{0}]: {1}.", _remoteEndPoint, message));
+        }
+
+        #endregion
 
         private void ThrowIfConnectedSocket()
         {

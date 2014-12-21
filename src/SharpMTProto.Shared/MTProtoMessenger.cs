@@ -343,7 +343,7 @@ namespace SharpMTProto
         [Conditional("DEBUG")]
         private static void Debug(string message)
         {
-            Log.Debug(message);
+            Log.Debug(string.Format("[MTProtoMessenger] : {0}", message));
         }
 
         protected bool IsIncomingMessageIdValid(ulong messageId)

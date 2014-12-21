@@ -1,6 +1,7 @@
 ﻿namespace SharpMTProto.Utils
 {
     using System;
+    using System.Diagnostics;
 
     public interface ILog
     {
@@ -39,7 +40,7 @@
 #if PCL
             Write(message, "ERROR");
 #else
-            System.Diagnostics.Debug.Fail(message);
+            System.Diagnostics.Debug.Print("Error: {0}.", message);
 #endif
         }
 
@@ -48,7 +49,7 @@
 #if PCL
             Write(string.Format("{0} Exception: {1}.", message, exception.Message), "ERROR");
 #else
-            System.Diagnostics.Debug.Fail(message, exception.Message);
+            System.Diagnostics.Debug.Print("Error: {0}. Exception: {1}.", message, exception.Message);
 #endif
         }
 
