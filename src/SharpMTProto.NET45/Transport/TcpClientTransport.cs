@@ -157,11 +157,10 @@ namespace SharpMTProto.Transport
                     var awaitable = new SocketAwaitable(args);
                     try
                     {
-                        if (_socket.IsConnected())
+                        if (_socket.Connected)
                         {
                             _socket.Shutdown(SocketShutdown.Both);
                             await _socket.DisconnectAsync(awaitable);
-                            _socket.Dispose();
                         }
                     }
                     catch (SocketException e)
@@ -170,6 +169,7 @@ namespace SharpMTProto.Transport
                     }
                     finally
                     {
+                        _socket.Dispose();
                         _socket = null;
                     }
                 }
@@ -314,7 +314,7 @@ namespace SharpMTProto.Transport
                 args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
                 var awaitable = new SocketAwaitable(args);
 
-                while (!token.IsCancellationRequested && _socket.IsConnected())
+                while (!token.IsCancellationRequested && _socket.Connected)
                 {
                     try
                     {
@@ -386,7 +386,7 @@ namespace SharpMTProto.Transport
                 args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
                 var awaitable = new SocketAwaitable(args);
 
-                while (!token.IsCancellationRequested && _socket.IsConnected())
+                while (!token.IsCancellationRequested && _socket.Connected)
                 {
                     senderStreamer.Position = 0;
                     try
