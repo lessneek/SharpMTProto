@@ -188,7 +188,9 @@ namespace SharpMTProto
 
         protected async Task SendRawDataAsync(IBytesBucket dataBucket, CancellationToken cancellationToken)
         {
-            ThrowIfDiconnected();
+            if (IsDisposed)
+                return;
+
             LogMessageInOut(dataBucket, "OUT");
             await Transport.SendAsync(dataBucket, cancellationToken).ConfigureAwait(false);
         }
@@ -366,15 +368,6 @@ namespace SharpMTProto
                     IsServerMode ? Sender.Server : Sender.Client);
             }
             return _messageCodec.EncodePlainMessageAsync(message, streamer);
-        }
-
-        [DebuggerStepThrough]
-        protected void ThrowIfDiconnected()
-        {
-            if (!Transport.IsConnected)
-            {
-                throw new InvalidOperationException("Not allowed when disconnected.");
-            }
         }
 
         [DebuggerStepThrough]
