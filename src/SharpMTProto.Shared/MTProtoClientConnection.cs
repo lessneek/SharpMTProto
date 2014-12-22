@@ -36,6 +36,7 @@ namespace SharpMTProto
         bool IsConnected { get; }
         IClientTransport Transport { get; }
         TimeSpan DefaultResponseTimeout { get; set; }
+        IMTProtoMessenger Messenger { get; }
 
         /// <summary>
         ///     Sends request and wait for a response asynchronously.
@@ -124,6 +125,15 @@ namespace SharpMTProto
         public IMTProtoAsyncMethods Methods
         {
             get { return _methods; }
+        }
+
+        public IMTProtoMessenger Messenger
+        {
+            get
+            {
+                ThrowIfDisposed();
+                return _messenger;
+            }
         }
 
         public IClientTransport Transport
