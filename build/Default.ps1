@@ -5,7 +5,6 @@
     $build_dir = Split-Path $psake.build_script_file
     $code_dir = "$build_dir\..\src"
     $solution_path = "$code_dir\$solution_name.sln"
-    $assembly_info_path = "$code_dir\CommonAssemblyInfo.cs"
     $nuspec_file = "$code_dir\$solution_name.nuspec"
 }
 
