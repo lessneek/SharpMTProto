@@ -12,7 +12,7 @@
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>
       MTProto (https://core.telegram.org/mtproto) client library.
-	  
+
       Supported platforms:
         .NET Framework 4.5
     </description>
@@ -29,7 +29,7 @@
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.dll" target="lib\net45\" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.pdb" target="lib\net45\" />
     <file src="SharpMTProto.NET45\bin\$config$\SharpMTProto.XML" target="lib\net45\" />
-    <file src="SharpMTProto.NET45\**\*.cs" target="src\SharpMTProto.NET45\" exclude="**\obj\**" />
+    <file src="SharpMTProto.NET45\**\*.cs" target="src\SharpMTProto.NET45\" />
     <file src="SharpMTProto.Shared\**\*.cs" target="src\SharpMTProto.Shared\" />
   </files>
 </package>
