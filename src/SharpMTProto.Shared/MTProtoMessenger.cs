@@ -303,7 +303,7 @@ namespace SharpMTProto
                             if (_session.HasValue)
                             {
                                 // Already authorized.
-                                if (incomingMsgAuthKeyWithId.Id == _session.Value.AuthKeyId)
+                                if (incomingMsgAuthKeyWithId.Id != _session.Value.AuthKeyId)
                                 {
                                     throw new InvalidMessageException(
                                         string.Format(
