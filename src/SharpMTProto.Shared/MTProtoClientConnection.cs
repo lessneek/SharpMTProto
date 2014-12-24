@@ -21,6 +21,7 @@ namespace SharpMTProto
     using System.Threading;
     using System.Threading.Tasks;
     using Annotations;
+    using Authentication;
     using Messaging;
     using Messaging.Handlers;
     using Schema;
@@ -83,7 +84,8 @@ namespace SharpMTProto
 
         Task<TransportConnectResult> ConnectAsync();
         Task DisconnectAsync();
-        void Configure(ConnectionConfig config);
+        void SetAuthInfo(AuthInfo authInfo);
+        void SetSessionId(ulong sessionId);
     }
 
     /// <summary>
@@ -160,10 +162,16 @@ namespace SharpMTProto
             get { return Transport.IsConnected; }
         }
 
-        public void Configure(ConnectionConfig config)
+        public void SetAuthInfo(AuthInfo authInfo)
         {
             ThrowIfDisposed();
-            _messenger.Configure(config);
+            _messenger.SetAuthInfo(authInfo);
+        }
+
+        public void SetSessionId(ulong sessionId)
+        {
+            ThrowIfDisposed();
+            _messenger.SetSessionId(sessionId);
         }
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)

@@ -15,6 +15,7 @@ namespace SharpMTProto
     using System.Threading;
     using System.Threading.Tasks;
     using Annotations;
+    using Authentication;
     using BigMath.Utils;
     using Dataflows;
     using Messaging;
@@ -37,26 +38,29 @@ namespace SharpMTProto
         IClientTransport Transport { get; }
         IObservable<IMessage> IncomingMessages { get; }
         IObservable<IMessage> OutgoingMessages { get; }
-        bool IsServerMode { get; set; }
+        bool HasSession { get; }
+        IObservable<Session> SessionUpdates { get; }
 
         /// <summary>
-        ///     Configure connection.
+        ///     Sets auth info.
         /// </summary>
-        /// <param name="config">Connection configuration.</param>
-        void Configure(ConnectionConfig config);
+        /// <param name="authInfo">Connection configuration.</param>
+        void SetAuthInfo(AuthInfo authInfo);
 
         /// <summary>
         ///     Updates salt.
         /// </summary>
         /// <param name="salt">New salt.</param>
         void UpdateSalt(ulong salt);
-
+        
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
         Task SendAsync(object messageBody, MessageSendingFlags flags);
         Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken);
         Task SendAsync(IMessage message, MessageSendingFlags flags);
         Task SendAsync(IMessage message, MessageSendingFlags flags, CancellationToken cancellationToken);
         Message CreateMessage(object body, bool isContentRelated);
+        void SetRandomSessionId();
+        void SetSessionId(ulong sessionId);
     }
 
     /// <summary>
@@ -66,10 +70,12 @@ namespace SharpMTProto
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private static readonly Random Rnd = new Random();
-        private ConnectionConfig _config = new ConnectionConfig(null, 0);
+        private AuthInfo _authInfo = AuthInfo.Empty;
         private Subject<IMessage> _incomingMessages = new Subject<IMessage>();
         private uint _messageSeqNumber;
         private Subject<IMessage> _outgoingMessages = new Subject<IMessage>();
+        private Session? _session;
+        private Subject<Session> _sessionUpdates = new Subject<Session>();
         private IDisposable _transportSubscription;
         private readonly IAuthKeysProvider _authKeysProvider;
         private readonly IBytesOcean _bytesOcean;
@@ -80,7 +86,8 @@ namespace SharpMTProto
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec,
             [NotNull] IAuthKeysProvider authKeysProvider,
-            IBytesOcean bytesOcean = null)
+            IBytesOcean bytesOcean = null,
+            MessengerMode mode = MessengerMode.Client)
         {
             if (transport == null)
                 throw new ArgumentNullException("transport");
@@ -96,12 +103,16 @@ namespace SharpMTProto
             _authKeysProvider = authKeysProvider;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultMTProtoMessengerBytesOcean();
 
+            IsServerMode = mode == MessengerMode.Server;
+
             // Init transport.
             Transport = transport;
 
             // Connector in/out.
             _transportSubscription = Transport.Do(bytes => LogMessageInOut(bytes, "IN")).Subscribe(ProcessIncomingMessageBytes);
         }
+
+        public bool IsServerMode { get; private set; }
 
         public IObservable<IMessage> IncomingMessages
         {
@@ -115,33 +126,38 @@ namespace SharpMTProto
 
         public bool IsEncryptionSupported
         {
-            get { return _config.AuthKey != null; }
+            get { return _authInfo.HasAuthKey; }
         }
 
-        public bool IsServerMode { get; set; }
+        public bool HasSession
+        {
+            get { return _session.HasValue; }
+        }
+
         public IClientTransport Transport { get; private set; }
 
-        /// <summary>
-        ///     Set config.
-        /// </summary>
-        /// <exception cref="System.ArgumentNullException">The <paramref name="config" /> is <c>null</c>.</exception>
-        public void Configure([NotNull] ConnectionConfig config)
+        public void SetAuthInfo(AuthInfo authInfo)
         {
-            if (config == null)
-            {
-                throw new ArgumentNullException("config");
-            }
+            _authInfo = authInfo;
 
-            _config = config;
-            if (!IsServerMode && _config.SessionId == 0)
-            {
-                _config.SessionId = GetNextSessionId();
-            }
+            SetRandomSessionId();
+        }
+
+        public void SetRandomSessionId()
+        {
+            SetSessionId(GetNextSessionId());
+        }
+
+        public void SetSessionId(ulong sessionId)
+        {
+            ThrowIfEncryptionIsNotSupported("Session available only when encryption is supported.");
+            _session = new Session(sessionId, _messageCodec.ComputeAuthKeyId(_authInfo.AuthKey));
+            _sessionUpdates.OnNext(_session.Value);
         }
 
         public void UpdateSalt(ulong salt)
         {
-            _config.Salt = salt;
+            _authInfo.Salt = salt;
         }
 
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
@@ -186,6 +202,11 @@ namespace SharpMTProto
             return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
         }
 
+        public IObservable<Session> SessionUpdates
+        {
+            get { return _sessionUpdates.AsObservable(); }
+        }
+
         protected async Task SendRawDataAsync(IBytesBucket dataBucket, CancellationToken cancellationToken)
         {
             if (IsDisposed)
@@ -219,6 +240,25 @@ namespace SharpMTProto
             Debug(string.Format("{0} ({1} bytes): {2}", inOrOut, bytes.Count, bytes.ToHexString()));
         }
 
+        private ulong GetMsgAuthKeyId(TLStreamer streamer)
+        {
+            long position = streamer.Position;
+            if (streamer.Length == 4)
+            {
+                int error = streamer.ReadInt32();
+                throw new MTProtoErrorException(error);
+            }
+            if (streamer.Length < 20)
+            {
+                throw new InvalidMessageException(
+                    string.Format("Invalid message length: {0} bytes. Expected to be at least 20 bytes for message or 4 bytes for error code.",
+                        streamer.Length));
+            }
+            ulong incomingMsgAuthKeyId = streamer.ReadUInt64();
+            streamer.Position = position;
+            return incomingMsgAuthKeyId;
+        }
+
         /// <summary>
         ///     Processes incoming message bytes.
         /// </summary>
@@ -235,86 +275,101 @@ namespace SharpMTProto
                 using (messageBucket)
                 using (var streamer = new TLStreamer(messageBucket.UsedBytes))
                 {
-                    if (streamer.Length == 4)
-                    {
-                        int error = streamer.ReadInt32();
-                        Debug(string.Format("Received error code: {0}.", error));
-                        return;
-                    }
-                    if (streamer.Length < 20)
-                    {
-                        throw new InvalidMessageException(
-                            string.Format(
-                                "Invalid message length: {0} bytes. Expected to be at least 20 bytes for message or 4 bytes for error code.",
-                                messageBucket.Size));
-                    }
-                    ulong authKeyId = streamer.ReadUInt64();
-                    streamer.Position = 0;
-
                     IMessage message;
 
-                    if (authKeyId == 0)
+                    ulong incomingMsgAuthKeyId = GetMsgAuthKeyId(streamer);
+                    if (incomingMsgAuthKeyId == 0)
                     {
                         // Assume the message bytes has a plain (unencrypted) message.
-                        Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", authKeyId));
+                        Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", incomingMsgAuthKeyId));
 
                         message = await _messageCodec.DecodePlainMessageAsync(streamer);
-
-                        if (!IsIncomingMessageIdValid(message.MsgId))
-                        {
-                            throw new InvalidMessageException(string.Format("Message ID = 0x{0:X16} is invalid.", message.MsgId));
-                        }
                     }
                     else
                     {
                         // Assume the stream has an encrypted message.
-                        Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", authKeyId));
+                        Debug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", incomingMsgAuthKeyId));
 
-                        if (!IsServerMode)
+                        if (IsServerMode)
                         {
-                            if (_config.AuthKey == null)
+                            AuthKeyWithId incomingMsgAuthKeyWithId;
+                            if (!_authKeysProvider.TryGet(incomingMsgAuthKeyId, out incomingMsgAuthKeyWithId))
+                            {
+                                throw new InvalidMessageException(
+                                    string.Format("Unable to decrypt incoming message with auth key ID '{0}'. Auth key with such ID not found.",
+                                        incomingMsgAuthKeyId));
+                            }
+
+                            if (_session.HasValue)
+                            {
+                                // Already authorized.
+                                if (incomingMsgAuthKeyWithId.Id == _session.Value.AuthKeyId)
+                                {
+                                    throw new InvalidMessageException(
+                                        string.Format(
+                                            "Connection has already initialized with auth key ID '{0}', but message with auth key ID '{1}' is accepted.",
+                                            _session.Value.AuthKeyId,
+                                            incomingMsgAuthKeyId));
+                                }
+                            }
+                            else
+                            {
+                                // Init authorization.
+                                _authInfo.AuthKey = incomingMsgAuthKeyWithId.Value;
+                            }
+                        }
+                        else // Client mode.
+                        {
+                            if (!IsEncryptionSupported)
                             {
                                 Debug("Encryption is not supported by this connection.");
                                 return;
                             }
                         }
-                        else
-                        {
-                            if (_config.AuthKey == null)
-                            {
-                                byte[] authKey;
-                                if (!_authKeysProvider.TryGet(authKeyId, out authKey))
-                                {
-                                    Debug(string.Format(
-                                        "Unable to decrypt incoming message with auth key ID '{0}'. Auth key with such ID not found.",
-                                        authKeyId));
-                                    return;
-                                }
-                                _config.AuthKey = authKey;
-                            }
-                        }
 
+                        // Decoding an encrypted message.
                         MessageEnvelope messageEnvelope =
-                            await _messageCodec.DecodeEncryptedMessageAsync(streamer, _config.AuthKey, IsServerMode ? Sender.Client : Sender.Server);
+                            await
+                                _messageCodec.DecodeEncryptedMessageAsync(streamer,
+                                    _authInfo.AuthKey,
+                                    IsServerMode ? MessengerMode.Client : MessengerMode.Server);
+
                         // TODO: check salt.
+                        // _authInfo.Salt == messageEnvelope.Salt;
 
                         message = messageEnvelope.Message;
 
-                        if (!_config.SessionId.HasValue)
+                        if (IsServerMode)
                         {
-                            _config.SessionId = messageEnvelope.SessionId;
+                            if (!HasSession)
+                            {
+                                // If there is no client session on a server, then create it.
+                                SetSessionId(messageEnvelope.SessionId);
+                            }
                         }
-                        else if (messageEnvelope.SessionId != _config.SessionId)
+                        else // Client mode.
                         {
-                            throw new InvalidMessageException(string.Format("Invalid session ID {0}. Expected {1}.",
-                                messageEnvelope.SessionId,
-                                _config.SessionId));
+                            if (!_session.HasValue)
+                            {
+                                throw new InvalidMessageException(string.Format("Received a message for session ID {0}, but there is no session.",
+                                    messageEnvelope.SessionId));
+                            }
+                            if (messageEnvelope.SessionId != _session.Value.Id)
+                            {
+                                throw new InvalidMessageException(string.Format("Invalid session ID {0}. Expected {1}.",
+                                    messageEnvelope.SessionId,
+                                    _session.Value.Id));
+                            }
                         }
                         Debug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", message.MsgId));
                     }
 
                     ProcessIncomingMessage(message);
                 }
+            }
+            catch (MTProtoException e)
+            {
+                Debug(e.Message);
             }
             catch (Exception e)
             {
@@ -330,6 +385,11 @@ namespace SharpMTProto
             }
             try
             {
+                if (!IsIncomingMessageIdValid(message.MsgId))
+                {
+                    throw new InvalidMessageException(string.Format("Message ID = 0x{0:X16} is invalid.", message.MsgId));
+                }
+
                 Debug(string.Format("Incoming message data of type = {0}.", message.Body.GetType()));
 
                 _incomingMessages.OnNext(message);
@@ -357,25 +417,25 @@ namespace SharpMTProto
             if (isEncrypted)
             {
                 ThrowIfEncryptionIsNotSupported();
-            }
+                if (!_session.HasValue)
+                    throw new InvalidOperationException("Unable to encode encrypted message without a session ID.");
 
-            if (isEncrypted)
-            {
-                var messageEnvelope = new MessageEnvelope(message, _config.Salt, _config.SessionId.GetValueOrDefault());
+                var messageEnvelope = new MessageEnvelope(message, _authInfo.Salt, _session.Value.Id);
                 return _messageCodec.EncodeEncryptedMessageAsync(messageEnvelope,
                     streamer,
-                    _config.AuthKey,
-                    IsServerMode ? Sender.Server : Sender.Client);
+                    _authInfo.AuthKey,
+                    IsServerMode ? MessengerMode.Server : MessengerMode.Client);
             }
             return _messageCodec.EncodePlainMessageAsync(message, streamer);
         }
 
         [DebuggerStepThrough]
-        protected void ThrowIfEncryptionIsNotSupported()
+        protected void ThrowIfEncryptionIsNotSupported(string message = null)
         {
             if (!IsEncryptionSupported)
             {
-                throw new InvalidOperationException("Encryption is not supported. Setup encryption first by calling Configure() method.");
+                string text = string.Format("{0} Setup encryption first by calling SetAuthInfo() method.", message ?? "Encryption is not supported.");
+                throw new InvalidOperationException(text);
             }
         }
 
@@ -385,6 +445,11 @@ namespace SharpMTProto
         {
             if (isDisposing)
             {
+                if (_sessionUpdates != null)
+                {
+                    _sessionUpdates.Dispose();
+                    _sessionUpdates = null;
+                }
                 if (_transportSubscription != null)
                 {
                     _transportSubscription.Dispose();

@@ -15,7 +15,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\KeyChain.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Authentication\PublicKey.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)ConnectionConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AuthKeyWithId.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesBucketBase.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOcean.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\BytesOceanConfig.cs" />
@@ -40,7 +40,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Request.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\RequestsManager.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Sender.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessengerMode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientConnection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientBuilder.cs" />
@@ -58,6 +58,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Services\MessageIdGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\NonceGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\RandomGenerator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Session.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportFactory.cs" />

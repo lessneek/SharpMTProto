@@ -8,42 +8,33 @@ namespace SharpMTProto.Services
 {
     using System;
     using System.Collections.Immutable;
-    using System.Threading;
     using Messaging;
 
     public interface IAuthKeysProvider
     {
-        void Add(byte[] authKey, out UInt64 authKeyId);
-        bool TryGet(ulong authKeyId, out byte[] authKey);
+        void Add(byte[] authKeyBytes, out AuthKeyWithId authKeyId);
+        bool TryGet(ulong authKeyId, out AuthKeyWithId authKeyWithId);
     }
 
     public class AuthKeysProvider : IAuthKeysProvider
     {
-        private volatile ImmutableDictionary<UInt64, byte[]> _authKeys = ImmutableDictionary<ulong, byte[]>.Empty;
+        private ImmutableDictionary<UInt64, AuthKeyWithId> _authKeys = ImmutableDictionary<ulong, AuthKeyWithId>.Empty;
         private readonly IMessageCodec _messageCodec;
-        private readonly object _syncRoot = new object();
 
         public AuthKeysProvider(IMessageCodec messageCodec)
         {
             _messageCodec = messageCodec;
         }
 
-        public void Add(byte[] authKey, out UInt64 authKeyId)
+        public void Add(byte[] authKeyBytes, out AuthKeyWithId authKeyWithId)
         {
-            authKeyId = _messageCodec.ComputeAuthKeyId(authKey);
-
-            lock (_syncRoot)
-            {
-                if (_authKeys.ContainsKey(authKeyId))
-                    return;
-
-                _authKeys = _authKeys.Add(authKeyId, authKey);
-            }
+            ulong authKeyId = _messageCodec.ComputeAuthKeyId(authKeyBytes);
+            authKeyWithId = ImmutableInterlocked.GetOrAdd(ref _authKeys, authKeyId, arg => new AuthKeyWithId(arg, authKeyBytes));
         }
 
-        public bool TryGet(ulong authKeyId, out byte[] authKey)
+        public bool TryGet(ulong authKeyId, out AuthKeyWithId authKeyWithId)
         {
-            return _authKeys.TryGetValue(authKeyId, out authKey);
+            return _authKeys.TryGetValue(authKeyId, out authKeyWithId);
         }
     }
 }

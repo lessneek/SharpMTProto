@@ -98,9 +98,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Serialized encrypted message.</returns>
-        byte[] EncodeEncryptedMessage(MessageEnvelope messageEnvelope, [NotNull] byte[] authKey, Sender sender);
+        byte[] EncodeEncryptedMessage(MessageEnvelope messageEnvelope, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Encode as encrypted message.
@@ -113,9 +113,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Serialized encrypted message.</returns>
-        Task<byte[]> EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, [NotNull] byte[] authKey, Sender sender);
+        Task<byte[]> EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -128,9 +128,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        MessageEnvelope DecodeEncryptedMessage(byte[] messageBytes, [NotNull] byte[] authKey, Sender sender);
+        MessageEnvelope DecodeEncryptedMessage(byte[] messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -143,9 +143,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        MessageEnvelope DecodeEncryptedMessage(ArraySegment<byte> messageBytes, [NotNull] byte[] authKey, Sender sender);
+        MessageEnvelope DecodeEncryptedMessage(ArraySegment<byte> messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -158,9 +158,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        Task<MessageEnvelope> DecodeEncryptedMessageAsync(byte[] messageBytes, [NotNull] byte[] authKey, Sender sender);
+        Task<MessageEnvelope> DecodeEncryptedMessageAsync(byte[] messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -173,9 +173,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        Task<MessageEnvelope> DecodeEncryptedMessageAsync(ArraySegment<byte> messageBytes, [NotNull] byte[] authKey, Sender sender);
+        Task<MessageEnvelope> DecodeEncryptedMessageAsync(ArraySegment<byte> messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         #endregion
 
@@ -193,8 +193,8 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
-        Task EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, TLStreamer streamer, byte[] authKey, Sender sender);
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        Task EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, TLStreamer streamer, byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -207,9 +207,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        MessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, Sender sender);
+        MessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, MessengerMode messengerMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -222,9 +222,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="sender">Sender of the message.</param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        Task<MessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, [NotNull] byte[] authKey, Sender sender);
+        Task<MessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, [NotNull] byte[] authKey, MessengerMode messengerMode);
 
         #endregion
 
@@ -408,41 +408,41 @@ namespace SharpMTProto.Messaging
 
         #region Encrypted arrays.
 
-        public byte[] EncodeEncryptedMessage(MessageEnvelope messageEnvelope, byte[] authKey, Sender sender)
+        public byte[] EncodeEncryptedMessage(MessageEnvelope messageEnvelope, byte[] authKey, MessengerMode messengerMode)
         {
-            return EncodeEncryptedMessageAsync(messageEnvelope, authKey, sender).Result;
+            return EncodeEncryptedMessageAsync(messageEnvelope, authKey, messengerMode).Result;
         }
 
-        public async Task<byte[]> EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, byte[] authKey, Sender sender)
+        public async Task<byte[]> EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, byte[] authKey, MessengerMode messengerMode)
         {
             using (var ms = new MemoryStream())
             using (var streamer = new TLStreamer(ms))
             {
-                await EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, sender);
+                await EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messengerMode);
                 return ms.ToArray();
             }
         }
 
-        public MessageEnvelope DecodeEncryptedMessage(byte[] messageBytes, byte[] authKey, Sender sender)
+        public MessageEnvelope DecodeEncryptedMessage(byte[] messageBytes, byte[] authKey, MessengerMode messengerMode)
         {
-            return DecodeEncryptedMessage(new ArraySegment<byte>(messageBytes), authKey, sender);
+            return DecodeEncryptedMessage(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
         }
 
-        public MessageEnvelope DecodeEncryptedMessage(ArraySegment<byte> messageBytes, byte[] authKey, Sender sender)
+        public MessageEnvelope DecodeEncryptedMessage(ArraySegment<byte> messageBytes, byte[] authKey, MessengerMode messengerMode)
         {
-            return DecodeEncryptedMessageAsync(messageBytes, authKey, sender).Result;
+            return DecodeEncryptedMessageAsync(messageBytes, authKey, messengerMode).Result;
         }
 
-        public Task<MessageEnvelope> DecodeEncryptedMessageAsync(byte[] messageBytes, byte[] authKey, Sender sender)
+        public Task<MessageEnvelope> DecodeEncryptedMessageAsync(byte[] messageBytes, byte[] authKey, MessengerMode messengerMode)
         {
-            return DecodeEncryptedMessageAsync(new ArraySegment<byte>(messageBytes), authKey, sender);
+            return DecodeEncryptedMessageAsync(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
         }
 
-        public async Task<MessageEnvelope> DecodeEncryptedMessageAsync(ArraySegment<byte> messageBytes, byte[] authKey, Sender sender)
+        public async Task<MessageEnvelope> DecodeEncryptedMessageAsync(ArraySegment<byte> messageBytes, byte[] authKey, MessengerMode messengerMode)
         {
             using (var streamer = new TLStreamer(messageBytes))
             {
-                return await DecodeEncryptedMessageAsync(streamer, authKey, sender);
+                return await DecodeEncryptedMessageAsync(streamer, authKey, messengerMode);
             }
         }
 
@@ -453,7 +453,7 @@ namespace SharpMTProto.Messaging
         public async Task EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope,
             [NotNull] TLStreamer streamer,
             [NotNull] byte[] authKey,
-            Sender sender)
+            MessengerMode messengerMode)
         {
             if (streamer == null)
                 throw new ArgumentNullException("streamer");
@@ -508,7 +508,7 @@ namespace SharpMTProto.Messaging
 
                 // Encrypting.
                 byte[] aesKey, aesIV;
-                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, sender);
+                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, messengerMode);
 
                 long positionBeforeEncrpyptedData = streamer.Position;
                 // Writing encrypted data.
@@ -521,12 +521,12 @@ namespace SharpMTProto.Messaging
             }
         }
 
-        public MessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, Sender sender)
+        public MessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, MessengerMode messengerMode)
         {
-            return DecodeEncryptedMessageAsync(streamer, authKey, sender).Result;
+            return DecodeEncryptedMessageAsync(streamer, authKey, messengerMode).Result;
         }
 
-        public async Task<MessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, byte[] authKey, Sender sender)
+        public async Task<MessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, byte[] authKey, MessengerMode messengerMode)
         {
             if (streamer == null)
                 throw new ArgumentNullException("streamer");
@@ -559,7 +559,7 @@ namespace SharpMTProto.Messaging
             {
                 // Decrypting.
                 byte[] aesKey, aesIV;
-                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, sender);
+                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, messengerMode);
                 _encryptionServices.Aes256IgeDecrypt(streamer, innerStreamer, aesKey, aesIV);
 
                 // Set used bytes count.
@@ -630,20 +630,20 @@ namespace SharpMTProto.Messaging
             return innerDataSHA1.ToInt128(innerDataSHA1.Length - 16, true);
         }
 
-        private void ComputeAesKeyAndIV(byte[] authKey, Int128 msgKey, out byte[] aesKey, out byte[] aesIV, Sender sender)
+        private void ComputeAesKeyAndIV(byte[] authKey, Int128 msgKey, out byte[] aesKey, out byte[] aesIV, MessengerMode messengerMode)
         {
             // x = 0 for messages from client to server and x = 8 for those from server to client.
             int x;
-            switch (sender)
+            switch (messengerMode)
             {
-                case Sender.Client:
+                case MessengerMode.Client:
                     x = 0;
                     break;
-                case Sender.Server:
+                case MessengerMode.Server:
                     x = 8;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException("sender");
+                    throw new ArgumentOutOfRangeException("messengerMode");
             }
 
             byte[] msgKeyBytes = msgKey.ToBytes();

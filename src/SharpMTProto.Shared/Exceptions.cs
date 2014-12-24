@@ -136,4 +136,12 @@ namespace SharpMTProto
 
         public IRpcError Error { get; private set; }
     }
+
+    public class MTProtoErrorException : MTProtoException
+    {
+        public MTProtoErrorException(int error)
+            : base(string.Format("Received error code: {0}.", error))
+        {
+        }
+    }
 }

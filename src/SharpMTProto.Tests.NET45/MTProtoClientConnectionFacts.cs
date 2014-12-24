@@ -21,6 +21,7 @@ namespace SharpMTProto.Tests
 {
     using Autofac;
     using SetUp;
+    using SharpMTProto.Authentication;
     using SharpMTProto.Dataflows;
 
     [TestFixture]
@@ -40,7 +41,8 @@ namespace SharpMTProto.Tests
         [Test]
         public async Task Should_send_Rpc_and_receive_response()
         {
-            var config = new ConnectionConfig(AuthKey, 100500) {SessionId = 2};
+            const ulong sessionId = 42;
+            var authInfo = new AuthInfo(AuthKey, 100500);
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
             var rpcResult = new RpcResult {ReqMsgId = TestMessageIdsGenerator.MessageIds[0], Result = expectedResponse};
@@ -53,10 +55,10 @@ namespace SharpMTProto.Tests
 
                     var messageEnvelope = new MessageEnvelope(
                         new Message(0x0102030405060708, 3, rpcResult),
-                        config.Salt,
-                        config.SessionId.GetValueOrDefault());
+                        authInfo.Salt,
+                        sessionId);
 
-                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, config.AuthKey, Sender.Server);
+                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
@@ -65,7 +67,9 @@ namespace SharpMTProto.Tests
             var builder = Resolve<IMTProtoClientBuilder>();
             using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
-                connection.Configure(config);
+                connection.SetAuthInfo(authInfo);
+                connection.SetSessionId(sessionId);
+
                 await connection.ConnectAsync();
 
                 TestResponse response = await connection.RpcAsync<TestResponse>(request);
@@ -79,7 +83,8 @@ namespace SharpMTProto.Tests
         [Test]
         public async Task Should_send_encrypted_message_and_wait_for_response()
         {
-            var config = new ConnectionConfig(AuthKey, 100500) {SessionId = 2};
+            const ulong sessionId = 42;
+            var authInfo = new AuthInfo(AuthKey, 100500);
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
 
@@ -91,10 +96,10 @@ namespace SharpMTProto.Tests
 
                     var messageEnvelope = new MessageEnvelope(
                         new Message(0x0102030405060708, 3, expectedResponse),
-                        config.Salt,
-                        config.SessionId.GetValueOrDefault());
+                        authInfo.Salt,
+                        sessionId);
 
-                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, config.AuthKey, Sender.Server);
+                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
@@ -103,8 +108,11 @@ namespace SharpMTProto.Tests
             var builder = Resolve<IMTProtoClientBuilder>();
             using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
-                connection.Configure(config);
+                connection.SetAuthInfo(authInfo);
+                connection.SetSessionId(sessionId);
+
                 connection.Transport.SendingTimeout = TimeSpan.FromSeconds(5);
+
                 await connection.ConnectAsync();
 
                 TestResponse response = await connection.RequestAsync<TestResponse>(request, MessageSendingFlags.EncryptedAndContentRelated);
