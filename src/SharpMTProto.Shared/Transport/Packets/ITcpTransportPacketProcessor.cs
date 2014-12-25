@@ -17,9 +17,17 @@ namespace SharpMTProto.Transport.Packets
         /// </summary>
         bool IsProcessingPacket { get; }
 
+        /// <summary>
+        ///     Packet embraces length.
+        /// </summary>
+        int PacketEmbracesLength { get; }
+
+        /// <summary>
+        ///     Processes packet.
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
         Task ProcessPacketAsync(ArraySegment<byte> buffer);
-        byte[] WriteTcpPacket(int packetNumber, byte[] payload);
-        byte[] WriteTcpPacket(int packetNumber, ArraySegment<byte> payload);
 
         /// <summary>
         ///     Writes TCP packet.

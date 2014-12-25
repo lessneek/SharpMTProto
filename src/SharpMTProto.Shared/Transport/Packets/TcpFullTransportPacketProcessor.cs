@@ -16,19 +16,23 @@ namespace SharpMTProto.Transport.Packets
 
     public class TcpFullTransportPacketProcessor : Cancelable, ITcpTransportPacketProcessor
     {
-        private const int PacketLengthBytesCount = 4;
-        private const int PacketNumberBytesCount = 4;
-        private const int PacketCrcBytesCount = 4;
+        #region Constants
+
+        private const int TcpFullTransportPacketLengthBytesCount = 4;
+        private const int TcpFullTransportPacketNumberBytesCount = 4;
+        private const int TcpFullTransportPacketCrcBytesCount = 4;
 
         /// <summary>
-        ///     <see cref="PacketLengthBytesCount" /> + <see cref="PacketNumberBytesCount" />
+        ///     <see cref="TcpFullTransportPacketLengthBytesCount" /> + <see cref="TcpFullTransportPacketNumberBytesCount" />
         /// </summary>
-        private const int PacketHeaderLength = PacketLengthBytesCount + PacketNumberBytesCount;
+        private const int TcpFullTransportPacketHeaderLength = TcpFullTransportPacketLengthBytesCount + TcpFullTransportPacketNumberBytesCount;
 
         /// <summary>
-        ///     <see cref="PacketHeaderLength" /> + <see cref="PacketCrcBytesCount" />
+        ///     <see cref="TcpFullTransportPacketHeaderLength" /> + <see cref="TcpFullTransportPacketCrcBytesCount" />
         /// </summary>
-        private const int PacketEmbracesLength = PacketHeaderLength + PacketCrcBytesCount;
+        private const int TcpFullTransportPacketEmbracesLength = TcpFullTransportPacketHeaderLength + TcpFullTransportPacketCrcBytesCount;
+
+        #endregion
 
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private uint? _currentPacketCrc;
@@ -38,26 +42,11 @@ namespace SharpMTProto.Transport.Packets
         private TLCrcStreamer _nextPacketStreamer;
         private int _tempLengthBufferFill;
         private readonly IBytesOcean _bytesOcean;
-        private readonly byte[] _tempLengthBuffer = new byte[PacketLengthBytesCount];
+        private readonly byte[] _tempLengthBuffer = new byte[TcpFullTransportPacketLengthBytesCount];
 
         public TcpFullTransportPacketProcessor(IBytesOcean bytesOcean = null)
         {
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportPacketProcessorBytesOcean();
-        }
-
-        public byte[] WriteTcpPacket(int packetNumber, byte[] payload)
-        {
-            return WriteTcpPacket(packetNumber, new ArraySegment<byte>(payload));
-        }
-
-        public byte[] WriteTcpPacket(int packetNumber, ArraySegment<byte> payload)
-        {
-            var bytes = new byte[payload.Count + PacketEmbracesLength];
-            using (var streamer = new TLStreamer(bytes))
-            {
-                WriteTcpPacket(packetNumber, payload, streamer);
-            }
-            return bytes;
         }
 
         public int WriteTcpPacket(int packetNumber, ArraySegment<byte> payload, TLStreamer streamer)
@@ -85,6 +74,11 @@ namespace SharpMTProto.Transport.Packets
             get { return _nextPacketBytesCountLeft > 0; }
         }
 
+        public int PacketEmbracesLength
+        {
+            get { return TcpFullTransportPacketEmbracesLength; }
+        }
+
         public IDisposable Subscribe(IObserver<IBytesBucket> observer)
         {
             return _messageBytesBuckets.Subscribe(observer);
@@ -105,13 +99,13 @@ namespace SharpMTProto.Transport.Packets
                     {
                         #region Start next packet processing.
 
-                        int tempLengthBytesToRead = PacketLengthBytesCount - _tempLengthBufferFill;
+                        int tempLengthBytesToRead = TcpFullTransportPacketLengthBytesCount - _tempLengthBufferFill;
                         tempLengthBytesToRead = (bytesToRead < tempLengthBytesToRead) ? bytesToRead : tempLengthBytesToRead;
                         Buffer.BlockCopy(buffer.Array, startIndex, _tempLengthBuffer, _tempLengthBufferFill, tempLengthBytesToRead);
                         bytesRead += tempLengthBytesToRead;
 
                         _tempLengthBufferFill += tempLengthBytesToRead;
-                        if (_tempLengthBufferFill < PacketLengthBytesCount)
+                        if (_tempLengthBufferFill < TcpFullTransportPacketLengthBytesCount)
                         {
                             // Break and wait for remaining bytes of encoded length of a packet.
                             break;
@@ -124,6 +118,7 @@ namespace SharpMTProto.Transport.Packets
 
                         // Reading expected packet length.
                         _nextPacketBytesCountLeft = _tempLengthBuffer.ToInt32();
+                        // TODO: check packet length is divisible by 4.
                         if (_nextPacketBytesCountLeft <= 0)
                         {
                             // Empty packet.
@@ -137,7 +132,7 @@ namespace SharpMTProto.Transport.Packets
 
                         // Writing packet length.
                         _nextPacketStreamer.Write(_tempLengthBuffer);
-                        _nextPacketBytesCountLeft -= PacketLengthBytesCount;
+                        _nextPacketBytesCountLeft -= TcpFullTransportPacketLengthBytesCount;
 
                         #endregion
                     }
@@ -147,11 +142,11 @@ namespace SharpMTProto.Transport.Packets
                     bytesToRead = bytesToRead > _nextPacketBytesCountLeft ? _nextPacketBytesCountLeft : bytesToRead;
                     _nextPacketBytesCountLeft -= bytesToRead;
 
-                    if (_nextPacketBytesCountLeft < PacketCrcBytesCount && !_currentPacketCrc.HasValue)
+                    if (_nextPacketBytesCountLeft < TcpFullTransportPacketCrcBytesCount && !_currentPacketCrc.HasValue)
                     {
                         #region All data for CRC is received, hence read it.
 
-                        int crcPartToRead = PacketCrcBytesCount - _nextPacketBytesCountLeft;
+                        int crcPartToRead = TcpFullTransportPacketCrcBytesCount - _nextPacketBytesCountLeft;
                         bytesToRead = bytesToRead - crcPartToRead;
 
                         // Write remaining data part and save a CRC.
@@ -189,7 +184,7 @@ namespace SharpMTProto.Transport.Packets
 
                     // Push payload.
                     _nextPacketDataBucket.Used -= PacketEmbracesLength;
-                    _nextPacketDataBucket.Offset = PacketHeaderLength;
+                    _nextPacketDataBucket.Offset = TcpFullTransportPacketHeaderLength;
                     _messageBytesBuckets.OnNext(_nextPacketDataBucket);
 
                     Cleanup(false);
