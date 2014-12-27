@@ -142,7 +142,7 @@ namespace SharpMTProto.Transport
                             #endregion
                         }
 
-                        await _nextPacketStreamer.WriteAsync(buffer.Array, startIndex, bytesToRead, cancellationToken).ConfigureAwait(false);
+                        _nextPacketStreamer.Write(buffer.Array, startIndex, bytesToRead);
                         bytesRead += bytesToRead;
 
                         if (IsProcessingIncomingPacket)
