@@ -1,10 +1,8 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="TcpFullTransportPacketProcessorFacts.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
-namespace SharpMTProto.Tests.Transport.Packets
+namespace SharpMTProto.Tests.Transport
 {
     using System;
     using System.Threading.Tasks;
@@ -13,10 +11,10 @@ namespace SharpMTProto.Tests.Transport.Packets
     using FluentAssertions;
     using NUnit.Framework;
     using SharpMTProto.Dataflows;
-    using SharpMTProto.Transport.Packets;
+    using SharpMTProto.Transport;
 
     [TestFixture]
-    public class TcpFullTransportPacketProcessorFacts
+    public class TcpTransportFullPacketProcessorFacts
     {
         [Test]
         public async Task Should_process_packet()
@@ -32,10 +30,10 @@ namespace SharpMTProto.Tests.Transport.Packets
 
             var bufferBlock = new BufferBlock<IBytesBucket>();
 
-            var packetProcessor = new TcpFullTransportPacketProcessor();
-            packetProcessor.Subscribe(bucket => bufferBlock.Post(bucket));
+            var packetProcessor = new TcpTransportFullPacketProcessor();
+            packetProcessor.IncomingMessageBuckets.Subscribe(bucket => bufferBlock.Post(bucket));
 
-            await packetProcessor.ProcessPacketAsync(bytes);
+            await packetProcessor.ProcessIncomingPacketAsync(bytes);
 
             using (IBytesBucket bytesBucket = await bufferBlock.ReceiveAsync(TimeSpan.FromSeconds(5)))
             {

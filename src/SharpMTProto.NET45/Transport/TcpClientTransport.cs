@@ -20,7 +20,6 @@ namespace SharpMTProto.Transport
     using BigMath.Utils;
     using Dataflows;
     using Nito.AsyncEx;
-    using Packets;
     using SharpTL;
     using Utils;
 
@@ -30,8 +29,7 @@ namespace SharpMTProto.Transport
     public class TcpClientTransport : Cancelable, IClientTransport
     {
         private CancellationTokenSource _connectionCancellationTokenSource;
-        private int _packetNumber;
-        private ITcpTransportPacketProcessor _packetProcessor;
+        private ITransportPacketProcessor _packetProcessor;
         private Socket _socket;
         private BehaviorSubject<ClientTransportState> _stateChanges = new BehaviorSubject<ClientTransportState>(ClientTransportState.Disconnected);
         private readonly IBytesOcean _bytesOcean;
@@ -42,7 +40,7 @@ namespace SharpMTProto.Transport
         private readonly AsyncLock _stateAsyncLock = new AsyncLock();
 
         public TcpClientTransport([NotNull] TcpClientTransportConfig config,
-            [NotNull] ITcpTransportPacketProcessor packetProcessor,
+            [NotNull] ITransportPacketProcessor packetProcessor,
             IBytesOcean bytesOcean = null)
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
@@ -71,7 +69,7 @@ namespace SharpMTProto.Transport
         /// <param name="socket">Connected socket.</param>
         /// <param name="packetProcessor">Packet processor.</param>
         /// <param name="bytesOcean">Bytes ocean.</param>
-        public TcpClientTransport([NotNull] Socket socket, [NotNull] ITcpTransportPacketProcessor packetProcessor, IBytesOcean bytesOcean = null)
+        public TcpClientTransport([NotNull] Socket socket, [NotNull] ITransportPacketProcessor packetProcessor, IBytesOcean bytesOcean = null)
         {
             if (socket == null)
                 throw new ArgumentNullException("socket");
@@ -100,7 +98,7 @@ namespace SharpMTProto.Transport
         public IDisposable Subscribe(IObserver<IBytesBucket> observer)
         {
             ThrowIfDisposed();
-            return _packetProcessor.Subscribe(observer);
+            return _packetProcessor.IncomingMessageBuckets.Subscribe(observer);
         }
 
         public bool IsConnected
@@ -178,12 +176,12 @@ namespace SharpMTProto.Transport
             }
         }
 
-        public Task SendAsync(IBytesBucket payload, CancellationToken token)
+        public Task SendAsync(IBytesBucket payload, CancellationToken cancellationToken)
         {
             if (IsDisposed)
                 return TaskConstants.Completed;
 
-            return _outgoingQueue.SendAsync(payload, token);
+            return _outgoingQueue.SendAsync(payload, cancellationToken);
         }
 
         public Task SendAsync(IBytesBucket payload)
@@ -224,7 +222,6 @@ namespace SharpMTProto.Transport
 
                         try
                         {
-                            _packetNumber = 0;
                             _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
                             await Task.Run(async () => await _socket.ConnectAsync(awaitable)).ToObservable().Timeout(ConnectTimeout);
@@ -289,17 +286,17 @@ namespace SharpMTProto.Transport
             }
         }
 
-        private void StartReceiver(CancellationToken token)
+        private void StartReceiver(CancellationToken cancellationToken)
         {
-            Task.Run(() => ReceiverTask(token), token);
+            Task.Run(() => ReceiverTask(cancellationToken), cancellationToken);
         }
 
-        private void StartSender(CancellationToken token)
+        private void StartSender(CancellationToken cancellationToken)
         {
-            Task.Run(() => SenderTask(token), token);
+            Task.Run(() => SenderTask(cancellationToken), cancellationToken);
         }
 
-        private async Task ReceiverTask(CancellationToken token)
+        private async Task ReceiverTask(CancellationToken cancellationToken)
         {
             LogDebug(string.Format("Receiver task was started."));
             var canceled = false;
@@ -313,7 +310,7 @@ namespace SharpMTProto.Transport
                 args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
                 var awaitable = new SocketAwaitable(args);
 
-                while (!token.IsCancellationRequested && _socket.Connected)
+                while (!cancellationToken.IsCancellationRequested && _socket.Connected)
                 {
                     try
                     {
@@ -339,7 +336,7 @@ namespace SharpMTProto.Transport
                     receiverBucket.Used = bytesRead;
                     try
                     {
-                        await _packetProcessor.ProcessPacketAsync(receiverBucket.UsedBytes).ConfigureAwait(false);
+                        await _packetProcessor.ProcessIncomingPacketAsync(receiverBucket.UsedBytes, cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
@@ -394,8 +391,7 @@ namespace SharpMTProto.Transport
 
                         using (IBytesBucket payloadBucket = await _outgoingQueue.ReceiveAsync(token).ConfigureAwait(false))
                         {
-                            int packetNumber = Interlocked.Increment(ref _packetNumber);
-                            int packetLength = _packetProcessor.WriteTcpPacket(packetNumber, payloadBucket.UsedBytes, senderStreamer);
+                            int packetLength = _packetProcessor.WritePacket(payloadBucket.UsedBytes, senderStreamer);
                             args.SetBuffer(bytes.Offset, packetLength);
 #if DEBUG
                                 var packetBytes = new ArraySegment<byte>(bytes.Array, bytes.Offset, packetLength);

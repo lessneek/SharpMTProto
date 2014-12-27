@@ -40,14 +40,6 @@ namespace SharpMTProto.Transport
         IObservable<ClientTransportState> StateChanges { get; }
         Task<TransportConnectResult> ConnectAsync();
         Task DisconnectAsync();
-        Task SendAsync(IBytesBucket payload, CancellationToken token);
-    }
-
-    public static class ClientTransportExtensions
-    {
-        public static Task SendAsync(this IClientTransport clientTransport, IBytesBucket payload)
-        {
-            return clientTransport.SendAsync(payload, CancellationToken.None);
-        }
+        Task SendAsync(IBytesBucket payload, CancellationToken cancellationToken = default (CancellationToken));
     }
 }

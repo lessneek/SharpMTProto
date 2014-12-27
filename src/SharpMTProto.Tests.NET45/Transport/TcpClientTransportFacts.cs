@@ -20,7 +20,6 @@ namespace SharpMTProto.Tests.Transport
     using NUnit.Framework;
     using SharpMTProto.Dataflows;
     using SharpMTProto.Transport;
-    using SharpMTProto.Transport.Packets;
     using Utils;
 
     [TestFixture]
@@ -121,7 +120,7 @@ namespace SharpMTProto.Tests.Transport
         public async Task Should_receive()
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
-            ITcpTransportPacketProcessor packetProcessor = CreatePacketProcessor();
+            ITransportPacketProcessor packetProcessor = CreatePacketProcessor();
 
             Task<IBytesBucket> receiveTask = clientTransport.FirstAsync().Timeout(TimeSpan.FromMilliseconds(ReceiveTimeout)).ToTask();
 
@@ -129,7 +128,7 @@ namespace SharpMTProto.Tests.Transport
             Socket clientSocket = _serverSocket.Accept();
 
             var payload = new ArraySegment<byte>("010203040506070809".HexToBytes());
-            byte[] packetBytes = packetProcessor.WriteTcpPacket(0x0FA0B1C2, payload);
+            byte[] packetBytes = packetProcessor.WritePacket(payload);
             clientSocket.Send(packetBytes);
 
             using (IBytesBucket receivedDataBucket = await receiveTask)
@@ -145,7 +144,7 @@ namespace SharpMTProto.Tests.Transport
         public async Task Should_receive_big_payload()
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
-            ITcpTransportPacketProcessor packetProcessor = CreatePacketProcessor();
+            ITransportPacketProcessor packetProcessor = CreatePacketProcessor();
 
             Task<IBytesBucket> receiveTask = clientTransport.FirstAsync().Timeout(TimeSpan.FromMilliseconds(ReceiveTimeout)).ToTask();
 
@@ -154,7 +153,7 @@ namespace SharpMTProto.Tests.Transport
 
             var payload = new ArraySegment<byte>(Enumerable.Range(0, 255).Select(i => (byte) i).ToArray());
 
-            byte[] packetBytes = packetProcessor.WriteTcpPacket(0x0FA0B1C2, payload);
+            byte[] packetBytes = packetProcessor.WritePacket(payload);
 
             clientSocket.Send(packetBytes);
 
@@ -171,7 +170,7 @@ namespace SharpMTProto.Tests.Transport
         public async Task Should_receive_multiple_packets()
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
-            ITcpTransportPacketProcessor packetProcessor = CreatePacketProcessor();
+            ITransportPacketProcessor packetProcessor = CreatePacketProcessor();
 
             var receivedMessages = new AsyncProducerConsumerQueue<IBytesBucket>();
             clientTransport.Subscribe(receivedMessages.Enqueue);
@@ -180,13 +179,13 @@ namespace SharpMTProto.Tests.Transport
             Socket clientSocket = _serverSocket.Accept();
 
             byte[] payload1 = Enumerable.Range(0, 10).Select(i => (byte) i).ToArray();
-            byte[] packet1Bytes = packetProcessor.WriteTcpPacket(0, payload1);
+            byte[] packet1Bytes = packetProcessor.WritePacket(payload1);
 
             byte[] payload2 = Enumerable.Range(11, 40).Select(i => (byte) i).ToArray();
-            byte[] packet2Bytes = packetProcessor.WriteTcpPacket(1, payload2);
+            byte[] packet2Bytes = packetProcessor.WritePacket(payload2);
 
             byte[] payload3 = Enumerable.Range(51, 205).Select(i => (byte) i).ToArray();
-            byte[] packet3Bytes = packetProcessor.WriteTcpPacket(2, payload3);
+            byte[] packet3Bytes = packetProcessor.WritePacket(payload3);
 
             byte[] allData = ArrayUtils.Combine(packet1Bytes, packet2Bytes, packet3Bytes);
 
@@ -223,7 +222,7 @@ namespace SharpMTProto.Tests.Transport
         public async Task Should_receive_small_parts_less_than_4_bytes()
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
-            ITcpTransportPacketProcessor packetProcessor = CreatePacketProcessor();
+            ITransportPacketProcessor packetProcessor = CreatePacketProcessor();
 
             Task<IBytesBucket> receiveTask = clientTransport.FirstAsync().Timeout(TimeSpan.FromMilliseconds(ReceiveTimeout)).ToTask();
 
@@ -232,7 +231,7 @@ namespace SharpMTProto.Tests.Transport
 
             byte[] payload = "010203040506070809".HexToBytes();
 
-            byte[] packet = packetProcessor.WriteTcpPacket(0x0ABBCCDD, payload);
+            byte[] packet = packetProcessor.WritePacket(payload);
             byte[] part1 = packet.Take(1).ToArray();
             byte[] part2 = packet.Skip(part1.Length).Take(2).ToArray();
             byte[] part3 = packet.Skip(part1.Length + part2.Length).Take(3).ToArray();
@@ -260,9 +259,9 @@ namespace SharpMTProto.Tests.Transport
         public async Task Should_send()
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
-            ITcpTransportPacketProcessor packetProcessor = CreatePacketProcessor();
+            ITransportPacketProcessor packetProcessor = CreatePacketProcessor();
             var receivedPayloads = new List<IBytesBucket>();
-            packetProcessor.Subscribe(bucket => receivedPayloads.Add(bucket));
+            packetProcessor.IncomingMessageBuckets.Subscribe(bucket => receivedPayloads.Add(bucket));
 
             await clientTransport.ConnectAsync();
 
@@ -279,7 +278,7 @@ namespace SharpMTProto.Tests.Transport
             var receiverBuffer = new byte[100];
             int received = clientSocket.Receive(receiverBuffer);
 
-            await packetProcessor.ProcessPacketAsync(new ArraySegment<byte>(receiverBuffer, 0, received));
+            await packetProcessor.ProcessIncomingPacketAsync(new ArraySegment<byte>(receiverBuffer, 0, received));
             receivedPayloads.Should().HaveCount(1);
             IBytesBucket receivedPayloadBucket = receivedPayloads.First();
             ArraySegment<byte> receivedPayload = receivedPayloadBucket.UsedBytes;
@@ -301,13 +300,13 @@ namespace SharpMTProto.Tests.Transport
         private TcpClientTransport CreateTcpTransport(TcpClientTransportConfig config = null)
         {
             config = config ?? new TcpClientTransportConfig(_serverEndPoint.Address.ToString(), _serverEndPoint.Port) {MaxBufferSize = 0xFF};
-            var transport = new TcpClientTransport(config, new TcpFullTransportPacketProcessor(_bytesOcean), _bytesOcean);
+            var transport = new TcpClientTransport(config, new TcpTransportFullPacketProcessor(_bytesOcean), _bytesOcean);
             return transport;
         }
 
-        private static ITcpTransportPacketProcessor CreatePacketProcessor()
+        private static ITransportPacketProcessor CreatePacketProcessor()
         {
-            return new TcpFullTransportPacketProcessor(BytesOcean.WithBuckets(4, 1024).Build());
+            return new TcpTransportFullPacketProcessor(BytesOcean.WithBuckets(4, 1024).Build());
         }
 
         #endregion

@@ -130,7 +130,7 @@
     <Compile Include="SetUp\SharpMTProtoTestBase.cs" />
     <Compile Include="SetUp\TestFixtureBase.cs" />
     <Compile Include="SetUp\TestLifetime.cs" />
-    <Compile Include="Transport\Packets\TcpFullTransportPacketProcessorFacts.cs" />
+    <Compile Include="Transport\TcpTransportFullPacketProcessorFacts.cs" />
     <Compile Include="Transport\TcpClientTransportFacts.cs" />
     <Compile Include="TestData.cs" />
     <Compile Include="TestObjects\TestSchema.cs" />

@@ -62,10 +62,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportFactory.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Transport\Packets\ITcpTransportPacketProcessor.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Transport\Packets\TcpFullTransportPacketProcessor.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Transport\Packets\TcpTransportPacketProcessorExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\ITransportPacketProcessor.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpClientTransportConfig.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\TcpTransportFullPacketProcessor.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\TransportPacketProcessorBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Transport\TransportPacketProcessorExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\Cancelable.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\LogManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />

@@ -12,7 +12,6 @@ namespace SharpMTProto
     using Services;
     using SharpTL;
     using Transport;
-    using Transport.Packets;
 
     public partial class MTProtoClientBuilder
     {
@@ -20,7 +19,7 @@ namespace SharpMTProto
         private static MTProtoClientBuilder CreateDefault()
         {
             var clientTransportFactory =
-                new ClientTransportFactory(config => new TcpClientTransport(config, new TcpFullTransportPacketProcessor()));
+                new ClientTransportFactory(config => new TcpClientTransport(config, new TcpTransportFullPacketProcessor()));
             var tlRig = new TLRig();
             var messageIdGenerator = new MessageIdGenerator();
             var hashServices = new HashServices();
