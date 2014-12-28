@@ -54,7 +54,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.PCL.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\HashServices.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\IEncryptionServices.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Services\IHashServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\IHashService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\MessageIdGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\NonceGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\RandomGenerator.cs" />

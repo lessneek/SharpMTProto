@@ -35,7 +35,7 @@ namespace SharpMTProto
         private readonly IAuthKeysProvider _authKeysProvider;
         private readonly IClientTransportFactory _clientTransportFactory;
         private readonly IEncryptionServices _encryptionServices;
-        private readonly IHashServices _hashServices;
+        private readonly IHashService _hashService;
         private readonly IKeyChain _keyChain;
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
@@ -46,7 +46,7 @@ namespace SharpMTProto
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec,
-            [NotNull] IHashServices hashServices,
+            [NotNull] IHashService hashService,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] INonceGenerator nonceGenerator,
             [NotNull] IKeyChain keyChain,
@@ -56,7 +56,7 @@ namespace SharpMTProto
             _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
-            _hashServices = hashServices;
+            _hashService = hashService;
             _encryptionServices = encryptionServices;
             _nonceGenerator = nonceGenerator;
             _keyChain = keyChain;
@@ -78,7 +78,7 @@ namespace SharpMTProto
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)
         {
-            return new AuthKeyNegotiator(clientTransportConfig, this, _tlRig, _nonceGenerator, _hashServices, _encryptionServices, _keyChain);
+            return new AuthKeyNegotiator(clientTransportConfig, this, _tlRig, _nonceGenerator, _hashService, _encryptionServices, _keyChain);
         }
 
         [NotNull]

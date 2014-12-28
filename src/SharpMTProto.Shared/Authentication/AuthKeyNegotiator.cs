@@ -52,7 +52,7 @@ namespace SharpMTProto.Authentication
         private readonly IClientTransportConfig _clientTransportConfig;
         private readonly IMTProtoClientBuilder _mtProtoBuilder;
         private readonly IEncryptionServices _encryptionServices;
-        private readonly IHashServices _hashServices;
+        private readonly IHashService _hashService;
         private readonly IKeyChain _keyChain;
         private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
@@ -62,7 +62,7 @@ namespace SharpMTProto.Authentication
             [NotNull] IMTProtoClientBuilder mtProtoBuilder,
             [NotNull] TLRig tlRig,
             [NotNull] INonceGenerator nonceGenerator,
-            [NotNull] IHashServices hashServices,
+            [NotNull] IHashService hashService,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] IKeyChain keyChain)
         {
@@ -74,8 +74,8 @@ namespace SharpMTProto.Authentication
                 throw new ArgumentNullException("tlRig");
             if (nonceGenerator == null)
                 throw new ArgumentNullException("nonceGenerator");
-            if (hashServices == null)
-                throw new ArgumentNullException("hashServices");
+            if (hashService == null)
+                throw new ArgumentNullException("hashService");
             if (encryptionServices == null)
                 throw new ArgumentNullException("encryptionServices");
             if (keyChain == null)
@@ -85,7 +85,7 @@ namespace SharpMTProto.Authentication
             _mtProtoBuilder = mtProtoBuilder;
             _tlRig = tlRig;
             _nonceGenerator = nonceGenerator;
-            _hashServices = hashServices;
+            _hashService = hashService;
             _encryptionServices = encryptionServices;
             _keyChain = keyChain;
         }
@@ -305,7 +305,7 @@ namespace SharpMTProto.Authentication
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private byte[] ComputeSHA1(byte[] data)
         {
-            return _hashServices.ComputeSHA1(data);
+            return _hashService.ComputeSHA1(data);
         }
 
         private UInt64 ComputeInitialSalt(byte[] newNonceBytes, byte[] serverNonceBytes)

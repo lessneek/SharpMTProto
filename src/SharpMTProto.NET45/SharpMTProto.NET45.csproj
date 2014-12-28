@@ -100,7 +100,7 @@
   <ItemGroup>
     <Compile Include="MTProtoClientBuilder.cs" />
     <Compile Include="Services\EncryptionServices.cs" />
-    <Compile Include="Services\HashServices.cs" />
+    <Compile Include="Services\HashService.cs" />
     <Compile Include="Transport\TcpClientTransport.cs" />
     <Compile Include="Transport\ClientTransportFactory.cs" />
     <Compile Include="Utils\SocketAwaitable.cs" />

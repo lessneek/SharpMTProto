@@ -12,7 +12,7 @@ using Raksha.Crypto.Digests;
 
 namespace SharpMTProto.Services
 {
-    public class HashServices : IHashServices
+    public class HashService : IHashService
     {
         public byte[] ComputeSHA1(byte[] data)
         {

@@ -22,7 +22,7 @@ namespace SharpMTProto
                 new ClientTransportFactory(config => new TcpClientTransport(config, new TcpTransportFullPacketProcessor()));
             var tlRig = new TLRig();
             var messageIdGenerator = new MessageIdGenerator();
-            var hashServices = new HashServices();
+            var hashServices = new HashService();
             var encryptionServices = new EncryptionServices();
             var randomGenerator = new RandomGenerator();
             var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);

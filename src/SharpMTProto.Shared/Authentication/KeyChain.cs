@@ -35,19 +35,19 @@ namespace SharpMTProto.Authentication
     /// </summary>
     public class KeyChain : IKeyChain
     {
-        private readonly IHashServices _hashServices;
+        private readonly IHashService _hashService;
         private readonly Dictionary<ulong, PublicKey> _keys = new Dictionary<ulong, PublicKey>();
         private readonly TLRig _tlRig;
 
-        public KeyChain([NotNull] TLRig tlRig, [NotNull] IHashServices hashServices)
+        public KeyChain([NotNull] TLRig tlRig, [NotNull] IHashService hashService)
         {
             if (tlRig == null)
                 throw new ArgumentNullException("tlRig");
-            if (hashServices == null)
-                throw new ArgumentNullException("hashServices");
+            if (hashService == null)
+                throw new ArgumentNullException("hashService");
 
             _tlRig = tlRig;
-            _hashServices = hashServices;
+            _hashService = hashService;
         }
 
         public PublicKey this[ulong keyFingerprint]
@@ -140,7 +140,7 @@ namespace SharpMTProto.Authentication
         /// <returns>Returns fingerprint as lower 64 bits of the SHA1(RSAPublicKey).</returns>
         public ulong ComputeFingerprint(byte[] keyData)
         {
-            byte[] hash = _hashServices.ComputeSHA1(keyData);
+            byte[] hash = _hashService.ComputeSHA1(keyData);
             return hash.ToUInt64(hash.Length - 8);
         }
     }

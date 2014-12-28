@@ -1,5 +1,5 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="HashServices.cs">
+// <copyright file="HashService.cs">
 //   Copyright (c) 2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -10,7 +10,7 @@ using System.Security.Cryptography;
 
 namespace SharpMTProto.Services
 {
-    public class HashServices : IHashServices
+    public class HashService : IHashService
     {
         public byte[] ComputeSHA1(byte[] data)
         {

@@ -19,7 +19,7 @@ namespace SharpMTProto.Tests.SetUp
         {
             builder.RegisterType<TLRig>().SingleInstance();
             builder.RegisterType<TestMessageIdsGenerator>().As<IMessageIdGenerator>().SingleInstance();
-            builder.RegisterType<HashServices>().As<IHashServices>().SingleInstance();
+            builder.RegisterType<HashService>().As<IHashService>().SingleInstance();
             builder.RegisterType<EncryptionServices>().As<IEncryptionServices>().SingleInstance();
             builder.RegisterType<RandomGenerator>().As<IRandomGenerator>().SingleInstance();
             builder.RegisterType<MessageCodec>().As<IMessageCodec>().SingleInstance();
