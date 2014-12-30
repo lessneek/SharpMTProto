@@ -22,11 +22,11 @@ namespace SharpMTProto
                 new ClientTransportFactory(config => new TcpClientTransport(config, new TcpTransportFullPacketProcessor()));
             var tlRig = new TLRig();
             var messageIdGenerator = new MessageIdGenerator();
-            var hashServices = new HashService();
+            var hashServiceProvider = new SystemHashServiceProvider();
             var encryptionServices = new EncryptionServices();
             var randomGenerator = new RandomGenerator();
-            var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);
-            var keyChain = new KeyChain(tlRig, hashServices);
+            var messageCodec = new MessageCodec(tlRig, hashServiceProvider, encryptionServices, randomGenerator);
+            var keyChain = new KeyChain(tlRig, hashServiceProvider);
             var nonceGenerator = new NonceGenerator();
             var authKeysProvider = new AuthKeysProvider(messageCodec);
 
@@ -34,7 +34,7 @@ namespace SharpMTProto
                 tlRig,
                 messageIdGenerator,
                 messageCodec,
-                hashServices,
+                hashServiceProvider,
                 encryptionServices,
                 nonceGenerator,
                 keyChain,

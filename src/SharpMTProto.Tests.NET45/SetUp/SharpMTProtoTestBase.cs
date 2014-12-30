@@ -1,3 +1,7 @@
+//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
+
 namespace SharpMTProto.Tests.SetUp
 {
     using Autofac;
@@ -19,13 +23,13 @@ namespace SharpMTProto.Tests.SetUp
         {
             builder.RegisterType<TLRig>().SingleInstance();
             builder.RegisterType<TestMessageIdsGenerator>().As<IMessageIdGenerator>().SingleInstance();
-            builder.RegisterType<HashService>().As<IHashService>().SingleInstance();
             builder.RegisterType<EncryptionServices>().As<IEncryptionServices>().SingleInstance();
             builder.RegisterType<RandomGenerator>().As<IRandomGenerator>().SingleInstance();
             builder.RegisterType<MessageCodec>().As<IMessageCodec>().SingleInstance();
             builder.RegisterType<NonceGenerator>().As<INonceGenerator>().SingleInstance();
             builder.RegisterType<KeyChain>().As<IKeyChain>().SingleInstance();
             builder.RegisterType<AuthKeysProvider>().As<IAuthKeysProvider>().SingleInstance();
+            builder.RegisterType<SystemHashServiceProvider>().As<IHashServiceProvider>().SingleInstance();
 
             builder.RegisterInstance(
                 Mock.Of<IClientTransportFactory>(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IClientTransport>()));

@@ -9,11 +9,22 @@ using System.IO;
 
 namespace SharpMTProto.Services
 {
+    public enum HashServiceTag
+    {
+        SHA1,
+        MD5
+    }
+
+    public interface IHashServiceProvider
+    {
+        IHashService Create(HashServiceTag tag);
+    }
+
     public interface IHashService
     {
-        byte[] ComputeSHA1(byte[] data);
-        byte[] ComputeSHA1(byte[] data, int offset, int count);
-        byte[] ComputeSHA1(ArraySegment<byte> data);
-        byte[] ComputeSHA1(Stream stream);
+        byte[] Hash(byte[] data);
+        byte[] Hash(byte[] data, int offset, int count);
+        byte[] Hash(ArraySegment<byte> data);
+        byte[] Hash(Stream stream);
     }
 }

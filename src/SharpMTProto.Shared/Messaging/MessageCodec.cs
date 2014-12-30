@@ -250,26 +250,26 @@ namespace SharpMTProto.Messaging
         ///     Initializes a new instance of the <see cref="MessageCodec" /> class.
         /// </summary>
         /// <exception cref="System.ArgumentNullException">The <paramref name="tlRig" /> is <c>null</c>.</exception>
-        /// <exception cref="System.ArgumentNullException">The <paramref name="hashService" /> is <c>null</c>.</exception>
+        /// <exception cref="System.ArgumentNullException">The <paramref name="hashServiceProvider" /> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException">The <paramref name="encryptionServices" /> is <c>null</c>.</exception>
         /// <exception cref="System.ArgumentNullException">The <paramref name="randomGenerator" /> is <c>null</c>.</exception>
         public MessageCodec([NotNull] TLRig tlRig,
-            [NotNull] IHashService hashService,
+            [NotNull] IHashServiceProvider hashServiceProvider,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] IRandomGenerator randomGenerator,
             IBytesOcean bytesOcean = null)
         {
             if (tlRig == null)
                 throw new ArgumentNullException("tlRig");
-            if (hashService == null)
-                throw new ArgumentNullException("hashService");
+            if (hashServiceProvider == null)
+                throw new ArgumentNullException("hashServiceProvider");
             if (encryptionServices == null)
                 throw new ArgumentNullException("encryptionServices");
             if (randomGenerator == null)
                 throw new ArgumentNullException("randomGenerator");
 
             _tlRig = tlRig;
-            _hashService = hashService;
+            _sha1 = hashServiceProvider.Create(HashServiceTag.SHA1);
             _encryptionServices = encryptionServices;
             _randomGenerator = randomGenerator;
 
@@ -314,7 +314,7 @@ namespace SharpMTProto.Messaging
         private readonly byte[] _alignmentBuffer = new byte[Alignment];
         private readonly IBytesOcean _bytesOcean;
         private readonly IEncryptionServices _encryptionServices;
-        private readonly IHashService _hashService;
+        private readonly IHashService _sha1;
         private readonly IRandomGenerator _randomGenerator;
         private readonly TLRig _tlRig;
 
@@ -620,13 +620,13 @@ namespace SharpMTProto.Messaging
 
         public ulong ComputeAuthKeyId(byte[] authKey)
         {
-            byte[] authKeySHA1 = _hashService.ComputeSHA1(authKey);
+            byte[] authKeySHA1 = _sha1.Hash(authKey);
             return authKeySHA1.ToUInt64(authKeySHA1.Length - 8, true);
         }
 
         private Int128 ComputeMsgKey(ArraySegment<byte> bytes)
         {
-            byte[] innerDataSHA1 = _hashService.ComputeSHA1(bytes);
+            byte[] innerDataSHA1 = _sha1.Hash(bytes);
             return innerDataSHA1.ToInt128(innerDataSHA1.Length - 16, true);
         }
 
@@ -653,23 +653,23 @@ namespace SharpMTProto.Messaging
             // sha1_a = SHA1 (msg_key + substr (auth_key, x, 32));
             Buffer.BlockCopy(msgKeyBytes, 0, buffer, 0, MsgKeyLength);
             Buffer.BlockCopy(authKey, x, buffer, MsgKeyLength, 32);
-            byte[] sha1A = _hashService.ComputeSHA1(buffer);
+            byte[] sha1A = _sha1.Hash(buffer);
 
             // sha1_b = SHA1 (substr (auth_key, 32+x, 16) + msg_key + substr (auth_key, 48+x, 16));
             Buffer.BlockCopy(authKey, 32 + x, buffer, 0, 16);
             Buffer.BlockCopy(msgKeyBytes, 0, buffer, 16, MsgKeyLength);
             Buffer.BlockCopy(authKey, 48 + x, buffer, 16 + MsgKeyLength, 16);
-            byte[] sha1B = _hashService.ComputeSHA1(buffer);
+            byte[] sha1B = _sha1.Hash(buffer);
 
             // sha1_с = SHA1 (substr (auth_key, 64+x, 32) + msg_key);
             Buffer.BlockCopy(authKey, 64 + x, buffer, 0, 32);
             Buffer.BlockCopy(msgKeyBytes, 0, buffer, 32, MsgKeyLength);
-            byte[] sha1C = _hashService.ComputeSHA1(buffer);
+            byte[] sha1C = _sha1.Hash(buffer);
 
             // sha1_d = SHA1 (msg_key + substr (auth_key, 96+x, 32));
             Buffer.BlockCopy(msgKeyBytes, 0, buffer, 0, MsgKeyLength);
             Buffer.BlockCopy(authKey, 96 + x, buffer, MsgKeyLength, 32);
-            byte[] sha1D = _hashService.ComputeSHA1(buffer);
+            byte[] sha1D = _sha1.Hash(buffer);
 
             // aes_key = substr (sha1_a, 0, 8) + substr (sha1_b, 8, 12) + substr (sha1_c, 4, 12);
             aesKey = new byte[32];

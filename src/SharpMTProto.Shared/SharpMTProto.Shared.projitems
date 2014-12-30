@@ -52,7 +52,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Services\AuthKeysProvider.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\EncryptionServices.PCL.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Services\HashServices.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Services\RakshaHashService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\IEncryptionServices.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\IHashService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\MessageIdGenerator.cs" />
