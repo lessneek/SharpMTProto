@@ -19,7 +19,7 @@ namespace SharpMTProto.Services
 
         public byte[] ComputeSHA1(byte[] data, int offset, int count)
         {
-            using (var sha = new SHA1CryptoServiceProvider())
+            using (var sha = SHA1.Create())
             {
                 return sha.ComputeHash(data, offset, count);
             }
@@ -32,7 +32,7 @@ namespace SharpMTProto.Services
 
         public byte[] ComputeSHA1(Stream stream)
         {
-            using (var sha = new SHA1CryptoServiceProvider())
+            using (var sha = SHA1.Create())
             {
                 return sha.ComputeHash(stream);
             }
