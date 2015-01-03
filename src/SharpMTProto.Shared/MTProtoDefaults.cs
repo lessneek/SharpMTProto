@@ -27,7 +27,7 @@ namespace SharpMTProto
             }
         }
 
-        public static IBytesOcean CreateDefaultTcpTransportBytesOcean()
+        public static IBytesOcean CreateDefaultTransportBytesOcean()
         {
             return BytesOcean.WithBuckets(10, MaximumMessageLength).WithBuckets(1000, MaximumMessageLength / 100).Build();
         }

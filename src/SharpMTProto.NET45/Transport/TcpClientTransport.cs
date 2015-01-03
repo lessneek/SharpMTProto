@@ -50,7 +50,7 @@ namespace SharpMTProto.Transport
 
             _config = config;
             _packetProcessor = packetProcessor;
-            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportBytesOcean();
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
@@ -79,7 +79,7 @@ namespace SharpMTProto.Transport
             _isConnectedSocket = true;
             _socket = socket;
             _packetProcessor = packetProcessor;
-            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTcpTransportBytesOcean();
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
 
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
             if (_remoteEndPoint == null)
