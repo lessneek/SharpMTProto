@@ -171,7 +171,7 @@ namespace SharpMTProto
         public void SetSessionId(ulong sessionId)
         {
             ThrowIfDisposed();
-            _messenger.SetSessionId(sessionId);
+            _messenger.CreateSession(sessionId);
         }
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)

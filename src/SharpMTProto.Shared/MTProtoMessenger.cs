@@ -52,15 +52,15 @@ namespace SharpMTProto
         /// </summary>
         /// <param name="salt">New salt.</param>
         void UpdateSalt(ulong salt);
-        
+
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
         Task SendAsync(object messageBody, MessageSendingFlags flags);
         Task SendAsync(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken);
         Task SendAsync(IMessage message, MessageSendingFlags flags);
         Task SendAsync(IMessage message, MessageSendingFlags flags, CancellationToken cancellationToken);
         Message CreateMessage(object body, bool isContentRelated);
-        void SetRandomSessionId();
-        void SetSessionId(ulong sessionId);
+        void CreateNewSession();
+        void CreateSession(ulong sessionId);
     }
 
     /// <summary>
@@ -140,15 +140,15 @@ namespace SharpMTProto
         {
             _authInfo = authInfo;
 
-            SetRandomSessionId();
+            CreateNewSession();
         }
 
-        public void SetRandomSessionId()
+        public void CreateNewSession()
         {
-            SetSessionId(GetNextSessionId());
+            CreateSession(GetNewSessionId());
         }
 
-        public void SetSessionId(ulong sessionId)
+        public void CreateSession(ulong sessionId)
         {
             ThrowIfEncryptionIsNotSupported("Session available only when encryption is supported.");
             _session = new Session(sessionId, _messageCodec.ComputeAuthKeyId(_authInfo.AuthKey));
@@ -224,7 +224,7 @@ namespace SharpMTProto
             return result;
         }
 
-        private static ulong GetNextSessionId()
+        private static ulong GetNewSessionId()
         {
             return ((ulong) Rnd.Next() << 32) + (ulong) Rnd.Next();
         }
@@ -341,10 +341,10 @@ namespace SharpMTProto
 
                         if (IsServerMode)
                         {
-                            if (!HasSession)
+                            if (!_session.HasValue)
                             {
                                 // If there is no client session on a server, then create it.
-                                SetSessionId(messageEnvelope.SessionId);
+                                CreateSession(messageEnvelope.SessionId);
                             }
                         }
                         else // Client mode.
