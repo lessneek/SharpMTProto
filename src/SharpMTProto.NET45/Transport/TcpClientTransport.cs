@@ -120,6 +120,11 @@ namespace SharpMTProto.Transport
         public TimeSpan ConnectTimeout { get; set; }
         public TimeSpan SendingTimeout { get; set; }
 
+        public IPEndPoint RemoteEndPoint
+        {
+            get { return _remoteEndPoint; }
+        }
+
         public Task<TransportConnectResult> ConnectAsync()
         {
             ThrowIfConnectedSocket();
