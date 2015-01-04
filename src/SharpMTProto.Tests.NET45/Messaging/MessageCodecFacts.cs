@@ -70,9 +70,34 @@ namespace SharpMTProto.Tests.Messaging
         [TestCase(MessengerMode.Server)]
         public void Should_encode_encrypted_message(MessengerMode messengerMode)
         {
+            byte[] expectedMessageBytes = GetExpectedTestMessageBytes(messengerMode);
+
             var messageCodec = Resolve<IMessageCodec>();
-            var messageEnvelope = new MessageEnvelope(TestMessage, 0x999UL, 0x777UL);
+
+            ulong authKeyId = messageCodec.ComputeAuthKeyId(AuthKey);
+            var messageEnvelope = new MessageEnvelope(authKeyId, 0x777UL, 0x999UL, TestMessage);
+
             byte[] encryptedMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, AuthKey, messengerMode);
+
+            encryptedMessageBytes.Should().Equal(expectedMessageBytes);
+        }
+
+        [TestCase(MessengerMode.Client)]
+        [TestCase(MessengerMode.Server)]
+        public async Task Should_decode_encrypted_message(MessengerMode messengerMode)
+        {
+            byte[] expectedMessageBytes = GetExpectedTestMessageBytes(messengerMode);
+
+            var messageCodec = Resolve<IMessageCodec>();
+            ulong authKeyId = messageCodec.ComputeAuthKeyId(AuthKey);
+            var expectedMessageEnvelope = new MessageEnvelope(authKeyId, 0x777UL, 0x999UL, TestMessage);
+
+            MessageEnvelope messageEnvelope = await messageCodec.DecodeEncryptedMessageAsync(expectedMessageBytes, AuthKey, messengerMode);
+            messageEnvelope.Should().Be(expectedMessageEnvelope);
+        }
+
+        private static byte[] GetExpectedTestMessageBytes(MessengerMode messengerMode)
+        {
             byte[] expectedMessageBytes;
             switch (messengerMode)
             {
@@ -85,31 +110,7 @@ namespace SharpMTProto.Tests.Messaging
                 default:
                     throw new ArgumentOutOfRangeException("messengerMode");
             }
-            encryptedMessageBytes.Should().Equal(expectedMessageBytes);
-        }
-
-        [TestCase(MessengerMode.Client)]
-        [TestCase(MessengerMode.Server)]
-        public async Task Should_decode_encrypted_message(MessengerMode messengerMode)
-        {
-            var messageCodec = Resolve<IMessageCodec>();
-            var expectedMessageEnvelope = new MessageEnvelope(TestMessage, 0x999UL, 0x777UL);
-
-            byte[] messageBytes;
-            switch (messengerMode)
-            {
-                case MessengerMode.Client:
-                    messageBytes = TestEncryptedClientMessageBytes;
-                    break;
-                case MessengerMode.Server:
-                    messageBytes = TestEncryptedServerMessageBytes;
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException("messengerMode");
-            }
-
-            MessageEnvelope messageEnvelope = await messageCodec.DecodeEncryptedMessageAsync(messageBytes, AuthKey, messengerMode);
-            messageEnvelope.Should().Be(expectedMessageEnvelope);
+            return expectedMessageBytes;
         }
     }
 }

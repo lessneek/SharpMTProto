@@ -420,7 +420,9 @@ namespace SharpMTProto
                 if (!_session.HasValue)
                     throw new InvalidOperationException("Unable to encode encrypted message without a session ID.");
 
-                var messageEnvelope = new MessageEnvelope(message, _authInfo.Salt, _session.Value.Id);
+                ulong authKeyId = _messageCodec.ComputeAuthKeyId(_authInfo.AuthKey);
+                var messageEnvelope = new MessageEnvelope(authKeyId, _session.Value.Id, _authInfo.Salt, message);
+
                 return _messageCodec.EncodeEncryptedMessageAsync(messageEnvelope,
                     streamer,
                     _authInfo.AuthKey,

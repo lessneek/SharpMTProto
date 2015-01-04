@@ -51,14 +51,11 @@ namespace SharpMTProto.Tests
             {
                 b.Register(context =>
                 {
-                    var messageProcessor = context.Resolve<IMessageCodec>();
+                    var messageCodec = context.Resolve<IMessageCodec>();
+                    ulong authKeyId = messageCodec.ComputeAuthKeyId(authInfo.AuthKey);
+                    var messageEnvelope = new MessageEnvelope(authKeyId, sessionId, authInfo.Salt, new Message(0x0102030405060708, 3, rpcResult));
 
-                    var messageEnvelope = new MessageEnvelope(
-                        new Message(0x0102030405060708, 3, rpcResult),
-                        authInfo.Salt,
-                        sessionId);
-
-                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
+                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
@@ -92,14 +89,14 @@ namespace SharpMTProto.Tests
             {
                 b.Register(context =>
                 {
-                    var messageProcessor = context.Resolve<IMessageCodec>();
-
-                    var messageEnvelope = new MessageEnvelope(
-                        new Message(0x0102030405060708, 3, expectedResponse),
+                    var messageCodec = context.Resolve<IMessageCodec>();
+                    ulong authKeyId = messageCodec.ComputeAuthKeyId(authInfo.AuthKey);
+                    var messageEnvelope = new MessageEnvelope(authKeyId,
+                        sessionId,
                         authInfo.Salt,
-                        sessionId);
+                        new Message(0x0102030405060708, 3, expectedResponse));
 
-                    byte[] expectedResponseMessageBytes = messageProcessor.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
+                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();

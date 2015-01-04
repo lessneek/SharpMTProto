@@ -85,100 +85,6 @@ namespace SharpMTProto.Messaging
 
         #endregion
 
-        #region Encrypted arrays.
-
-        /// <summary>
-        ///     Encode as encrypted message.
-        /// </summary>
-        /// <param name="messageEnvelope">A message envelope.</param>
-        /// <param name="authKey">
-        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
-        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
-        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
-        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
-        ///     device is lost.
-        /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        /// <returns>Serialized encrypted message.</returns>
-        byte[] EncodeEncryptedMessage(MessageEnvelope messageEnvelope, [NotNull] byte[] authKey, MessengerMode messengerMode);
-
-        /// <summary>
-        ///     Encode as encrypted message.
-        /// </summary>
-        /// <param name="messageEnvelope">A message envelope.</param>
-        /// <param name="authKey">
-        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
-        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
-        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
-        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
-        ///     device is lost.
-        /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        /// <returns>Serialized encrypted message.</returns>
-        Task<byte[]> EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, [NotNull] byte[] authKey, MessengerMode messengerMode);
-
-        /// <summary>
-        ///     Decode encrypted message.
-        /// </summary>
-        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
-        /// <param name="authKey">
-        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
-        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
-        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
-        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
-        ///     device is lost.
-        /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        /// <returns>Message envelope.</returns>
-        MessageEnvelope DecodeEncryptedMessage(byte[] messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
-
-        /// <summary>
-        ///     Decode encrypted message.
-        /// </summary>
-        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
-        /// <param name="authKey">
-        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
-        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
-        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
-        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
-        ///     device is lost.
-        /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        /// <returns>Message envelope.</returns>
-        MessageEnvelope DecodeEncryptedMessage(ArraySegment<byte> messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
-
-        /// <summary>
-        ///     Decode encrypted message.
-        /// </summary>
-        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
-        /// <param name="authKey">
-        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
-        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
-        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
-        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
-        ///     device is lost.
-        /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        /// <returns>Message envelope.</returns>
-        Task<MessageEnvelope> DecodeEncryptedMessageAsync(byte[] messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
-
-        /// <summary>
-        ///     Decode encrypted message.
-        /// </summary>
-        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
-        /// <param name="authKey">
-        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
-        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
-        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
-        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
-        ///     device is lost.
-        /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        /// <returns>Message envelope.</returns>
-        Task<MessageEnvelope> DecodeEncryptedMessageAsync(ArraySegment<byte> messageBytes, [NotNull] byte[] authKey, MessengerMode messengerMode);
-
-        #endregion
-
         #region Encrypted TL streamers.
 
         /// <summary>
@@ -406,48 +312,6 @@ namespace SharpMTProto.Messaging
 
         #endregion
 
-        #region Encrypted arrays.
-
-        public byte[] EncodeEncryptedMessage(MessageEnvelope messageEnvelope, byte[] authKey, MessengerMode messengerMode)
-        {
-            return EncodeEncryptedMessageAsync(messageEnvelope, authKey, messengerMode).Result;
-        }
-
-        public async Task<byte[]> EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, byte[] authKey, MessengerMode messengerMode)
-        {
-            using (var ms = new MemoryStream())
-            using (var streamer = new TLStreamer(ms))
-            {
-                await EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messengerMode);
-                return ms.ToArray();
-            }
-        }
-
-        public MessageEnvelope DecodeEncryptedMessage(byte[] messageBytes, byte[] authKey, MessengerMode messengerMode)
-        {
-            return DecodeEncryptedMessage(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
-        }
-
-        public MessageEnvelope DecodeEncryptedMessage(ArraySegment<byte> messageBytes, byte[] authKey, MessengerMode messengerMode)
-        {
-            return DecodeEncryptedMessageAsync(messageBytes, authKey, messengerMode).Result;
-        }
-
-        public Task<MessageEnvelope> DecodeEncryptedMessageAsync(byte[] messageBytes, byte[] authKey, MessengerMode messengerMode)
-        {
-            return DecodeEncryptedMessageAsync(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
-        }
-
-        public async Task<MessageEnvelope> DecodeEncryptedMessageAsync(ArraySegment<byte> messageBytes, byte[] authKey, MessengerMode messengerMode)
-        {
-            using (var streamer = new TLStreamer(messageBytes))
-            {
-                return await DecodeEncryptedMessageAsync(streamer, authKey, messengerMode);
-            }
-        }
-
-        #endregion
-
         #region Encrypted TL streamers.
 
         public async Task EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope,
@@ -533,7 +397,8 @@ namespace SharpMTProto.Messaging
             if (authKey == null)
                 throw new ArgumentNullException("authKey");
 
-            var messageEnvelope = new MessageEnvelope();
+            ulong salt;
+            ulong sessionId;
             ulong providedAuthKeyId = ComputeAuthKeyId(authKey);
 
             Int128 msgKey;
@@ -569,8 +434,8 @@ namespace SharpMTProto.Messaging
                 innerStreamer.Position = 0;
 
                 // Reading decrypted data.
-                messageEnvelope.Salt = innerStreamer.ReadUInt64();
-                messageEnvelope.SessionId = innerStreamer.ReadUInt64();
+                salt = innerStreamer.ReadUInt64();
+                sessionId = innerStreamer.ReadUInt64();
                 msgId = innerStreamer.ReadUInt64();
                 seqno = innerStreamer.ReadUInt32();
                 Int32 messageDataLength = innerStreamer.ReadInt32();
@@ -605,8 +470,7 @@ namespace SharpMTProto.Messaging
                 }
             }
 
-            messageEnvelope.Message = new Message(msgId, seqno, body);
-            return messageEnvelope;
+            return new MessageEnvelope(authKeyId, sessionId, salt, new Message(msgId, seqno, body));
         }
 
         #endregion
@@ -683,6 +547,153 @@ namespace SharpMTProto.Messaging
             Buffer.BlockCopy(sha1B, 0, aesIV, 12, 8);
             Buffer.BlockCopy(sha1C, 16, aesIV, 20, 4);
             Buffer.BlockCopy(sha1D, 0, aesIV, 24, 8);
+        }
+
+        #endregion
+    }
+
+    public static class MessageCodecExtensions
+    {
+        #region Encrypted arrays.
+
+        /// <summary>
+        ///     Encode as encrypted message.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageEnvelope">A message envelope.</param>
+        /// <param name="authKey">
+        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
+        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
+        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
+        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
+        ///     device is lost.
+        /// </param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <returns>Serialized encrypted message.</returns>
+        public static byte[] EncodeEncryptedMessage(this IMessageCodec codec,
+            MessageEnvelope messageEnvelope,
+            byte[] authKey,
+            MessengerMode messengerMode)
+        {
+            return codec.EncodeEncryptedMessageAsync(messageEnvelope, authKey, messengerMode).Result;
+        }
+
+        /// <summary>
+        ///     Encode as encrypted message asynchronously.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageEnvelope">A message envelope.</param>
+        /// <param name="authKey">
+        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
+        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
+        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
+        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
+        ///     device is lost.
+        /// </param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <returns>Serialized encrypted message.</returns>
+        public static async Task<byte[]> EncodeEncryptedMessageAsync(this IMessageCodec codec,
+            MessageEnvelope messageEnvelope,
+            byte[] authKey,
+            MessengerMode messengerMode)
+        {
+            using (var ms = new MemoryStream())
+            using (var streamer = new TLStreamer(ms))
+            {
+                await codec.EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messengerMode);
+                return ms.ToArray();
+            }
+        }
+
+        /// <summary>
+        ///     Decode encrypted message.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
+        /// <param name="authKey">
+        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
+        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
+        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
+        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
+        ///     device is lost.
+        /// </param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <returns>Message envelope.</returns>
+        public static MessageEnvelope DecodeEncryptedMessage(this IMessageCodec codec,
+            byte[] messageBytes,
+            byte[] authKey,
+            MessengerMode messengerMode)
+        {
+            return codec.DecodeEncryptedMessage(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
+        }
+
+        /// <summary>
+        ///     Decode encrypted message.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
+        /// <param name="authKey">
+        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
+        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
+        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
+        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
+        ///     device is lost.
+        /// </param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <returns>Message envelope.</returns>
+        public static MessageEnvelope DecodeEncryptedMessage(this IMessageCodec codec,
+            ArraySegment<byte> messageBytes,
+            byte[] authKey,
+            MessengerMode messengerMode)
+        {
+            return codec.DecodeEncryptedMessageAsync(messageBytes, authKey, messengerMode).Result;
+        }
+
+        /// <summary>
+        ///     Decode encrypted message asynchronously.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
+        /// <param name="authKey">
+        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
+        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
+        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
+        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
+        ///     device is lost.
+        /// </param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <returns>Message envelope.</returns>
+        public static Task<MessageEnvelope> DecodeEncryptedMessageAsync(this IMessageCodec codec,
+            byte[] messageBytes,
+            byte[] authKey,
+            MessengerMode messengerMode)
+        {
+            return codec.DecodeEncryptedMessageAsync(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
+        }
+
+        /// <summary>
+        ///     Decode encrypted message asynchronously.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageBytes">Whole message bytes, which contain encrypted data.</param>
+        /// <param name="authKey">
+        ///     Authorization Key a 2048-bit key shared by the client device and the server, created upon user
+        ///     registration directly on the client device be exchanging Diffie-Hellman keys, and never transmitted over a network.
+        ///     Each authorization key is user-specific. There is nothing that prevents a user from having several keys (that
+        ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
+        ///     device is lost.
+        /// </param>
+        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <returns>Message envelope.</returns>
+        public static async Task<MessageEnvelope> DecodeEncryptedMessageAsync(this IMessageCodec codec,
+            ArraySegment<byte> messageBytes,
+            byte[] authKey,
+            MessengerMode messengerMode)
+        {
+            using (var streamer = new TLStreamer(messageBytes))
+            {
+                return await codec.DecodeEncryptedMessageAsync(streamer, authKey, messengerMode);
+            }
         }
 
         #endregion
