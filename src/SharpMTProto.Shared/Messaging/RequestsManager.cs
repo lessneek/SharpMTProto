@@ -16,8 +16,8 @@ namespace SharpMTProto.Messaging
         void Add(IRequest request);
         IRequest Get(ulong messageId);
         IRequest GetFirstOrDefaultWithUnsetResponse(object response, bool includeRpc = false);
-        void Change(ulong newMessageId, ulong oldMessageId);
-        void Remove(ulong messageId);
+        bool Change(ulong newMessageId, ulong oldMessageId);
+        bool Remove(ulong messageId);
     }
 
     public class RequestsManager : Cancelable, IRequestsManager
@@ -29,17 +29,21 @@ namespace SharpMTProto.Messaging
             ThrowIfDisposed();
             lock (_requests)
             {
-                _requests.Add(request.Message.MsgId, request);
+                _requests.Add(request.MessageEnvelope.Message.MsgId, request);
             }
         }
 
-        public void Change(ulong newMessageId, ulong oldMessageId)
+        public bool Change(ulong newMessageId, ulong oldMessageId)
         {
             ThrowIfDisposed();
             lock (_requests)
             {
+                if (!_requests.ContainsKey(oldMessageId))
+                    return false;
+
                 _requests.Add(newMessageId, _requests[oldMessageId]);
                 _requests.Remove(oldMessageId);
+                return true;
             }
         }
 
@@ -64,11 +68,11 @@ namespace SharpMTProto.Messaging
             }
         }
 
-        public void Remove(ulong messageId)
+        public bool Remove(ulong messageId)
         {
             lock (_requests)
             {
-                _requests.Remove(messageId);
+                return _requests.Remove(messageId);
             }
         }
 
@@ -76,10 +80,13 @@ namespace SharpMTProto.Messaging
         {
             if (disposing)
             {
-                if (_requests != null)
+                lock (_requests)
                 {
-                    _requests.Clear();
-                    _requests = null;
+                    if (_requests != null)
+                    {
+                        _requests.Clear();
+                        _requests = null;
+                    }
                 }
             }
             base.Dispose(disposing);

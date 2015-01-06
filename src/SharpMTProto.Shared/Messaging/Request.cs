@@ -8,13 +8,16 @@ namespace SharpMTProto.Messaging
 {
     using System;
     using System.Reflection;
+    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
     using Schema;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Utils;
 
     public interface IRequest
     {
-        IMessage Message { get; }
+        IMessageEnvelope MessageEnvelope { get; }
         MessageSendingFlags Flags { get; }
         bool IsAcknowledged { get; }
 
@@ -35,7 +38,7 @@ namespace SharpMTProto.Messaging
         void SetResponse(object response);
 
         bool CanSetResponse(Type responseType);
-        Task SendAsync();
+        IMessageEnvelope Send();
         void SetException(Exception ex);
         Type ResponseType { get; }
         bool IsRpc { get; }
@@ -44,25 +47,37 @@ namespace SharpMTProto.Messaging
     public class Request<TResponse> : IRequest
     {
         private static readonly Type ResponseTypeInternal = typeof (TResponse);
-        private readonly CancellationToken _cancellationToken;
-        private readonly Func<IRequest, CancellationToken, Task> _sendAsync;
+        private readonly Func<object, IMessageEnvelope> _send;
         private readonly TaskCompletionSource<TResponse> _taskCompletionSource = new TaskCompletionSource<TResponse>();
+        private readonly object _messageBody;
+        private IMessageEnvelope _messageEnvelope;
+        private IRequestsManager _requestsManager;
 
-        public Request(IMessage message,
+        public Request([NotNull] object messageBody,
             MessageSendingFlags flags,
-            Func<IRequest, CancellationToken, Task> sendAsync,
+            [NotNull] Func<object, IMessageEnvelope> send,
+            [NotNull] IRequestsManager requestsManager,
             CancellationToken cancellationToken)
         {
-            _sendAsync = sendAsync;
-            _cancellationToken = cancellationToken;
-            Message = message;
+            if (messageBody == null)
+                throw new ArgumentNullException("messageBody");
+            if (send == null)
+                throw new ArgumentNullException("send");
+            if (requestsManager == null)
+                throw new ArgumentNullException("requestsManager");
+            _messageBody = messageBody;
+            _send = send;
+            _requestsManager = requestsManager;
             Flags = flags;
             cancellationToken.Register(() => _taskCompletionSource.TrySetCanceled());
         }
 
         public DateTime? ResponseTime { get; private set; }
 
-        public IMessage Message { get; private set; }
+        public IMessageEnvelope MessageEnvelope
+        {
+            get { return _messageEnvelope; }
+        }
 
         public MessageSendingFlags Flags { get; private set; }
 
@@ -106,9 +121,22 @@ namespace SharpMTProto.Messaging
             return !IsResponseReceived && ResponseTypeInternal.GetTypeInfo().IsAssignableFrom(responseType.GetTypeInfo());
         }
 
-        public Task SendAsync()
+        public IMessageEnvelope Send()
         {
-            return _sendAsync(this, _cancellationToken);
+            var oldMessageEnvelope = _messageEnvelope;
+            var newMessageEnvelope = _send(_messageBody);
+            _messageEnvelope = newMessageEnvelope;
+            if (oldMessageEnvelope != null)
+            {
+                // Resending.
+                _requestsManager.Change(newMessageEnvelope.Message.MsgId, oldMessageEnvelope.Message.MsgId);
+            }
+            else
+            {
+                _requestsManager.Add(this);
+            }
+
+            return _messageEnvelope;
         }
 
         public void SetException(Exception ex)

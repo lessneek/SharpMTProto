@@ -40,11 +40,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageSerializer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Request.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\RequestsManager.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessengerMode.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodecMode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientConnection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoMessenger.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Schema\MessageEnvelope.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.Ex.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Schema\SharpMTProto.Schema.MethodsImpl.cs" />
@@ -58,7 +59,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Services\MessageIdGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\NonceGenerator.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Services\RandomGenerator.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Session.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MTProtoSession.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransport.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Transport\IClientTransportFactory.cs" />

@@ -4,15 +4,15 @@
 
 namespace SharpMTProto
 {
-    public class AuthKeyWithId
+    public struct AuthKeyWithId
     {
-        public AuthKeyWithId(ulong id, byte[] value)
+        public AuthKeyWithId(ulong authKeyId, byte[] authKey) : this()
         {
-            Id = id;
-            Value = value;
+            AuthKeyId = authKeyId;
+            AuthKey = authKey;
         }
 
-        public ulong Id { get; private set; }
-        public byte[] Value { get; private set; }
+        public ulong AuthKeyId { get; private set; }
+        public byte[] AuthKey { get; private set; }
     }
 }

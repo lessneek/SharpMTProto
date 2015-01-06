@@ -16,9 +16,9 @@ namespace SharpMTProto.Messaging.Handlers
             MessageTypes = ImmutableArray.Create(typeof (TMessage));
         }
 
-        public override bool CanHandle(IMessage message)
+        public override bool CanHandle(IMessageEnvelope messageEnvelope)
         {
-            return message.Body is TMessage;
+            return messageEnvelope.Message.Body is TMessage;
         }
     }
 }

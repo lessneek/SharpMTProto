@@ -10,7 +10,7 @@ namespace SharpMTProto.Messaging.Handlers
 
     public class SessionHandler : SingleMessageHandler<INewSession>
     {
-        public override void Handle(IMessage message)
+        public override void Handle(IMessageEnvelope message)
         {
             // TODO: implement.
         }

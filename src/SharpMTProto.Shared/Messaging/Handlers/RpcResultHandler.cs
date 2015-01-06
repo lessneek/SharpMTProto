@@ -20,9 +20,9 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        public override void Handle(IMessage message)
+        public override void Handle(IMessageEnvelope messageEnvelope)
         {
-            var rpcResult = (IRpcResult) message.Body;
+            var rpcResult = (IRpcResult) messageEnvelope.Message.Body;
             var result = rpcResult.Result;
 
             var request = _requestsManager.Get(rpcResult.ReqMsgId);

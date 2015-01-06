@@ -11,16 +11,37 @@ namespace SharpMTProto.Messaging
     using System.IO;
     using System.Reflection;
     using System.Threading.Tasks;
-    using Annotations;
     using BigMath;
     using BigMath.Utils;
-    using Dataflows;
-    using Schema;
-    using Services;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Dataflows;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Services;
+    using SharpMTProto.Utils;
     using SharpTL;
 
     public interface IMessageCodec
     {
+        #region Common methods.
+
+        /// <summary>
+        ///     Encodes a message asynchronously.
+        /// </summary>
+        /// <param name="messageEnvelope">Message envelope.</param>
+        /// <param name="streamer">Streamer.</param>
+        /// <param name="messageCodecMode">Messenger mode.</param>
+        Task EncodeMessageAsync([NotNull] IMessageEnvelope messageEnvelope, [NotNull] TLStreamer streamer, MessageCodecMode messageCodecMode);
+
+        /// <summary>
+        ///     Decodes a message asyncronously.
+        /// </summary>
+        /// <param name="streamer">Streamer.</param>
+        /// <param name="messageCodecMode">Messenger mode which encoded a message in the stream.</param>
+        /// <returns>Message envelope.</returns>
+        Task<IMessageEnvelope> DecodeMessageAsync([NotNull] TLStreamer streamer, MessageCodecMode messageCodecMode);
+
+        #endregion
+
         #region Plain arrays.
 
         /// <summary>
@@ -99,8 +120,8 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
-        Task EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope, TLStreamer streamer, byte[] authKey, MessengerMode messengerMode);
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
+        Task EncodeEncryptedMessageAsync(IMessageEnvelope messageEnvelope, TLStreamer streamer, byte[] authKey, MessageCodecMode messageCodecMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -113,9 +134,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        MessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, MessengerMode messengerMode);
+        IMessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, MessageCodecMode messageCodecMode);
 
         /// <summary>
         ///     Decode encrypted message.
@@ -128,9 +149,9 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        Task<MessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, [NotNull] byte[] authKey, MessengerMode messengerMode);
+        Task<IMessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, [NotNull] byte[] authKey, MessageCodecMode messageCodecMode);
 
         #endregion
 
@@ -138,18 +159,13 @@ namespace SharpMTProto.Messaging
 
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
 
-        /// <summary>
-        ///     Computes auth key id.
-        /// </summary>
-        /// <param name="authKey">Auth key.</param>
-        /// <returns>Auth key id.</returns>
-        ulong ComputeAuthKeyId(byte[] authKey);
-
         #endregion
     }
 
     public class MessageCodec : IMessageCodec
     {
+        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
+
         #region Constructors.
 
         /// <summary>
@@ -163,6 +179,7 @@ namespace SharpMTProto.Messaging
             [NotNull] IHashServiceProvider hashServiceProvider,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] IRandomGenerator randomGenerator,
+            [NotNull] IAuthKeysProvider authKeysProvider,
             IBytesOcean bytesOcean = null)
         {
             if (tlRig == null)
@@ -173,14 +190,84 @@ namespace SharpMTProto.Messaging
                 throw new ArgumentNullException("encryptionServices");
             if (randomGenerator == null)
                 throw new ArgumentNullException("randomGenerator");
+            if (authKeysProvider == null)
+                throw new ArgumentNullException("authKeysProvider");
 
             _tlRig = tlRig;
             _sha1 = hashServiceProvider.Create(HashServiceTag.SHA1);
             _encryptionServices = encryptionServices;
             _randomGenerator = randomGenerator;
+            _authKeysProvider = authKeysProvider;
 
             // TODO: bytes ocean.
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultMessageCodecBytesOcean();
+        }
+
+        #endregion
+
+        #region Common methods.
+
+        public Task EncodeMessageAsync(IMessageEnvelope messageEnvelope, TLStreamer streamer, MessageCodecMode messageCodecMode)
+        {
+            if (messageEnvelope == null)
+                throw new ArgumentNullException("messageEnvelope");
+            if (streamer == null)
+                throw new ArgumentNullException("streamer");
+
+            if (messageEnvelope.IsEncrypted)
+            {
+                AuthKeyWithId authKeyWithId;
+                if (!_authKeysProvider.TryGet(messageEnvelope.AuthKeyId, out authKeyWithId))
+                {
+                    throw new InvalidMessageException(
+                        string.Format("Unable to encrypt a message with auth key ID '{0}'. Auth key with such ID not found.",
+                            messageEnvelope.AuthKeyId));
+                }
+
+                return EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKeyWithId.AuthKey, messageCodecMode);
+            }
+            return EncodePlainMessageAsync(messageEnvelope.Message, streamer);
+        }
+
+        public async Task<IMessageEnvelope> DecodeMessageAsync(TLStreamer streamer, MessageCodecMode messageCodecMode)
+        {
+            IMessageEnvelope messageEnvelope;
+
+            ulong incomingMsgAuthKeyId = ReadAuthKeyId(streamer);
+            if (incomingMsgAuthKeyId == 0)
+            {
+                // Assume the message bytes has a plain (unencrypted) message.
+                LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", incomingMsgAuthKeyId));
+
+                IMessage message = await DecodePlainMessageAsync(streamer);
+                messageEnvelope = new MessageEnvelope(message);
+            }
+            else
+            {
+                // Assume the stream has an encrypted message.
+                LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", incomingMsgAuthKeyId));
+
+                // Getting auth key by id.
+                AuthKeyWithId incomingMsgAuthKeyWithId;
+                if (!_authKeysProvider.TryGet(incomingMsgAuthKeyId, out incomingMsgAuthKeyWithId))
+                {
+                    throw new InvalidMessageException(
+                        string.Format("Unable to decrypt incoming message with auth key ID '{0}'. Auth key with such ID not found.",
+                            incomingMsgAuthKeyId));
+                }
+
+                // Decoding an encrypted message.
+                messageEnvelope =
+                    await
+                        DecodeEncryptedMessageAsync(streamer, incomingMsgAuthKeyWithId.AuthKey, messageCodecMode);
+
+                // TODO: check salt.
+                // _authInfo.Salt == messageEnvelope.Salt;
+
+                LogDebug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", messageEnvelope.Message.MsgId));
+            }
+
+            return messageEnvelope;
         }
 
         #endregion
@@ -222,6 +309,7 @@ namespace SharpMTProto.Messaging
         private readonly IEncryptionServices _encryptionServices;
         private readonly IHashService _sha1;
         private readonly IRandomGenerator _randomGenerator;
+        private readonly IAuthKeysProvider _authKeysProvider;
         private readonly TLRig _tlRig;
 
         #endregion
@@ -314,10 +402,10 @@ namespace SharpMTProto.Messaging
 
         #region Encrypted TL streamers.
 
-        public async Task EncodeEncryptedMessageAsync(MessageEnvelope messageEnvelope,
+        public async Task EncodeEncryptedMessageAsync(IMessageEnvelope messageEnvelope,
             [NotNull] TLStreamer streamer,
             [NotNull] byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
             if (streamer == null)
                 throw new ArgumentNullException("streamer");
@@ -325,7 +413,7 @@ namespace SharpMTProto.Messaging
                 throw new ArgumentNullException("authKey");
 
             IMessage message = messageEnvelope.Message;
-            ulong authKeyId = ComputeAuthKeyId(authKey);
+            ulong authKeyId = _authKeysProvider.ComputeAuthKeyId(authKey);
 
             // Writing inner data.
             using (IBytesBucket innerDataWithPaddingBucket = await _bytesOcean.TakeAsync(MaximumMessageLength).ConfigureAwait(false))
@@ -372,7 +460,7 @@ namespace SharpMTProto.Messaging
 
                 // Encrypting.
                 byte[] aesKey, aesIV;
-                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, messengerMode);
+                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, messageCodecMode);
 
                 long positionBeforeEncrpyptedData = streamer.Position;
                 // Writing encrypted data.
@@ -385,12 +473,12 @@ namespace SharpMTProto.Messaging
             }
         }
 
-        public MessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, MessengerMode messengerMode)
+        public IMessageEnvelope DecodeEncryptedMessage(TLStreamer streamer, byte[] authKey, MessageCodecMode messageCodecMode)
         {
-            return DecodeEncryptedMessageAsync(streamer, authKey, messengerMode).Result;
+            return DecodeEncryptedMessageAsync(streamer, authKey, messageCodecMode).Result;
         }
 
-        public async Task<MessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, byte[] authKey, MessengerMode messengerMode)
+        public async Task<IMessageEnvelope> DecodeEncryptedMessageAsync(TLStreamer streamer, byte[] authKey, MessageCodecMode messageCodecMode)
         {
             if (streamer == null)
                 throw new ArgumentNullException("streamer");
@@ -399,7 +487,7 @@ namespace SharpMTProto.Messaging
 
             ulong salt;
             ulong sessionId;
-            ulong providedAuthKeyId = ComputeAuthKeyId(authKey);
+            ulong providedAuthKeyId = _authKeysProvider.ComputeAuthKeyId(authKey);
 
             Int128 msgKey;
 
@@ -424,7 +512,7 @@ namespace SharpMTProto.Messaging
             {
                 // Decrypting.
                 byte[] aesKey, aesIV;
-                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, messengerMode);
+                ComputeAesKeyAndIV(authKey, msgKey, out aesKey, out aesIV, messageCodecMode);
                 _encryptionServices.Aes256IgeDecrypt(streamer, innerStreamer, aesKey, aesIV);
 
                 // Set used bytes count.
@@ -482,32 +570,26 @@ namespace SharpMTProto.Messaging
             _tlRig.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
-        public ulong ComputeAuthKeyId(byte[] authKey)
-        {
-            byte[] authKeySHA1 = _sha1.Hash(authKey);
-            return authKeySHA1.ToUInt64(authKeySHA1.Length - 8, true);
-        }
-
         private Int128 ComputeMsgKey(ArraySegment<byte> bytes)
         {
             byte[] innerDataSHA1 = _sha1.Hash(bytes);
             return innerDataSHA1.ToInt128(innerDataSHA1.Length - 16, true);
         }
 
-        private void ComputeAesKeyAndIV(byte[] authKey, Int128 msgKey, out byte[] aesKey, out byte[] aesIV, MessengerMode messengerMode)
+        private void ComputeAesKeyAndIV(byte[] authKey, Int128 msgKey, out byte[] aesKey, out byte[] aesIV, MessageCodecMode messageCodecMode)
         {
             // x = 0 for messages from client to server and x = 8 for those from server to client.
             int x;
-            switch (messengerMode)
+            switch (messageCodecMode)
             {
-                case MessengerMode.Client:
+                case MessageCodecMode.Client:
                     x = 0;
                     break;
-                case MessengerMode.Server:
+                case MessageCodecMode.Server:
                     x = 8;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException("messengerMode");
+                    throw new ArgumentOutOfRangeException("messageCodecMode");
             }
 
             byte[] msgKeyBytes = msgKey.ToBytes();
@@ -549,6 +631,38 @@ namespace SharpMTProto.Messaging
             Buffer.BlockCopy(sha1D, 0, aesIV, 24, 8);
         }
 
+        /// <summary>
+        ///     Reads auth key id from a stream and restore initial position of the stream.
+        /// </summary>
+        /// <param name="streamer">Streamer to read.</param>
+        /// <returns>Auth key id.</returns>
+        /// <exception cref="MTProtoErrorException">In case stream contains only 4 bytes with an error code.</exception>
+        /// <exception cref="InvalidMessageException">Thrown in case of message has invalid length.</exception>
+        private static ulong ReadAuthKeyId(TLStreamer streamer)
+        {
+            long position = streamer.Position;
+            if (streamer.Length == 4)
+            {
+                int error = streamer.ReadInt32();
+                throw new MTProtoErrorException(error);
+            }
+            if (streamer.Length < 20)
+            {
+                throw new InvalidMessageException(
+                    string.Format("Invalid message length: {0} bytes. Expected to be at least 20 bytes for message or 4 bytes for error code.",
+                        streamer.Length));
+            }
+            ulong incomingMsgAuthKeyId = streamer.ReadUInt64();
+            streamer.Position = position;
+            return incomingMsgAuthKeyId;
+        }
+
+        [Conditional("DEBUG")]
+        private static void LogDebug(string message)
+        {
+            Log.Debug(string.Format("[MTProtoMessenger] : {0}", message));
+        }
+
         #endregion
     }
 
@@ -568,14 +682,14 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Serialized encrypted message.</returns>
         public static byte[] EncodeEncryptedMessage(this IMessageCodec codec,
-            MessageEnvelope messageEnvelope,
+            IMessageEnvelope messageEnvelope,
             byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
-            return codec.EncodeEncryptedMessageAsync(messageEnvelope, authKey, messengerMode).Result;
+            return codec.EncodeEncryptedMessageAsync(messageEnvelope, authKey, messageCodecMode).Result;
         }
 
         /// <summary>
@@ -590,17 +704,17 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Serialized encrypted message.</returns>
         public static async Task<byte[]> EncodeEncryptedMessageAsync(this IMessageCodec codec,
-            MessageEnvelope messageEnvelope,
+            IMessageEnvelope messageEnvelope,
             byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
             using (var ms = new MemoryStream())
             using (var streamer = new TLStreamer(ms))
             {
-                await codec.EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messengerMode);
+                await codec.EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messageCodecMode);
                 return ms.ToArray();
             }
         }
@@ -617,14 +731,14 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        public static MessageEnvelope DecodeEncryptedMessage(this IMessageCodec codec,
+        public static IMessageEnvelope DecodeEncryptedMessage(this IMessageCodec codec,
             byte[] messageBytes,
             byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
-            return codec.DecodeEncryptedMessage(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
+            return codec.DecodeEncryptedMessage(new ArraySegment<byte>(messageBytes), authKey, messageCodecMode);
         }
 
         /// <summary>
@@ -639,14 +753,14 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        public static MessageEnvelope DecodeEncryptedMessage(this IMessageCodec codec,
+        public static IMessageEnvelope DecodeEncryptedMessage(this IMessageCodec codec,
             ArraySegment<byte> messageBytes,
             byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
-            return codec.DecodeEncryptedMessageAsync(messageBytes, authKey, messengerMode).Result;
+            return codec.DecodeEncryptedMessageAsync(messageBytes, authKey, messageCodecMode).Result;
         }
 
         /// <summary>
@@ -661,14 +775,14 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        public static Task<MessageEnvelope> DecodeEncryptedMessageAsync(this IMessageCodec codec,
+        public static Task<IMessageEnvelope> DecodeEncryptedMessageAsync(this IMessageCodec codec,
             byte[] messageBytes,
             byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
-            return codec.DecodeEncryptedMessageAsync(new ArraySegment<byte>(messageBytes), authKey, messengerMode);
+            return codec.DecodeEncryptedMessageAsync(new ArraySegment<byte>(messageBytes), authKey, messageCodecMode);
         }
 
         /// <summary>
@@ -683,16 +797,31 @@ namespace SharpMTProto.Messaging
         ///     correspond to “permanent sessions” on different devices), and some of these may be locked forever in the event the
         ///     device is lost.
         /// </param>
-        /// <param name="messengerMode">MessengerMode of the message.</param>
+        /// <param name="messageCodecMode">MessageCodecMode of the message.</param>
         /// <returns>Message envelope.</returns>
-        public static async Task<MessageEnvelope> DecodeEncryptedMessageAsync(this IMessageCodec codec,
+        public static async Task<IMessageEnvelope> DecodeEncryptedMessageAsync(this IMessageCodec codec,
             ArraySegment<byte> messageBytes,
             byte[] authKey,
-            MessengerMode messengerMode)
+            MessageCodecMode messageCodecMode)
         {
             using (var streamer = new TLStreamer(messageBytes))
             {
-                return await codec.DecodeEncryptedMessageAsync(streamer, authKey, messengerMode);
+                return await codec.DecodeEncryptedMessageAsync(streamer, authKey, messageCodecMode);
+            }
+        }
+
+        /// <summary>
+        ///     Decodes a message asyncronously.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="data">Serialized message bytes.</param>
+        /// <param name="messageCodecMode">Messenger mode which encoded a message in the stream.</param>
+        /// <returns>Message envelope.</returns>
+        public static async Task<IMessageEnvelope> DecodeMessageAsync(this IMessageCodec codec, ArraySegment<byte> data, MessageCodecMode messageCodecMode)
+        {
+            using (var streamer = new TLStreamer(data))
+            {
+                return await codec.DecodeMessageAsync(streamer, messageCodecMode);
             }
         }
 

@@ -1,5 +1,5 @@
 // --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MessengerMode.cs">
+// <copyright file="MessageCodecMode.cs">
 //   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
@@ -7,9 +7,9 @@
 namespace SharpMTProto.Messaging
 {
     /// <summary>
-    ///     Type of a message sender.
+    ///     Message codec mode.
     /// </summary>
-    public enum MessengerMode
+    public enum MessageCodecMode
     {
         Client,
         Server

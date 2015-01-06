@@ -23,6 +23,7 @@ namespace SharpMTProto.Tests
     using SetUp;
     using SharpMTProto.Authentication;
     using SharpMTProto.Dataflows;
+    using SharpMTProto.Services;
 
     [TestFixture]
     [Category("Core")]
@@ -52,10 +53,13 @@ namespace SharpMTProto.Tests
                 b.Register(context =>
                 {
                     var messageCodec = context.Resolve<IMessageCodec>();
-                    ulong authKeyId = messageCodec.ComputeAuthKeyId(authInfo.AuthKey);
-                    var messageEnvelope = new MessageEnvelope(authKeyId, sessionId, authInfo.Salt, new Message(0x0102030405060708, 3, rpcResult));
+                    var authKeysProvider = Resolve<IAuthKeysProvider>();
 
-                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
+                    AuthKeyWithId authKeyWithId = authKeysProvider.Add(authInfo.AuthKey);
+
+                    var messageEnvelope = new MessageEnvelope(authKeyWithId.AuthKeyId, sessionId, authInfo.Salt, new Message(0x0102030405060708, 3, rpcResult));
+
+                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessageCodecMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
@@ -90,13 +94,16 @@ namespace SharpMTProto.Tests
                 b.Register(context =>
                 {
                     var messageCodec = context.Resolve<IMessageCodec>();
-                    ulong authKeyId = messageCodec.ComputeAuthKeyId(authInfo.AuthKey);
-                    var messageEnvelope = new MessageEnvelope(authKeyId,
+                    var authKeysProvider = Resolve<IAuthKeysProvider>();
+
+                    AuthKeyWithId authKeyWithId = authKeysProvider.Add(authInfo.AuthKey);
+
+                    var messageEnvelope = new MessageEnvelope(authKeyWithId.AuthKeyId,
                         sessionId,
                         authInfo.Salt,
                         new Message(0x0102030405060708, 3, expectedResponse));
 
-                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessengerMode.Server);
+                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessageCodecMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
@@ -165,7 +172,7 @@ namespace SharpMTProto.Tests
                     await connection.RequestAsync<TestResponse>(new TestRequest(), MessageSendingFlags.None, TimeSpan.FromSeconds(1));
                 }
             });
-            testAction.ShouldThrow<TaskCanceledException>();
+            testAction.ShouldThrow<TimeoutException>();
         }
 
         private Mock<IClientTransport> CreateMockTransportWhichReturnsBytes(byte[] expectedResponseMessageBytes)

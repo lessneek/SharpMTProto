@@ -26,7 +26,7 @@ namespace SharpMTProto.Tests.Messaging
 
             var exReqMock = new Mock<IRequest>();
             exReqMock.Setup(r => r.CanSetResponse(It.IsAny<Type>())).Returns((Type type) => typeof(TestResponse).IsAssignableFrom(type));
-            exReqMock.Setup(r => r.Message.MsgId).Returns(0x100500);
+            exReqMock.Setup(r => r.MessageEnvelope.Message.MsgId).Returns(0x100500);
             exReqMock.Setup(r => r.Flags).Returns(MessageSendingFlags.EncryptedAndContentRelatedRPC);
             var exReq = exReqMock.Object;
 

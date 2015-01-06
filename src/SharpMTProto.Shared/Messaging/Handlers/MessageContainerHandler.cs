@@ -20,7 +20,7 @@ namespace SharpMTProto.Messaging.Handlers
             _messageHandlersHub = messageHandlersHub;
         }
 
-        public override void Handle(IMessage message)
+        public override void Handle(IMessageEnvelope messageEnvelope)
         {
             #region Description
 
@@ -37,6 +37,7 @@ namespace SharpMTProto.Messaging.Handlers
 
             #endregion
 
+            IMessage message = messageEnvelope.Message;
             var msgContainer = message.Body as MsgContainer;
             if (msgContainer != null)
             {
@@ -46,7 +47,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    _messageHandlersHub.Handle(msg);
+                    _messageHandlersHub.Handle(new MessageEnvelope(messageEnvelope.AuthKeyId, messageEnvelope.SessionId, messageEnvelope.Salt, msg));
                 }
             }
             else

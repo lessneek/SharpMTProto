@@ -23,8 +23,9 @@ namespace SharpMTProto.Messaging.Handlers
             _messageTypesSubscription = messageTypesObservable.Subscribe(types => MessageTypes = types);
         }
 
-        public override void Handle(IMessage message)
+        public override void Handle(IMessageEnvelope messageEnvelope)
         {
+            IMessage message = messageEnvelope.Message;
             var request = _requestsManager.GetFirstOrDefaultWithUnsetResponse(message.Body);
             if (request == null)
             {

@@ -14,8 +14,8 @@ namespace SharpMTProto.Messaging.Handlers
     using System.Reactive.Subjects;
     using System.Reflection;
     using System.Threading.Tasks;
-    using Schema;
-    using Utils;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Utils;
 
     /// <summary>
     ///     Message handler.
@@ -32,14 +32,14 @@ namespace SharpMTProto.Messaging.Handlers
         /// <summary>
         ///     Determines can handle a message.
         /// </summary>
-        /// <param name="message">A message.</param>
-        bool CanHandle(IMessage message);
+        /// <param name="messageEnvelope">A message envelope.</param>
+        bool CanHandle(IMessageEnvelope messageEnvelope);
 
         /// <summary>
         ///     Subscribes handler for a message stream.
         /// </summary>
         /// <param name="observable">A messages stream.</param>
-        void SubscribeTo(IObservable<IMessage> observable);
+        void SubscribeTo(IObservable<IMessageEnvelope> observable);
 
         /// <summary>
         ///     Unsubscribe from current messages stream.
@@ -49,43 +49,43 @@ namespace SharpMTProto.Messaging.Handlers
         /// <summary>
         ///     Handles a message asynchronously.
         /// </summary>
-        /// <param name="message">A message to handle.</param>
-        Task HandleAsync(IMessage message);
+        /// <param name="messageEnvelope">A messageEnvelope to handle.</param>
+        Task HandleAsync(IMessageEnvelope messageEnvelope);
 
         /// <summary>
         ///     Handles a message.
         /// </summary>
-        /// <param name="message">A message to handle.</param>
-        void Handle(IMessage message);
+        /// <param name="messageEnvelope">A message envelope to handle.</param>
+        void Handle(IMessageEnvelope messageEnvelope);
     }
 
-    public abstract class MessageHandler : Cancelable, IMessageHandler, IObserver<IMessage>
+    public abstract class MessageHandler : Cancelable, IMessageHandler, IObserver<IMessageEnvelope>
     {
         private ImmutableArray<Type> _messageTypes = ImmutableArray<Type>.Empty;
         private Subject<MessageTypesUpdate> _messageTypesUpdates = new Subject<MessageTypesUpdate>();
         private IDisposable _subscription;
 
-        public Task HandleAsync(IMessage message)
+        public Task HandleAsync(IMessageEnvelope messageEnvelope)
         {
-            return Task.Run(() => Handle(message));
+            return Task.Run(() => Handle(messageEnvelope));
         }
 
-        public abstract void Handle(IMessage message);
+        public abstract void Handle(IMessageEnvelope messageEnvelope);
 
         public ImmutableArray<Type> MessageTypes
         {
             get { return _messageTypes; }
             protected set
             {
-                var oldTypes = ImmutableInterlocked.InterlockedExchange(ref _messageTypes, value);
+                ImmutableArray<Type> oldTypes = ImmutableInterlocked.InterlockedExchange(ref _messageTypes, value);
 
                 if (oldTypes.Length == 0 && value.Length == 0)
                 {
                     return;
                 }
 
-                var addedTypes = (from type in value where !oldTypes.Contains(type) select type).ToImmutableArray();
-                var removedTypes = (from type in oldTypes where !value.Contains(type) select type).ToImmutableArray();
+                ImmutableArray<Type> addedTypes = (from type in value where !oldTypes.Contains(type) select type).ToImmutableArray();
+                ImmutableArray<Type> removedTypes = (from type in oldTypes where !value.Contains(type) select type).ToImmutableArray();
 
                 _messageTypesUpdates.OnNext(new MessageTypesUpdate(this, addedTypes, removedTypes));
             }
@@ -96,12 +96,12 @@ namespace SharpMTProto.Messaging.Handlers
             get { return _messageTypesUpdates; }
         }
 
-        public virtual bool CanHandle(IMessage message)
+        public virtual bool CanHandle(IMessageEnvelope messageEnvelope)
         {
-            return MessageTypes.Any(type => type.GetTypeInfo().IsAssignableFrom(message.Body.GetType().GetTypeInfo()));
+            return MessageTypes.Any(type => type.GetTypeInfo().IsAssignableFrom(messageEnvelope.Message.Body.GetType().GetTypeInfo()));
         }
 
-        public void SubscribeTo(IObservable<IMessage> observable)
+        public void SubscribeTo(IObservable<IMessageEnvelope> observable)
         {
             Unsubscribe();
             _subscription = observable.Where(CanHandle).Subscribe(this);
@@ -116,17 +116,17 @@ namespace SharpMTProto.Messaging.Handlers
             }
         }
 
-        void IObserver<IMessage>.OnNext(IMessage message)
+        void IObserver<IMessageEnvelope>.OnNext(IMessageEnvelope message)
         {
             HandleAsync(message);
         }
 
-        void IObserver<IMessage>.OnError(Exception error)
+        void IObserver<IMessageEnvelope>.OnError(Exception error)
         {
             Unsubscribe();
         }
 
-        void IObserver<IMessage>.OnCompleted()
+        void IObserver<IMessageEnvelope>.OnCompleted()
         {
             Unsubscribe();
         }

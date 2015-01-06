@@ -66,49 +66,52 @@ namespace SharpMTProto.Tests.Messaging
             message.Should().Be(TestMessage);
         }
 
-        [TestCase(MessengerMode.Client)]
-        [TestCase(MessengerMode.Server)]
-        public void Should_encode_encrypted_message(MessengerMode messengerMode)
+        [TestCase(MessageCodecMode.Client)]
+        [TestCase(MessageCodecMode.Server)]
+        public void Should_encode_encrypted_message(MessageCodecMode messageCodecMode)
         {
-            byte[] expectedMessageBytes = GetExpectedTestMessageBytes(messengerMode);
+            byte[] expectedMessageBytes = GetExpectedTestMessageBytes(messageCodecMode);
 
             var messageCodec = Resolve<IMessageCodec>();
+            var authKeysProvider = Resolve<IAuthKeysProvider>();
 
-            ulong authKeyId = messageCodec.ComputeAuthKeyId(AuthKey);
+            ulong authKeyId = authKeysProvider.ComputeAuthKeyId(AuthKey);
             var messageEnvelope = new MessageEnvelope(authKeyId, 0x777UL, 0x999UL, TestMessage);
 
-            byte[] encryptedMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, AuthKey, messengerMode);
+            byte[] encryptedMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, AuthKey, messageCodecMode);
 
             encryptedMessageBytes.Should().Equal(expectedMessageBytes);
         }
 
-        [TestCase(MessengerMode.Client)]
-        [TestCase(MessengerMode.Server)]
-        public async Task Should_decode_encrypted_message(MessengerMode messengerMode)
+        [TestCase(MessageCodecMode.Client)]
+        [TestCase(MessageCodecMode.Server)]
+        public async Task Should_decode_encrypted_message(MessageCodecMode messageCodecMode)
         {
-            byte[] expectedMessageBytes = GetExpectedTestMessageBytes(messengerMode);
+            byte[] expectedMessageBytes = GetExpectedTestMessageBytes(messageCodecMode);
 
             var messageCodec = Resolve<IMessageCodec>();
-            ulong authKeyId = messageCodec.ComputeAuthKeyId(AuthKey);
+            var authKeysProvider = Resolve<IAuthKeysProvider>();
+
+            ulong authKeyId = authKeysProvider.ComputeAuthKeyId(AuthKey);
             var expectedMessageEnvelope = new MessageEnvelope(authKeyId, 0x777UL, 0x999UL, TestMessage);
 
-            MessageEnvelope messageEnvelope = await messageCodec.DecodeEncryptedMessageAsync(expectedMessageBytes, AuthKey, messengerMode);
+            IMessageEnvelope messageEnvelope = await messageCodec.DecodeEncryptedMessageAsync(expectedMessageBytes, AuthKey, messageCodecMode);
             messageEnvelope.Should().Be(expectedMessageEnvelope);
         }
 
-        private static byte[] GetExpectedTestMessageBytes(MessengerMode messengerMode)
+        private static byte[] GetExpectedTestMessageBytes(MessageCodecMode messageCodecMode)
         {
             byte[] expectedMessageBytes;
-            switch (messengerMode)
+            switch (messageCodecMode)
             {
-                case MessengerMode.Client:
+                case MessageCodecMode.Client:
                     expectedMessageBytes = TestEncryptedClientMessageBytes;
                     break;
-                case MessengerMode.Server:
+                case MessageCodecMode.Server:
                     expectedMessageBytes = TestEncryptedServerMessageBytes;
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException("messengerMode");
+                    throw new ArgumentOutOfRangeException("messageCodecMode");
             }
             return expectedMessageBytes;
         }

@@ -1,30 +1,26 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="BadMsgNotificationHandler.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Messaging.Handlers
 {
     using System;
-    using System.Threading.Tasks;
-    using Schema;
-    using Utils;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Utils;
 
     public class BadMsgNotificationHandler : SingleMessageHandler<IBadMsgNotification>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-
-        private readonly IMTProtoMessenger _messenger;
         private readonly IRequestsManager _requestsManager;
+        private readonly IMTProtoSession _session;
 
-        public BadMsgNotificationHandler(IMTProtoMessenger messenger, IRequestsManager requestsManager)
+        public BadMsgNotificationHandler(IMTProtoSession session, IRequestsManager requestsManager)
         {
-            _messenger = messenger;
+            _session = session;
             _requestsManager = requestsManager;
         }
 
-        public override void Handle(IMessage message)
+        public override void Handle(IMessageEnvelope messageEnvelope)
         {
             #region Notice of Ignored Error Message
 
@@ -69,7 +65,7 @@ namespace SharpMTProto.Messaging.Handlers
 
             #endregion
 
-            var response = (IBadMsgNotification) message.Body;
+            var response = (IBadMsgNotification) messageEnvelope.Message.Body;
 
             var errorCode = (ErrorCode) response.ErrorCode;
             Log.Warning(string.Format("Bad message notification received with error code: {0} ({1}).", response.ErrorCode, errorCode));
@@ -82,13 +78,14 @@ namespace SharpMTProto.Messaging.Handlers
                 Log.Warning(string.Format("Bad message (MsgId: 0x{0:X}) was NOT found. Ignored.", response.BadMsgId));
                 return;
             }
-            if (request.Message.Seqno != response.BadMsgSeqno)
+            var message = request.MessageEnvelope.Message;
+            if (message.Seqno != response.BadMsgSeqno)
             {
                 Log.Warning(
                     string.Format(
                         "Bad message (MsgId: 0x{0:X}) was found, but message sequence number is not the same ({1}) as server expected ({2}). Ignored.",
                         response.BadMsgId,
-                        request.Message.Seqno,
+                        message.Seqno,
                         response.BadMsgSeqno));
                 return;
             }
@@ -110,11 +107,11 @@ namespace SharpMTProto.Messaging.Handlers
 
                 Log.Debug("Setting new salt.");
 
-                _messenger.UpdateSalt(badServerSalt.NewServerSalt);
+                _session.UpdateSalt(badServerSalt.NewServerSalt);
 
                 Log.Debug("Resending bad message with the new salt.");
 
-                request.SendAsync();
+                request.Send();
                 return;
             }
 

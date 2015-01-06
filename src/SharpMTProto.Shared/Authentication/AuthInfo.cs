@@ -6,14 +6,19 @@
 
 namespace SharpMTProto.Authentication
 {
+    public interface IAuthInfo
+    {
+        byte[] AuthKey { get; set; }
+        ulong Salt { get; set; }
+        bool HasAuthKey { get; }
+    }
+
     /// <summary>
     ///     Auth info contains of auth key and initial salt.
     /// </summary>
-    public struct AuthInfo
+    public class AuthInfo : IAuthInfo
     {
-        public static readonly AuthInfo Empty = new AuthInfo(null, 0);
-
-        public AuthInfo(byte[] authKey, ulong salt) : this()
+        public AuthInfo(byte[] authKey = null, ulong salt = 0)
         {
             AuthKey = authKey;
             Salt = salt;

@@ -16,7 +16,7 @@ namespace SharpMTProto.Messaging.Handlers
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
 
-        private Subject<IMessage> _messages = new Subject<IMessage>();
+        private Subject<IMessageEnvelope> _messages = new Subject<IMessageEnvelope>();
         private ImmutableArray<IMessageHandler> _messageHandlers = ImmutableArray<IMessageHandler>.Empty;
         private readonly object _messageTypesSyncRoot = new object();
 
@@ -76,18 +76,18 @@ namespace SharpMTProto.Messaging.Handlers
             MessageTypes = builder.ToImmutable();
         }
 
-        public override void Handle(IMessage message)
+        public override void Handle(IMessageEnvelope messageEnvelope)
         {
             ThrowIfDisposed();
-            _messages.OnNext(message);
+            _messages.OnNext(messageEnvelope);
         }
 
-        public override bool CanHandle(IMessage message)
+        public override bool CanHandle(IMessageEnvelope messageEnvelope)
         {
-            var canHandle = base.CanHandle(message);
+            var canHandle = base.CanHandle(messageEnvelope);
             if (!canHandle)
             {
-                Log.Warning(string.Format("Message handlers hub couldn't handle a message of type {0}.", message.Body.GetType()));
+                Log.Warning(string.Format("Message handlers hub couldn't handle a messageEnvelope of type {0}.", messageEnvelope.Message.Body.GetType()));
             }
             return canHandle;
         }

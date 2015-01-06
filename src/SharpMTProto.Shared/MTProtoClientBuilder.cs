@@ -12,13 +12,13 @@
 
 namespace SharpMTProto
 {
-    using Annotations;
-    using Authentication;
-    using Dataflows;
-    using Messaging;
-    using Services;
+    using System;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Authentication;
+    using SharpMTProto.Messaging;
+    using SharpMTProto.Services;
+    using SharpMTProto.Transport;
     using SharpTL;
-    using Transport;
 
     public interface IMTProtoClientBuilder
     {
@@ -40,7 +40,13 @@ namespace SharpMTProto
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly INonceGenerator _nonceGenerator;
+        private readonly IRandomGenerator _randomGenerator;
         private readonly TLRig _tlRig;
+
+        static MTProtoClientBuilder()
+        {
+            Default = CreateDefault();
+        }
 
         public MTProtoClientBuilder([NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
@@ -50,8 +56,30 @@ namespace SharpMTProto
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] INonceGenerator nonceGenerator,
             [NotNull] IKeyChain keyChain,
-            [NotNull] IAuthKeysProvider authKeysProvider)
+            [NotNull] IAuthKeysProvider authKeysProvider,
+            [NotNull] IRandomGenerator randomGenerator)
         {
+            if (clientTransportFactory == null)
+                throw new ArgumentNullException("clientTransportFactory");
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (messageIdGenerator == null)
+                throw new ArgumentNullException("messageIdGenerator");
+            if (messageCodec == null)
+                throw new ArgumentNullException("messageCodec");
+            if (hashServiceProvider == null)
+                throw new ArgumentNullException("hashServiceProvider");
+            if (encryptionServices == null)
+                throw new ArgumentNullException("encryptionServices");
+            if (nonceGenerator == null)
+                throw new ArgumentNullException("nonceGenerator");
+            if (keyChain == null)
+                throw new ArgumentNullException("keyChain");
+            if (authKeysProvider == null)
+                throw new ArgumentNullException("authKeysProvider");
+            if (randomGenerator == null)
+                throw new ArgumentNullException("randomGenerator");
+
             _clientTransportFactory = clientTransportFactory;
             _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
@@ -61,19 +89,20 @@ namespace SharpMTProto
             _nonceGenerator = nonceGenerator;
             _keyChain = keyChain;
             _authKeysProvider = authKeysProvider;
-        }
-
-        static MTProtoClientBuilder()
-        {
-            Default = CreateDefault();
+            _randomGenerator = randomGenerator;
         }
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
+
             // TODO: add bytes ocean external config.
-            var messenger = new MTProtoMessenger(transport, _messageIdGenerator, _messageCodec, _authKeysProvider);
-            return new MTProtoClientConnection(messenger);
+            var createMessenger = new Func<IClientTransport, IMTProtoMessenger>(t => new MTProtoMessenger(t, _messageCodec));
+
+            return new MTProtoClientConnection(transport,
+                _messageIdGenerator,
+                new MTProtoSession(_messageIdGenerator, _randomGenerator, _authKeysProvider),
+                createMessenger);
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)

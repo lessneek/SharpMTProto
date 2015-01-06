@@ -26,10 +26,10 @@ namespace SharpMTProto.Tests.Messaging.Handlers
         public async Task Should_set_response_to_request()
         {
             var request = new Mock<IRequest>();
-            request.SetupGet(request1 => request1.Message).Returns(() => new Message(1, 1, new TestRequest {TestId = 1}));
+            request.SetupGet(request1 => request1.MessageEnvelope).Returns(() => new MessageEnvelope(new Message(1, 1, new TestRequest {TestId = 1})));
 
             var response = new TestResponse {TestId = 1, TestText = "Simple test text."};
-            var responseMessage = new Message(1, 1, response);
+            var responseMessage = new MessageEnvelope(new Message(1, 1, response));
 
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.GetFirstOrDefaultWithUnsetResponse(response, It.IsAny<bool>()))
