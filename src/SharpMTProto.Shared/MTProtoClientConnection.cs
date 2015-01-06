@@ -190,7 +190,7 @@ namespace SharpMTProto
         public void SetSessionId(ulong sessionId)
         {
             ThrowIfDisposed();
-            _session.SessionId = sessionId;
+            _session.SetSessionId(sessionId);
         }
 
         public Task<TResponse> RequestAsync<TResponse>(object requestBody, MessageSendingFlags flags)

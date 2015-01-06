@@ -76,7 +76,7 @@ namespace SharpMTProto.Tests.Messaging
             var authKeysProvider = Resolve<IAuthKeysProvider>();
 
             ulong authKeyId = authKeysProvider.ComputeAuthKeyId(AuthKey);
-            var messageEnvelope = new MessageEnvelope(authKeyId, 0x777UL, 0x999UL, TestMessage);
+            var messageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyId, 0x777UL), 0x999UL, TestMessage);
 
             byte[] encryptedMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, AuthKey, messageCodecMode);
 
@@ -93,7 +93,7 @@ namespace SharpMTProto.Tests.Messaging
             var authKeysProvider = Resolve<IAuthKeysProvider>();
 
             ulong authKeyId = authKeysProvider.ComputeAuthKeyId(AuthKey);
-            var expectedMessageEnvelope = new MessageEnvelope(authKeyId, 0x777UL, 0x999UL, TestMessage);
+            var expectedMessageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyId, 0x777UL), 0x999UL, TestMessage);
 
             IMessageEnvelope messageEnvelope = await messageCodec.DecodeEncryptedMessageAsync(expectedMessageBytes, AuthKey, messageCodecMode);
             messageEnvelope.Should().Be(expectedMessageEnvelope);

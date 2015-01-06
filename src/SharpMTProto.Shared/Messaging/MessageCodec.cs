@@ -217,11 +217,11 @@ namespace SharpMTProto.Messaging
             if (messageEnvelope.IsEncrypted)
             {
                 AuthKeyWithId authKeyWithId;
-                if (!_authKeysProvider.TryGet(messageEnvelope.AuthKeyId, out authKeyWithId))
+                if (!_authKeysProvider.TryGet(messageEnvelope.SessionTag.AuthKeyId, out authKeyWithId))
                 {
                     throw new InvalidMessageException(
                         string.Format("Unable to encrypt a message with auth key ID '{0}'. Auth key with such ID not found.",
-                            messageEnvelope.AuthKeyId));
+                            messageEnvelope.SessionTag.AuthKeyId));
                 }
 
                 return EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKeyWithId.AuthKey, messageCodecMode);
@@ -420,7 +420,7 @@ namespace SharpMTProto.Messaging
             using (var innerStreamer = new TLStreamer(innerDataWithPaddingBucket.Bytes))
             {
                 innerStreamer.WriteUInt64(messageEnvelope.Salt);
-                innerStreamer.WriteUInt64(messageEnvelope.SessionId);
+                innerStreamer.WriteUInt64(messageEnvelope.SessionTag.SessionId);
                 innerStreamer.WriteUInt64(message.MsgId);
                 innerStreamer.WriteUInt32(message.Seqno);
 
@@ -558,7 +558,7 @@ namespace SharpMTProto.Messaging
                 }
             }
 
-            return new MessageEnvelope(authKeyId, sessionId, salt, new Message(msgId, seqno, body));
+            return new MessageEnvelope(new MTProtoSessionTag(authKeyId, sessionId), salt, new Message(msgId, seqno, body));
         }
 
         #endregion

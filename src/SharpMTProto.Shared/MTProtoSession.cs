@@ -19,14 +19,14 @@ namespace SharpMTProto
 
     public interface IMTProtoSession
     {
-        ulong SessionId { get; set; }
-        ulong AuthKeyId { get; }
         IAuthInfo AuthInfo { get; set; }
         IObservable<IMessageEnvelope> OutgoingMessages { get; }
         IObservable<IMessageEnvelope> IncomingMessages { get; }
+        MTProtoSessionTag SessionTag { get; }
         void UpdateSalt(ulong salt);
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
         void AcceptIncomingMessage(IMessageEnvelope messageEnvelope);
+        void SetSessionId(ulong sessionId);
     }
 
     public class MTProtoSession : Cancelable, IMTProtoSession
@@ -55,6 +55,8 @@ namespace SharpMTProto
             _messageIdGenerator = messageIdGenerator;
             _randomGenerator = randomGenerator;
             _authKeysProvider = authKeysProvider;
+
+            SessionTag = MTProtoSessionTag.Empty;
         }
 
         public IObservable<IMessageEnvelope> IncomingMessages
@@ -67,8 +69,7 @@ namespace SharpMTProto
             get { return _outgoingMessages.AsObservable(); }
         }
 
-        public ulong SessionId { get; set; }
-        public ulong AuthKeyId { get; private set; }
+        public MTProtoSessionTag SessionTag { get; private set; }
 
         public IAuthInfo AuthInfo
         {
@@ -76,8 +77,14 @@ namespace SharpMTProto
             set
             {
                 _authInfo = value;
-                AuthKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.ComputeAuthKeyId(_authInfo.AuthKey);
+                var authKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.ComputeAuthKeyId(_authInfo.AuthKey);
+                SessionTag = SessionTag.UpdateAuthKeyId(authKeyId);
             }
+        }
+
+        public void SetSessionId(ulong sessionId)
+        {
+            SessionTag = SessionTag.UpdateSessionId(sessionId);
         }
 
         public void UpdateSalt(ulong salt)
@@ -116,7 +123,7 @@ namespace SharpMTProto
             var message = new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
             if (isEncrypted)
             {
-                return new MessageEnvelope(AuthKeyId, SessionId, _authInfo.Salt, message);
+                return new MessageEnvelope(SessionTag, _authInfo.Salt, message);
             }
             return new MessageEnvelope(message);
         }

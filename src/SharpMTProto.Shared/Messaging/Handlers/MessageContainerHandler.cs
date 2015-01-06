@@ -47,7 +47,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    _messageHandlersHub.Handle(new MessageEnvelope(messageEnvelope.AuthKeyId, messageEnvelope.SessionId, messageEnvelope.Salt, msg));
+                    _messageHandlersHub.Handle(new MessageEnvelope(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
                 }
             }
             else
