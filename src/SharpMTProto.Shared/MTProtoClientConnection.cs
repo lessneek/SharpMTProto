@@ -97,7 +97,6 @@ namespace SharpMTProto
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private IClientTransport _clientTransport;
-        private readonly Func<IClientTransport, IMTProtoMessenger> _createMessenger;
         private readonly object _messageSendingFlagsSyncRoot = new object();
         private readonly MTProtoAsyncMethods _methods;
         private readonly IMTProtoSession _session;
@@ -113,7 +112,7 @@ namespace SharpMTProto
         public MTProtoClientConnection([NotNull] IClientTransport clientTransport,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMTProtoSession session,
-            [NotNull] Func<IClientTransport, IMTProtoMessenger> createMessenger)
+            [NotNull] IMTProtoMessenger messenger)
         {
             if (clientTransport == null)
                 throw new ArgumentNullException("clientTransport");
@@ -121,24 +120,25 @@ namespace SharpMTProto
                 throw new ArgumentNullException("messageIdGenerator");
             if (session == null)
                 throw new ArgumentNullException("session");
-            if (createMessenger == null)
-                throw new ArgumentNullException("createMessenger");
+            if (messenger == null)
+                throw new ArgumentNullException("messenger");
 
             _clientTransport = clientTransport;
-            _createMessenger = createMessenger;
-
-            _messenger = _createMessenger(_clientTransport);
-
+            _messenger = messenger;
             _session = session;
-            _session.OutgoingMessages.Subscribe(envelope => _messenger.SendAsync(envelope));
-
-            _messenger.IncomingMessages.Subscribe(_session.AcceptIncomingMessage);
+            _messenger = messenger;
 
             DefaultResponseTimeout = MTProtoDefaults.ResponseTimeout;
 
             InitMessageDispatcher();
 
             _methods = new MTProtoAsyncMethods(this);
+
+            _session.OutgoingMessages.Subscribe(messageEnvelope => _messenger.SendAsync(messageEnvelope));
+            _messenger.IncomingMessages.Subscribe(_session.AcceptIncomingMessage);
+
+            _clientTransport.Subscribe(messageBucket => _messenger.ProcessIncomingMessageBytesAsync(messageBucket));
+            _messenger.OutgoingMessageBytesBuckets.Subscribe(bucket => _clientTransport.SendAsync(bucket));
         }
 
         public TimeSpan DefaultResponseTimeout { get; set; }

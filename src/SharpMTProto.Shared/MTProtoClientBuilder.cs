@@ -97,12 +97,10 @@ namespace SharpMTProto
             IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
 
             // TODO: add bytes ocean external config.
-            var createMessenger = new Func<IClientTransport, IMTProtoMessenger>(t => new MTProtoMessenger(t, _messageCodec));
-
             return new MTProtoClientConnection(transport,
                 _messageIdGenerator,
                 new MTProtoSession(_messageIdGenerator, _randomGenerator, _authKeysProvider),
-                createMessenger);
+                new MTProtoMessenger(_messageCodec));
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)

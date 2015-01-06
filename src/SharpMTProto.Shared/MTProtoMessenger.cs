@@ -31,6 +31,13 @@ namespace SharpMTProto
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
         Task SendAsync(IMessageEnvelope messageEnvelope);
         Task SendAsync(IMessageEnvelope messageEnvelope, CancellationToken cancellationToken);
+        IObservable<IBytesBucket> OutgoingMessageBytesBuckets { get; }
+
+        /// <summary>
+        ///     Processes incoming message bytes asynchronously.
+        /// </summary>
+        /// <param name="messageBucket">Incoming bytes in a bucket.</param>
+        Task ProcessIncomingMessageBytesAsync(IBytesBucket messageBucket);
     }
 
     public class MTProtoMessenger : Cancelable, IMTProtoMessenger
@@ -43,7 +50,6 @@ namespace SharpMTProto
         private readonly MessageCodecMode _incomingMessageCodecMode;
         private readonly MessageCodecMode _outgoingMessageCodecMode;
 
-        private IClientTransport _clientTransport;
         private IDisposable _transportSubscription;
 
         private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
@@ -52,24 +58,21 @@ namespace SharpMTProto
         private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
         private IObservable<IMessageEnvelope> _outgoingMessagesAsObservable;
 
-        public MTProtoMessenger([NotNull] IClientTransport clientTransport,
-            [NotNull] IMessageCodec messageCodec,
+        private Subject<IBytesBucket> _outgoingMessageBytesBuckets = new Subject<IBytesBucket>();
+        private IObservable<IBytesBucket> _outgoingMessageBytesBucketsAsObservable;
+
+        public MTProtoMessenger([NotNull] IMessageCodec messageCodec,
             IBytesOcean bytesOcean = null,
             MessageCodecMode outgoingMessageCodecMode = MessageCodecMode.Client)
         {
-            if (clientTransport == null)
-                throw new ArgumentNullException("clientTransport");
             if (messageCodec == null)
                 throw new ArgumentNullException("messageCodec");
 
             _messageCodec = messageCodec;
-            _clientTransport = clientTransport;
             _outgoingMessageCodecMode = outgoingMessageCodecMode;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultMTProtoMessengerBytesOcean();
 
             _incomingMessageCodecMode = _outgoingMessageCodecMode == MessageCodecMode.Server ? MessageCodecMode.Client : MessageCodecMode.Server;
-
-            _transportSubscription = _clientTransport.Subscribe(bucket => ProcessIncomingMessageBytesAsync(bucket));
         }
 
         public IObservable<IMessageEnvelope> IncomingMessages
@@ -102,18 +105,27 @@ namespace SharpMTProto
                     await _messageCodec.EncodeMessageAsync(messageEnvelope, streamer, _outgoingMessageCodecMode);
                     messageBytesBucket.Used = (int) streamer.Position;
                 }
-                await SendMessageBytesBucketAsync(messageBytesBucket, cancellationToken);
+                SendMessageBytesBucket(messageBytesBucket);
             },
                 cancellationToken);
         }
 
-        private async Task SendMessageBytesBucketAsync(IBytesBucket dataBucket, CancellationToken cancellationToken)
+        public IObservable<IBytesBucket> OutgoingMessageBytesBuckets
+        {
+            get
+            {
+                return _outgoingMessageBytesBucketsAsObservable ??
+                    (_outgoingMessageBytesBucketsAsObservable = _outgoingMessageBytesBuckets.AsObservable());
+            }
+        }
+
+        private void SendMessageBytesBucket(IBytesBucket dataBucket)
         {
             if (IsDisposed)
                 return;
 
             LogMessageInOut(dataBucket, "OUT");
-            await _clientTransport.SendAsync(dataBucket, cancellationToken).ConfigureAwait(false);
+            _outgoingMessageBytesBuckets.OnNext(dataBucket);
         }
 
         private static void LogMessageInOut(IBytesBucket messageBytes, string inOrOut)
@@ -126,7 +138,7 @@ namespace SharpMTProto
         ///     Processes incoming message bytes asynchronously.
         /// </summary>
         /// <param name="messageBucket">Incoming bytes in a bucket.</param>
-        private async Task ProcessIncomingMessageBytesAsync(IBytesBucket messageBucket)
+        public async Task ProcessIncomingMessageBytesAsync(IBytesBucket messageBucket)
         {
             if (IsDisposed)
                 return;
@@ -183,7 +195,12 @@ namespace SharpMTProto
                     _outgoingMessages.Dispose();
                     _outgoingMessages = null;
                 }
-                _clientTransport = null;
+                if (_outgoingMessageBytesBuckets != null)
+                {
+                    _outgoingMessageBytesBuckets.OnCompleted();
+                    _outgoingMessageBytesBuckets.Dispose();
+                    _outgoingMessageBytesBuckets = null;
+                }
             }
             base.Dispose(isDisposing);
         }
