@@ -17,7 +17,6 @@ namespace SharpMTProto
     using SharpMTProto.Dataflows;
     using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
-    using SharpMTProto.Transport;
     using SharpMTProto.Utils;
     using SharpTL;
 
@@ -26,10 +25,8 @@ namespace SharpMTProto
     /// </summary>
     public interface IMTProtoMessenger : ICancelable
     {
-        IObservable<IMessageEnvelope> IncomingMessages { get; }
-        IObservable<IMessageEnvelope> OutgoingMessages { get; }
+        IMessageProducer IncomingMessages { get; }
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
-        Task SendAsync(IMessageEnvelope messageEnvelope);
         Task SendAsync(IMessageEnvelope messageEnvelope, CancellationToken cancellationToken);
         IObservable<IBytesBucket> OutgoingMessageBytesBuckets { get; }
 
@@ -38,6 +35,14 @@ namespace SharpMTProto
         /// </summary>
         /// <param name="messageBucket">Incoming bytes in a bucket.</param>
         Task ProcessIncomingMessageBytesAsync(IBytesBucket messageBucket);
+    }
+
+    public static class MTProtoMessengerExtensions
+    {
+        public static Task SendAsync(this IMTProtoMessenger messenger, IMessageEnvelope messageEnvelope)
+        {
+            return messenger.SendAsync(messageEnvelope, CancellationToken.None);
+        }
     }
 
     public class MTProtoMessenger : Cancelable, IMTProtoMessenger
@@ -50,13 +55,8 @@ namespace SharpMTProto
         private readonly MessageCodecMode _incomingMessageCodecMode;
         private readonly MessageCodecMode _outgoingMessageCodecMode;
 
-        private IDisposable _transportSubscription;
-
         private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
-        private IObservable<IMessageEnvelope> _incomingMessagesAsObservable;
-
-        private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
-        private IObservable<IMessageEnvelope> _outgoingMessagesAsObservable;
+        private IMessageProducer _incomingMessagesProducer;
 
         private Subject<IBytesBucket> _outgoingMessageBytesBuckets = new Subject<IBytesBucket>();
         private IObservable<IBytesBucket> _outgoingMessageBytesBucketsAsObservable;
@@ -75,24 +75,14 @@ namespace SharpMTProto
             _incomingMessageCodecMode = _outgoingMessageCodecMode == MessageCodecMode.Server ? MessageCodecMode.Client : MessageCodecMode.Server;
         }
 
-        public IObservable<IMessageEnvelope> IncomingMessages
+        public IMessageProducer IncomingMessages
         {
-            get { return _incomingMessagesAsObservable ?? (_incomingMessagesAsObservable = _incomingMessages.AsObservable()); }
-        }
-
-        public IObservable<IMessageEnvelope> OutgoingMessages
-        {
-            get { return _outgoingMessagesAsObservable ?? (_outgoingMessagesAsObservable = _outgoingMessages.AsObservable()); }
+            get { return _incomingMessagesProducer ?? (_incomingMessagesProducer = _incomingMessages.AsMessageProducer()); }
         }
 
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
         {
             _messageCodec.PrepareSerializersForAllTLObjectsInAssembly(assembly);
-        }
-
-        public Task SendAsync(IMessageEnvelope messageEnvelope)
-        {
-            return SendAsync(messageEnvelope, CancellationToken.None);
         }
 
         public Task SendAsync(IMessageEnvelope messageEnvelope, CancellationToken cancellationToken)
@@ -178,22 +168,11 @@ namespace SharpMTProto
         {
             if (isDisposing)
             {
-                if (_transportSubscription != null)
-                {
-                    _transportSubscription.Dispose();
-                    _transportSubscription = null;
-                }
                 if (_incomingMessages != null)
                 {
                     _incomingMessages.OnCompleted();
                     _incomingMessages.Dispose();
                     _incomingMessages = null;
-                }
-                if (_outgoingMessages != null)
-                {
-                    _outgoingMessages.OnCompleted();
-                    _outgoingMessages.Dispose();
-                    _outgoingMessages = null;
                 }
                 if (_outgoingMessageBytesBuckets != null)
                 {

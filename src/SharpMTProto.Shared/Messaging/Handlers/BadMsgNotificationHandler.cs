@@ -20,7 +20,7 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        public override void Handle(IMessageEnvelope messageEnvelope)
+        protected override void HandleInternal(IMessageEnvelope messageEnvelope)
         {
             #region Notice of Ignored Error Message
 
@@ -78,7 +78,7 @@ namespace SharpMTProto.Messaging.Handlers
                 Log.Warning(string.Format("Bad message (MsgId: 0x{0:X}) was NOT found. Ignored.", response.BadMsgId));
                 return;
             }
-            var message = request.MessageEnvelope.Message;
+            IMessage message = request.MessageEnvelope.Message;
             if (message.Seqno != response.BadMsgSeqno)
             {
                 Log.Warning(

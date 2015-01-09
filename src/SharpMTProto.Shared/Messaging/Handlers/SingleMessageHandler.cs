@@ -1,13 +1,11 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="SingleMessageHandler.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Messaging.Handlers
 {
     using System.Collections.Immutable;
-    using Schema;
+    using SharpMTProto.Schema;
 
     public abstract class SingleMessageHandler<TMessage> : MessageHandler where TMessage : class
     {

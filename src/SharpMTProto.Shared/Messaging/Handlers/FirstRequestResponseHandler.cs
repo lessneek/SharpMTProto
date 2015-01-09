@@ -1,15 +1,13 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="FirstRequestResponseHandler.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Messaging.Handlers
 {
     using System;
     using System.Collections.Immutable;
-    using Schema;
-    using Utils;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Utils;
 
     public class FirstRequestResponseHandler : MessageHandler
     {
@@ -23,10 +21,10 @@ namespace SharpMTProto.Messaging.Handlers
             _messageTypesSubscription = messageTypesObservable.Subscribe(types => MessageTypes = types);
         }
 
-        public override void Handle(IMessageEnvelope messageEnvelope)
+        protected override void HandleInternal(IMessageEnvelope messageEnvelope)
         {
             IMessage message = messageEnvelope.Message;
-            var request = _requestsManager.GetFirstOrDefaultWithUnsetResponse(message.Body);
+            IRequest request = _requestsManager.GetFirstOrDefaultWithUnsetResponse(message.Body);
             if (request == null)
             {
                 Log.Warning(string.Format("Request for response of type '{0}' not found.", message.Body.GetType()));

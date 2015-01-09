@@ -1,0 +1,10 @@
+//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
+
+namespace SharpMTProto.Messaging
+{
+    public interface IMessageHub : IMessageHandler, IMessageProducer
+    {
+    }
+}

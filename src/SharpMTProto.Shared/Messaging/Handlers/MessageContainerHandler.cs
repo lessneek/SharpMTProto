@@ -1,26 +1,24 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MessageContainerHandler.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Messaging.Handlers
 {
     using System.Linq;
-    using Schema;
-    using Utils;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Utils;
 
     public class MessageContainerHandler : SingleMessageHandler<IMessageContainer>
     {
-        private readonly IMessageHandler _messageHandlersHub;
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
+        private readonly IMessageHandler _messageHandler;
 
-        public MessageContainerHandler(IMessageHandler messageHandlersHub)
+        public MessageContainerHandler(IMessageHandler messageHandler)
         {
-            _messageHandlersHub = messageHandlersHub;
+            _messageHandler = messageHandler;
         }
 
-        public override void Handle(IMessageEnvelope messageEnvelope)
+        protected override void HandleInternal(IMessageEnvelope messageEnvelope)
         {
             #region Description
 
@@ -47,7 +45,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    _messageHandlersHub.Handle(new MessageEnvelope(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
+                    _messageHandler.Handle(new MessageEnvelope(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
                 }
             }
             else

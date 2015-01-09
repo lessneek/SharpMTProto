@@ -23,6 +23,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesBucket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesOcean.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\StandaloneBytesBucket.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\IMessageHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\IMessageHub.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Messaging\IMessageProducer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoDefaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />
@@ -31,7 +34,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\FirstRequestResponseHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageContainerHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageHandler.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageHandlersHub.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SessionHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SingleMessageHandler.cs" />

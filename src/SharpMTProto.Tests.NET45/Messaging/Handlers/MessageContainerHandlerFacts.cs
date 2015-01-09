@@ -12,6 +12,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
     using FluentAssertions;
     using Moq;
     using NUnit.Framework;
+    using SharpMTProto.Messaging;
     using SharpMTProto.Messaging.Handlers;
     using SharpMTProto.Schema;
 

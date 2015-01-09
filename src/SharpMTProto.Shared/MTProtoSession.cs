@@ -2,30 +2,35 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
+#region R#
+
+// ReSharper disable UnusedMemberInSuper.Global
+// ReSharper disable UnusedMember.Global
+
+#endregion
+
 namespace SharpMTProto
 {
     using System;
     using System.Collections.Concurrent;
     using System.Diagnostics;
-    using System.Reactive.Linq;
     using System.Reactive.Subjects;
+    using System.Threading.Tasks;
     using SharpMTProto.Annotations;
     using SharpMTProto.Authentication;
     using SharpMTProto.Messaging;
-    using SharpMTProto.Messaging.Handlers;
     using SharpMTProto.Schema;
     using SharpMTProto.Services;
     using SharpMTProto.Utils;
 
-    public interface IMTProtoSession
+    public interface IMTProtoSession : IMessageHandler
     {
         IAuthInfo AuthInfo { get; set; }
-        IObservable<IMessageEnvelope> OutgoingMessages { get; }
-        IObservable<IMessageEnvelope> IncomingMessages { get; }
+        IMessageProducer OutgoingMessages { get; }
+        IMessageProducer IncomingMessages { get; }
         MTProtoSessionTag SessionTag { get; }
         void UpdateSalt(ulong salt);
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
-        void AcceptIncomingMessage(IMessageEnvelope messageEnvelope);
         void SetSessionId(ulong sessionId);
     }
 
@@ -37,7 +42,6 @@ namespace SharpMTProto
         private readonly ConcurrentDictionary<ulong, IMessageEnvelope> _sentMessages = new ConcurrentDictionary<ulong, IMessageEnvelope>();
         private IAuthInfo _authInfo = new AuthInfo();
         private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
-        private MessageHandlersHub _messageHandlersHub;
         private uint _messageSeqNumber;
         private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
 
@@ -59,14 +63,14 @@ namespace SharpMTProto
             SessionTag = MTProtoSessionTag.Empty;
         }
 
-        public IObservable<IMessageEnvelope> IncomingMessages
+        public IMessageProducer IncomingMessages
         {
-            get { return _incomingMessages.AsObservable(); }
+            get { return _incomingMessages.AsMessageProducer(); }
         }
 
-        public IObservable<IMessageEnvelope> OutgoingMessages
+        public IMessageProducer OutgoingMessages
         {
-            get { return _outgoingMessages.AsObservable(); }
+            get { return _outgoingMessages.AsMessageProducer(); }
         }
 
         public MTProtoSessionTag SessionTag { get; private set; }
@@ -77,7 +81,7 @@ namespace SharpMTProto
             set
             {
                 _authInfo = value;
-                var authKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.ComputeAuthKeyId(_authInfo.AuthKey);
+                ulong authKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.ComputeAuthKeyId(_authInfo.AuthKey);
                 SessionTag = SessionTag.UpdateAuthKeyId(authKeyId);
             }
         }
@@ -90,14 +94,6 @@ namespace SharpMTProto
         public void UpdateSalt(ulong salt)
         {
             _authInfo.Salt = salt;
-        }
-
-        public void AcceptIncomingMessage(IMessageEnvelope messageEnvelope)
-        {
-            // TODO: check msgId for multiple accepting of one message.
-            // TODO: check msgId is not too old or from future.
-
-            _incomingMessages.OnNext(messageEnvelope);
         }
 
         public IMessageEnvelope Send(object messageBody, MessageSendingFlags flags)
@@ -116,6 +112,19 @@ namespace SharpMTProto
             _outgoingMessages.OnNext(messageEnvelope);
 
             return messageEnvelope;
+        }
+
+        public Task HandleAsync(IMessageEnvelope messageEnvelope)
+        {
+            return Task.Run(() => Handle(messageEnvelope));
+        }
+
+        public void Handle(IMessageEnvelope messageEnvelope)
+        {
+            // TODO: check msgId for multiple accepting of one message.
+            // TODO: check msgId is not too old or from future.
+
+            _incomingMessages.OnNext(messageEnvelope);
         }
 
         private IMessageEnvelope CreateMessageEnvelope(object body, bool isEncrypted, bool isContentRelated)
@@ -161,11 +170,6 @@ namespace SharpMTProto
                     _outgoingMessages.OnCompleted();
                     _outgoingMessages.Dispose();
                     _outgoingMessages = null;
-                }
-                if (_messageHandlersHub != null)
-                {
-                    _messageHandlersHub.Dispose();
-                    _messageHandlersHub = null;
                 }
             }
             base.Dispose(disposing);

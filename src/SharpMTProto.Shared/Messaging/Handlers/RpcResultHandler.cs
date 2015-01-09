@@ -1,13 +1,11 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="RpcResultHandler.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    using Schema;
-    using Utils;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Utils;
 
     public class RpcResultHandler : SingleMessageHandler<IRpcResult>
     {
@@ -20,15 +18,30 @@ namespace SharpMTProto.Messaging.Handlers
             _requestsManager = requestsManager;
         }
 
-        public override void Handle(IMessageEnvelope messageEnvelope)
+        protected override void HandleInternal(IMessageEnvelope messageEnvelope)
         {
-            var rpcResult = (IRpcResult) messageEnvelope.Message.Body;
-            var result = rpcResult.Result;
+            if (messageEnvelope.Message.Body == null)
+            {
+                Log.Warning("[RpcResultHandler] accepted message with null body.");
+                return;
+            }
 
-            var request = _requestsManager.Get(rpcResult.ReqMsgId);
+            var rpcResult = messageEnvelope.Message.Body as IRpcResult;
+            if (rpcResult == null)
+            {
+                Log.Warning(string.Format("[RpcResultHandler] accepted a message envelope with message body of type: {0}, but expected: {1}.",
+                    messageEnvelope.Message.Body.GetType(),
+                    typeof (IRpcResult)));
+                return;
+            }
+
+            object result = rpcResult.Result;
+
+            IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
             if (request == null)
             {
-                Log.Warning(string.Format("Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.", rpcResult.ReqMsgId,
+                Log.Warning(string.Format("[RpcResultHandler] Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
+                    rpcResult.ReqMsgId,
                     result.GetType()));
                 return;
             }

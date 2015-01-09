@@ -1,12 +1,12 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MTProtoClientConnection.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 #region R#
 
 // ReSharper disable ClassWithVirtualMembersNeverInherited.Global
+// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedMemberInSuper.Global
 
 #endregion
 
@@ -25,7 +25,6 @@ namespace SharpMTProto
     using Nito.AsyncEx;
     using SharpMTProto.Annotations;
     using SharpMTProto.Authentication;
-    using SharpMTProto.Dataflows;
     using SharpMTProto.Messaging;
     using SharpMTProto.Messaging.Handlers;
     using SharpMTProto.Schema;
@@ -96,15 +95,14 @@ namespace SharpMTProto
     public class MTProtoClientConnection : Cancelable, IMTProtoClientConnection
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private IClientTransport _clientTransport;
         private readonly object _messageSendingFlagsSyncRoot = new object();
         private readonly MTProtoAsyncMethods _methods;
         private readonly IMTProtoSession _session;
+        private IClientTransport _clientTransport;
 
         private BehaviorSubject<ImmutableArray<Type>> _firstRequestResponseMessageTypes =
             new BehaviorSubject<ImmutableArray<Type>>(ImmutableArray<Type>.Empty);
 
-        private MessageHandlersHub _messageHandlersHub;
         private ImmutableDictionary<Type, MessageSendingFlags> _messageSendingFlags = ImmutableDictionary<Type, MessageSendingFlags>.Empty;
         private IMTProtoMessenger _messenger;
         private IRequestsManager _requestsManager = new RequestsManager();
@@ -130,15 +128,9 @@ namespace SharpMTProto
 
             DefaultResponseTimeout = MTProtoDefaults.ResponseTimeout;
 
-            InitMessageDispatcher();
+            WireMessagesPipelines();
 
             _methods = new MTProtoAsyncMethods(this);
-
-            _session.OutgoingMessages.Subscribe(messageEnvelope => _messenger.SendAsync(messageEnvelope));
-            _messenger.IncomingMessages.Subscribe(_session.AcceptIncomingMessage);
-
-            _clientTransport.Subscribe(messageBucket => _messenger.ProcessIncomingMessageBytesAsync(messageBucket));
-            _messenger.OutgoingMessageBytesBuckets.Subscribe(bucket => _clientTransport.SendAsync(bucket));
         }
 
         public TimeSpan DefaultResponseTimeout { get; set; }
@@ -252,16 +244,24 @@ namespace SharpMTProto
             _messenger.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
-        private void InitMessageDispatcher()
+        private void WireMessagesPipelines()
         {
-            _messageHandlersHub = new MessageHandlersHub();
-            _messageHandlersHub.Add(new MessageContainerHandler(_messageHandlersHub),
-                new BadMsgNotificationHandler(_session, _requestsManager),
-                new RpcResultHandler(_requestsManager),
-                new SessionHandler(),
-                new FirstRequestResponseHandler(_requestsManager, _firstRequestResponseMessageTypes));
+            // Ignore subscriptions disposables. On disposing all subscriptions will be disposed along with observables/producers.
 
-            _messageHandlersHub.SubscribeTo(_session.IncomingMessages);
+            // Incoming messages pipeline.
+            _clientTransport.Subscribe(messageBucket => _messenger.ProcessIncomingMessageBytesAsync(messageBucket));
+            _messenger.IncomingMessages.Subscribe(_session);
+
+            IMessageProducer inSessionMessages = _session.IncomingMessages;
+            inSessionMessages.Subscribe(new MessageContainerHandler(_session));
+            inSessionMessages.Subscribe(new BadMsgNotificationHandler(_session, _requestsManager));
+            inSessionMessages.Subscribe(new RpcResultHandler(_requestsManager));
+            inSessionMessages.Subscribe(new SessionHandler());
+            inSessionMessages.Subscribe(new FirstRequestResponseHandler(_requestsManager, _firstRequestResponseMessageTypes));
+
+            // Outgoing messages pipeline.
+            _session.OutgoingMessages.Subscribe(messageEnvelope => _messenger.SendAsync(messageEnvelope));
+            _messenger.OutgoingMessageBytesBuckets.Subscribe(bucket => _clientTransport.SendAsync(bucket));
         }
 
         private Request<TResponse> CreateRequest<TResponse>(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken)
@@ -307,11 +307,6 @@ namespace SharpMTProto
                 {
                     _clientTransport.Dispose();
                     _clientTransport = null;
-                }
-                if (_messageHandlersHub != null)
-                {
-                    _messageHandlersHub.Dispose();
-                    _messageHandlersHub = null;
                 }
                 if (_firstRequestResponseMessageTypes != null)
                 {

@@ -1,8 +1,14 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="MessageCodec.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
+
+#region R#
+
+// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedMemberInSuper.Global
+// ReSharper disable MemberCanBePrivate.Global
+
+#endregion
 
 namespace SharpMTProto.Messaging
 {
@@ -823,6 +829,18 @@ namespace SharpMTProto.Messaging
             {
                 return await codec.DecodeMessageAsync(streamer, messageCodecMode);
             }
+        }
+
+        /// <summary>
+        ///     Decodes a message.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="data">Serialized message bytes.</param>
+        /// <param name="messageCodecMode">Messenger mode which encoded a message in the stream.</param>
+        /// <returns>Message envelope.</returns>
+        public static IMessageEnvelope DecodeMessage(this IMessageCodec codec, ArraySegment<byte> data, MessageCodecMode messageCodecMode)
+        {
+            return codec.DecodeMessageAsync(data, messageCodecMode).Result;
         }
 
         #endregion

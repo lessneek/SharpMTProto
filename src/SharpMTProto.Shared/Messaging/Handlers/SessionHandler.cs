@@ -1,18 +1,20 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="SessionHandler.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Messaging.Handlers
 {
-    using Schema;
+    using SharpMTProto.Schema;
 
     public class SessionHandler : SingleMessageHandler<INewSession>
     {
-        public override void Handle(IMessageEnvelope message)
+        protected override void HandleInternal(IMessageEnvelope message)
         {
-            // TODO: implement.
+            var newSession = message.Message.Body as NewSessionCreated;
+            if (newSession != null)
+            {
+                // TODO: implement.
+            }
         }
     }
 }
