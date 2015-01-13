@@ -74,6 +74,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Transport\TransportPacketProcessorExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\Cancelable.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\LogManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Utils\ObservableProperty.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Utils\UnixTimeUtils.cs" />
   </ItemGroup>
 </Project>

@@ -20,7 +20,7 @@ namespace SharpMTProto.Tests.Transport
     using NUnit.Framework;
     using SharpMTProto.Dataflows;
     using SharpMTProto.Transport;
-    using Utils;
+    using SharpMTProto.Utils;
 
     [TestFixture]
     [Category("Transport")]
