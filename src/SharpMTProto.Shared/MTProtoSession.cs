@@ -14,6 +14,7 @@ namespace SharpMTProto
     using System;
     using System.Collections.Concurrent;
     using System.Diagnostics;
+    using System.Reactive.Linq;
     using System.Reactive.Subjects;
     using System.Threading.Tasks;
     using SharpMTProto.Annotations;
@@ -28,7 +29,7 @@ namespace SharpMTProto
         IAuthInfo AuthInfo { get; set; }
         IMessageProducer OutgoingMessages { get; }
         IMessageProducer IncomingMessages { get; }
-        MTProtoSessionTag SessionTag { get; }
+        IObservableReadonlyProperty<IMTProtoSession, MTProtoSessionTag> SessionTag { get; }
         void UpdateSalt(ulong salt);
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
         void SetSessionId(ulong sessionId);
@@ -44,6 +45,7 @@ namespace SharpMTProto
         private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
         private uint _messageSeqNumber;
         private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
+        private ObservableProperty<IMTProtoSession, MTProtoSessionTag> _sessionTag;
 
         public MTProtoSession([NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IRandomGenerator randomGenerator,
@@ -60,7 +62,7 @@ namespace SharpMTProto
             _randomGenerator = randomGenerator;
             _authKeysProvider = authKeysProvider;
 
-            SessionTag = MTProtoSessionTag.Empty;
+            _sessionTag = new ObservableProperty<IMTProtoSession, MTProtoSessionTag>(this) {Value = MTProtoSessionTag.Empty};
         }
 
         public IMessageProducer IncomingMessages
@@ -73,7 +75,10 @@ namespace SharpMTProto
             get { return _outgoingMessages.AsMessageProducer(); }
         }
 
-        public MTProtoSessionTag SessionTag { get; private set; }
+        public IObservableReadonlyProperty<IMTProtoSession, MTProtoSessionTag> SessionTag
+        {
+            get { return _sessionTag.AsReadonly; }
+        }
 
         public IAuthInfo AuthInfo
         {
@@ -82,13 +87,13 @@ namespace SharpMTProto
             {
                 _authInfo = value;
                 ulong authKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.ComputeAuthKeyId(_authInfo.AuthKey);
-                SessionTag = SessionTag.UpdateAuthKeyId(authKeyId);
+                _sessionTag.Value = SessionTag.Value.UpdateAuthKeyId(authKeyId);
             }
         }
 
         public void SetSessionId(ulong sessionId)
         {
-            SessionTag = SessionTag.UpdateSessionId(sessionId);
+            _sessionTag.Value = _sessionTag.Value.UpdateSessionId(sessionId);
         }
 
         public void UpdateSalt(ulong salt)
@@ -132,7 +137,7 @@ namespace SharpMTProto
             var message = new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
             if (isEncrypted)
             {
-                return new MessageEnvelope(SessionTag, _authInfo.Salt, message);
+                return new MessageEnvelope(_sessionTag.Value, _authInfo.Salt, message);
             }
             return new MessageEnvelope(message);
         }
@@ -170,6 +175,11 @@ namespace SharpMTProto
                     _outgoingMessages.OnCompleted();
                     _outgoingMessages.Dispose();
                     _outgoingMessages = null;
+                }
+                if (_sessionTag != null)
+                {
+                    _sessionTag.Dispose();
+                    _sessionTag = null;
                 }
             }
             base.Dispose(disposing);
