@@ -14,6 +14,7 @@ namespace SharpMTProto
     using System;
     using System.Collections.Concurrent;
     using System.Diagnostics;
+    using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
     using System.Threading.Tasks;
@@ -24,7 +25,7 @@ namespace SharpMTProto
     using SharpMTProto.Services;
     using SharpMTProto.Utils;
 
-    public interface IMTProtoSession : IMessageHandler
+    public interface IMTProtoSession : IMessageHandler, ICancelable
     {
         IAuthInfo AuthInfo { get; set; }
         IMessageProducer OutgoingMessages { get; }
@@ -33,6 +34,7 @@ namespace SharpMTProto
         void UpdateSalt(ulong salt);
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
         void SetSessionId(ulong sessionId);
+        DateTime LastActivity { get; }
     }
 
     public class MTProtoSession : Cancelable, IMTProtoSession
@@ -63,6 +65,8 @@ namespace SharpMTProto
             _authKeysProvider = authKeysProvider;
 
             _sessionTag = new ObservableProperty<IMTProtoSession, MTProtoSessionTag>(this) {Value = MTProtoSessionTag.Empty};
+
+            UpdateLastActivity();
         }
 
         public IMessageProducer IncomingMessages
@@ -96,13 +100,27 @@ namespace SharpMTProto
             _sessionTag.Value = _sessionTag.Value.UpdateSessionId(sessionId);
         }
 
+        public DateTime LastActivity { get; private set; }
+
+        private void UpdateLastActivity()
+        {
+            LastActivity = DateTime.UtcNow;
+        }
+
         public void UpdateSalt(ulong salt)
         {
+            if (IsDisposed)
+                return;
+
             _authInfo.Salt = salt;
         }
 
         public IMessageEnvelope Send(object messageBody, MessageSendingFlags flags)
         {
+            ThrowIfDisposed();
+
+            UpdateLastActivity();
+
             bool isEncrypted = flags.HasFlag(MessageSendingFlags.Encrypted);
             bool isContentRelated = flags.HasFlag(MessageSendingFlags.ContentRelated);
 
@@ -128,6 +146,11 @@ namespace SharpMTProto
         {
             // TODO: check msgId for multiple accepting of one message.
             // TODO: check msgId is not too old or from future.
+
+            if (IsDisposed)
+                return;
+
+            UpdateLastActivity();
 
             _incomingMessages.OnNext(messageEnvelope);
         }
