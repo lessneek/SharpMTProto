@@ -24,9 +24,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\IBytesOcean.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Dataflows\StandaloneBytesBucket.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\ActionMessageHandler.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\IMessageHandler.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\IMessageHub.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\IMessageProducer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoDefaults.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ErrorCode.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Exceptions.cs" />

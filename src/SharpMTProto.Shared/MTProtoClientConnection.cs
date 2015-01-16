@@ -252,8 +252,12 @@ namespace SharpMTProto
             _clientTransport.Subscribe(messageBucket => _messenger.ProcessIncomingMessageBytesAsync(messageBucket));
             _messenger.IncomingMessages.Subscribe(_session);
 
-            IMessageProducer inSessionMessages = _session.IncomingMessages;
-            inSessionMessages.Subscribe(new MessageContainerHandler(_session));
+            var messageContainerHandler = new MessageContainerHandler();
+            messageContainerHandler.Subscribe(_session); // Forward all extracted messages to a session.
+
+            IObservable<IMessageEnvelope> inSessionMessages = _session.IncomingMessages;
+
+            inSessionMessages.Subscribe(messageContainerHandler);
             inSessionMessages.Subscribe(new BadMsgNotificationHandler(_session, _requestsManager));
             inSessionMessages.Subscribe(new RpcResultHandler(_requestsManager));
             inSessionMessages.Subscribe(new SessionHandler());

@@ -13,11 +13,11 @@ namespace SharpMTProto
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
-    using System.Threading.Tasks;
     using SharpMTProto.Annotations;
     using SharpMTProto.Authentication;
     using SharpMTProto.Messaging;
@@ -25,11 +25,11 @@ namespace SharpMTProto
     using SharpMTProto.Services;
     using SharpMTProto.Utils;
 
-    public interface IMTProtoSession : IMessageHandler, ICancelable
+    public interface IMTProtoSession : IObserver<IMessageEnvelope>, ICancelable
     {
         IAuthInfo AuthInfo { get; set; }
-        IMessageProducer OutgoingMessages { get; }
-        IMessageProducer IncomingMessages { get; }
+        IObservable<IMessageEnvelope> OutgoingMessages { get; }
+        IObservable<IMessageEnvelope> IncomingMessages { get; }
         IObservableReadonlyProperty<IMTProtoSession, MTProtoSessionTag> SessionTag { get; }
         void UpdateSalt(ulong salt);
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
@@ -71,14 +71,14 @@ namespace SharpMTProto
             UpdateLastActivity();
         }
 
-        public IMessageProducer IncomingMessages
+        public IObservable<IMessageEnvelope> IncomingMessages
         {
-            get { return _incomingMessages.AsMessageProducer(); }
+            get { return _incomingMessages.AsObservable(); }
         }
 
-        public IMessageProducer OutgoingMessages
+        public IObservable<IMessageEnvelope> OutgoingMessages
         {
-            get { return _outgoingMessages.AsMessageProducer(); }
+            get { return _outgoingMessages.AsObservable(); }
         }
 
         public IObservableReadonlyProperty<IMTProtoSession, MTProtoSessionTag> SessionTag
@@ -144,12 +144,7 @@ namespace SharpMTProto
             return messageEnvelope;
         }
 
-        public Task HandleAsync(IMessageEnvelope messageEnvelope)
-        {
-            return Task.Run(() => Handle(messageEnvelope));
-        }
-
-        public void Handle(IMessageEnvelope messageEnvelope)
+        public void OnNext(IMessageEnvelope messageEnvelope)
         {
             // TODO: check msgId for multiple accepting of one message.
             // TODO: check msgId is not too old or from future.
@@ -160,6 +155,14 @@ namespace SharpMTProto
             UpdateLastActivity();
 
             _incomingMessages.OnNext(messageEnvelope);
+        }
+
+        public void OnError(Exception error)
+        {
+        }
+
+        public void OnCompleted()
+        {
         }
 
         private IMessageEnvelope CreateMessageEnvelope(object body, bool isEncrypted, bool isContentRelated)

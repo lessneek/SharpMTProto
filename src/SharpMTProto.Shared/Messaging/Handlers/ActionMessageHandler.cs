@@ -11,11 +11,10 @@
 namespace SharpMTProto.Messaging.Handlers
 {
     using System;
-    using System.Threading.Tasks;
     using SharpMTProto.Annotations;
     using SharpMTProto.Schema;
 
-    public class ActionMessageHandler : IMessageHandler
+    public class ActionMessageHandler : IObserver<IMessageEnvelope>
     {
         private readonly Action<IMessageEnvelope> _action;
 
@@ -27,14 +26,17 @@ namespace SharpMTProto.Messaging.Handlers
             _action = action;
         }
 
-        public Task HandleAsync(IMessageEnvelope messageEnvelope)
-        {
-            return Task.Run(() => Handle(messageEnvelope));
-        }
-
-        public void Handle(IMessageEnvelope messageEnvelope)
+        public void OnNext(IMessageEnvelope messageEnvelope)
         {
             _action(messageEnvelope);
+        }
+
+        public void OnError(Exception error)
+        {
+        }
+
+        public void OnCompleted()
+        {
         }
     }
 }

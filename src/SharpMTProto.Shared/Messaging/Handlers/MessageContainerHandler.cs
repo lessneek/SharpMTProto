@@ -4,18 +4,20 @@
 
 namespace SharpMTProto.Messaging.Handlers
 {
+    using System;
     using System.Linq;
+    using System.Reactive.Subjects;
     using SharpMTProto.Schema;
     using SharpMTProto.Utils;
 
-    public class MessageContainerHandler : SingleMessageHandler<IMessageContainer>
+    public class MessageContainerHandler : SingleMessageHandler<IMessageContainer>, IObservable<IMessageEnvelope>
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly IMessageHandler _messageHandler;
+        private Subject<IMessageEnvelope> _messageHandler = new Subject<IMessageEnvelope>();
 
-        public MessageContainerHandler(IMessageHandler messageHandler)
+        public IDisposable Subscribe(IObserver<IMessageEnvelope> observer)
         {
-            _messageHandler = messageHandler;
+            return _messageHandler.Subscribe(observer);
         }
 
         protected override void HandleInternal(IMessageEnvelope messageEnvelope)
@@ -45,13 +47,27 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    _messageHandler.Handle(new MessageEnvelope(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
+                    _messageHandler.OnNext(new MessageEnvelope(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
                 }
             }
             else
             {
                 Log.Debug(string.Format("Unsupported message container of type: {0}.", message.Body.GetType()));
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (_messageHandler != null)
+                {
+                    _messageHandler.OnCompleted();
+                    _messageHandler.Dispose();
+                    _messageHandler = null;
+                }
+            }
+            base.Dispose(disposing);
         }
     }
 }

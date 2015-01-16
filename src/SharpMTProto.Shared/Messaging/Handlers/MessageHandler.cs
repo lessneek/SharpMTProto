@@ -8,11 +8,10 @@ namespace SharpMTProto.Messaging.Handlers
     using System.Collections.Immutable;
     using System.Linq;
     using System.Reflection;
-    using System.Threading.Tasks;
     using SharpMTProto.Schema;
     using SharpMTProto.Utils;
 
-    public abstract class MessageHandler : Cancelable, IMessageHandler
+    public abstract class MessageHandler : Cancelable, IObserver<IMessageEnvelope>
     {
         private ImmutableArray<Type> _messageTypes = ImmutableArray<Type>.Empty;
 
@@ -22,12 +21,7 @@ namespace SharpMTProto.Messaging.Handlers
             protected set { ImmutableInterlocked.InterlockedExchange(ref _messageTypes, value); }
         }
 
-        public Task HandleAsync(IMessageEnvelope messageEnvelope)
-        {
-            return Task.Run(() => Handle(messageEnvelope));
-        }
-
-        public void Handle(IMessageEnvelope messageEnvelope)
+        public void OnNext(IMessageEnvelope messageEnvelope)
         {
             if (IsDisposed)
                 return;
@@ -36,6 +30,14 @@ namespace SharpMTProto.Messaging.Handlers
                 return;
 
             HandleInternal(messageEnvelope);
+        }
+
+        public virtual void OnError(Exception error)
+        {
+        }
+
+        public virtual void OnCompleted()
+        {
         }
 
         protected abstract void HandleInternal(IMessageEnvelope messageEnvelope);

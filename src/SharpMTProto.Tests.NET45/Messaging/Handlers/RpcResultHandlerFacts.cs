@@ -1,35 +1,28 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="RpcResultHandlerFacts.cs">
-//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
-// </copyright>
-// --------------------------------------------------------------------------------------------------------------------
-
-using System;
-using System.Threading.Tasks;
-using Moq;
-using NUnit.Framework;
-using SharpMTProto.Messaging;
-using SharpMTProto.Messaging.Handlers;
-using SharpMTProto.Schema;
-using SharpMTProto.Tests.TestObjects;
+﻿//////////////////////////////////////////////////////////
+// Copyright (c) Alexander Logger. All rights reserved. //
+//////////////////////////////////////////////////////////
 
 namespace SharpMTProto.Tests.Messaging.Handlers
 {
+    using System;
+    using Moq;
+    using NUnit.Framework;
+    using SharpMTProto.Messaging;
+    using SharpMTProto.Messaging.Handlers;
+    using SharpMTProto.Schema;
+    using SharpMTProto.Tests.TestObjects;
+
     [TestFixture]
     [Category("Messaging.Handlers")]
     public class RpcResultHandlerFacts
     {
         [Test]
-        public async Task Should_set_exception_on_rpc_error_response()
+        public void Should_set_exception_on_rpc_error_response()
         {
             var reqMsg = new Message(0x100500, 1, new TestRequest {TestId = 1});
             var reqMsgEnvelope = new MessageEnvelope(reqMsg);
 
-            var rpcResult = new RpcResult
-            {
-                ReqMsgId = reqMsg.MsgId,
-                Result = new RpcError {ErrorCode = 400, ErrorMessage = "BAD_REQUEST"}
-            };
+            var rpcResult = new RpcResult {ReqMsgId = reqMsg.MsgId, Result = new RpcError {ErrorCode = 400, ErrorMessage = "BAD_REQUEST"}};
             var resMsg = new MessageEnvelope(new Message(0x200600, 2, rpcResult));
 
             var request = new Mock<IRequest>();
@@ -39,28 +32,22 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 
             var handler = new RpcResultHandler(requestsManager.Object);
-            await handler.HandleAsync(resMsg);
+            handler.OnNext(resMsg);
 
             requestsManager.Verify(manager => manager.Get(It.IsAny<ulong>()), Times.Once);
             requestsManager.Verify(manager => manager.Get(reqMsg.MsgId), Times.Once);
 
             request.Verify(r => r.SetException(It.IsAny<Exception>()), Times.Once);
-            request.Verify(
-                r => r.SetException(It.Is<RpcErrorException>(exception => exception.Error == rpcResult.Result)),
-                Times.Once);
+            request.Verify(r => r.SetException(It.Is<RpcErrorException>(exception => exception.Error == rpcResult.Result)), Times.Once);
         }
 
         [Test]
-        public async Task Should_set_rpc_result_to_requst()
+        public void Should_set_rpc_result_to_requst()
         {
             var reqMsg = new Message(0x100500, 1, new TestRequest {TestId = 1});
             var reqMsgEnvelope = new MessageEnvelope(reqMsg);
 
-            var rpcResult = new RpcResult
-            {
-                ReqMsgId = reqMsg.MsgId,
-                Result = new TestResponse {TestId = 1, TestText = "THIS IS RESPONSE!"}
-            };
+            var rpcResult = new RpcResult {ReqMsgId = reqMsg.MsgId, Result = new TestResponse {TestId = 1, TestText = "THIS IS RESPONSE!"}};
             var resMsg = new MessageEnvelope(new Message(0x200600, 2, rpcResult));
 
             var request = new Mock<IRequest>();
@@ -70,7 +57,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 
             var handler = new RpcResultHandler(requestsManager.Object);
-            await handler.HandleAsync(resMsg);
+            handler.OnNext(resMsg);
 
             requestsManager.Verify(manager => manager.Get(It.IsAny<ulong>()), Times.Once);
             requestsManager.Verify(manager => manager.Get(reqMsg.MsgId), Times.Once);

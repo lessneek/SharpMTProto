@@ -25,7 +25,7 @@ namespace SharpMTProto
     /// </summary>
     public interface IMTProtoMessenger : ICancelable
     {
-        IMessageProducer IncomingMessages { get; }
+        IObservable<IMessageEnvelope> IncomingMessages { get; }
         void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly);
         Task SendAsync(IMessageEnvelope messageEnvelope, CancellationToken cancellationToken);
         IObservable<IBytesBucket> OutgoingMessageBytesBuckets { get; }
@@ -56,7 +56,6 @@ namespace SharpMTProto
         private readonly MessageCodecMode _outgoingMessageCodecMode;
 
         private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
-        private IMessageProducer _incomingMessagesProducer;
 
         private Subject<IBytesBucket> _outgoingMessageBytesBuckets = new Subject<IBytesBucket>();
         private IObservable<IBytesBucket> _outgoingMessageBytesBucketsAsObservable;
@@ -75,9 +74,9 @@ namespace SharpMTProto
             _incomingMessageCodecMode = _outgoingMessageCodecMode == MessageCodecMode.Server ? MessageCodecMode.Client : MessageCodecMode.Server;
         }
 
-        public IMessageProducer IncomingMessages
+        public IObservable<IMessageEnvelope> IncomingMessages
         {
-            get { return _incomingMessagesProducer ?? (_incomingMessagesProducer = _incomingMessages.AsMessageProducer()); }
+            get { return _incomingMessages.AsObservable(); }
         }
 
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
