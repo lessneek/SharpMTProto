@@ -35,6 +35,7 @@ namespace SharpMTProto
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
         void SetSessionId(ulong sessionId);
         DateTime LastActivity { get; }
+        IDictionary<string, object> Environment { get; }
     }
 
     public class MTProtoSession : Cancelable, IMTProtoSession
@@ -48,6 +49,7 @@ namespace SharpMTProto
         private uint _messageSeqNumber;
         private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
         private ObservableProperty<IMTProtoSession, MTProtoSessionTag> _sessionTag;
+        private readonly ConcurrentDictionary<string, object> _environment = new ConcurrentDictionary<string, object>();
 
         public MTProtoSession([NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IRandomGenerator randomGenerator,
@@ -101,6 +103,11 @@ namespace SharpMTProto
         }
 
         public DateTime LastActivity { get; private set; }
+
+        public IDictionary<string,object> Environment
+        {
+            get { return _environment; }
+        }
 
         private void UpdateLastActivity()
         {
