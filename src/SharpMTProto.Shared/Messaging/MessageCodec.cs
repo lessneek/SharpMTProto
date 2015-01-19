@@ -476,7 +476,13 @@ namespace SharpMTProto.Messaging
 
                 innerDataWithPaddingBucket.Used = innerDataWithPaddingLength;
 
-                Int128 msgKey = ComputeMsgKey(innerDataWithPaddingBucket.UsedBytes);
+                // Message Key: The lower-order 128 bits of the SHA1 hash of the part of the message to be encrypted
+                // (including the internal header and excluding the alignment bytes).
+                ArraySegment<byte> innerDataBytesWithPadding = innerDataWithPaddingBucket.UsedBytes;
+                var innerDataBytes = new ArraySegment<byte>(innerDataBytesWithPadding.Array,
+                    innerDataBytesWithPadding.Offset,
+                    innerDataLength);
+                Int128 msgKey = ComputeMsgKey(innerDataBytes);
 
                 // Writing header of an encrypted message.
                 streamer.WriteUInt64(authKeyId);
@@ -559,12 +565,15 @@ namespace SharpMTProto.Messaging
                         messageDataLength));
                 }
 
-                long positionBeforeMessageData = innerStreamer.Position;
+                var positionBeforeMessageData = (int) innerStreamer.Position;
 
                 body = _tlRig.Deserialize(innerStreamer);
 
-                // Checking message body length.
-                var actualMessageDataLength = (int) (innerStreamer.Position - positionBeforeMessageData);
+                var innerDataLength = (int)innerStreamer.Position;
+
+                #region Checking message body length.
+
+                int actualMessageDataLength = innerDataLength - positionBeforeMessageData;
                 if (actualMessageDataLength != messageDataLength)
                 {
                     throw new InvalidMessageException(string.Format("Expected message data length to be {0}, but actual is {1}.",
@@ -572,14 +581,25 @@ namespace SharpMTProto.Messaging
                         actualMessageDataLength));
                 }
 
+                #endregion
+
+                #region Checking MsgKey.
+
                 // When an encrypted message is received, it must be checked that
                 // msg_key is in fact equal to the 128 lower-order bits
-                // of the SHA1 hash of the previously encrypted portion.
-                Int128 expectedMsgKey = ComputeMsgKey(innerDataWithPaddingBucket.UsedBytes);
+                // of the SHA1 hash of the previously encrypted portion (including the internal header and excluding the alignment bytes).
+                ArraySegment<byte> innerDataBytesWithPadding = innerDataWithPaddingBucket.UsedBytes;
+                var innerDataBytes = new ArraySegment<byte>(innerDataBytesWithPadding.Array,
+                    innerDataBytesWithPadding.Offset,
+                    innerDataLength);
+
+                Int128 expectedMsgKey = ComputeMsgKey(innerDataBytes);
                 if (msgKey != expectedMsgKey)
                 {
                     throw new InvalidMessageException(string.Format("Expected message key to be {0}, but actual is {1}.", expectedMsgKey, msgKey));
                 }
+
+                #endregion
             }
 
             return new MessageEnvelope(new MTProtoSessionTag(authKeyId, sessionId), salt, new Message(msgId, seqno, body));
