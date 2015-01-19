@@ -13,11 +13,11 @@ namespace SharpMTProto
 {
     using System;
     using System.Collections.Concurrent;
-    using System.Collections.Generic;
     using System.Diagnostics;
     using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
+    using System.Threading.Tasks;
     using SharpMTProto.Annotations;
     using SharpMTProto.Authentication;
     using SharpMTProto.Messaging;
@@ -25,22 +25,31 @@ namespace SharpMTProto
     using SharpMTProto.Services;
     using SharpMTProto.Utils;
 
+    public class MTProtoSessionEnvironment : ConcurrentDictionary<string, object>
+    {
+        public T GetOrCreate<T>(string key) where T : class, new()
+        {
+            return GetOrAdd(key, s => new T()) as T;
+        }
+    }
+
     public interface IMTProtoSession : IObserver<IMessageEnvelope>, ICancelable
     {
         IAuthInfo AuthInfo { get; set; }
         IObservable<IMessageEnvelope> OutgoingMessages { get; }
         IObservable<IMessageEnvelope> IncomingMessages { get; }
         IObservableReadonlyProperty<IMTProtoSession, MTProtoSessionTag> SessionTag { get; }
+        DateTime LastActivity { get; }
+        MTProtoSessionEnvironment Environment { get; }
         void UpdateSalt(ulong salt);
         IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
         void SetSessionId(ulong sessionId);
-        DateTime LastActivity { get; }
-        IDictionary<string, object> Environment { get; }
     }
 
     public class MTProtoSession : Cancelable, IMTProtoSession
     {
         private readonly IAuthKeysProvider _authKeysProvider;
+        private readonly MTProtoSessionEnvironment _environment = new MTProtoSessionEnvironment();
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly IRandomGenerator _randomGenerator;
         private readonly ConcurrentDictionary<ulong, IMessageEnvelope> _sentMessages = new ConcurrentDictionary<ulong, IMessageEnvelope>();
@@ -49,7 +58,6 @@ namespace SharpMTProto
         private uint _messageSeqNumber;
         private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
         private ObservableProperty<IMTProtoSession, MTProtoSessionTag> _sessionTag;
-        private readonly ConcurrentDictionary<string, object> _environment = new ConcurrentDictionary<string, object>();
 
         public MTProtoSession([NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IRandomGenerator randomGenerator,
@@ -104,14 +112,9 @@ namespace SharpMTProto
 
         public DateTime LastActivity { get; private set; }
 
-        public IDictionary<string,object> Environment
+        public MTProtoSessionEnvironment Environment
         {
             get { return _environment; }
-        }
-
-        private void UpdateLastActivity()
-        {
-            LastActivity = DateTime.UtcNow;
         }
 
         public void UpdateSalt(ulong salt)
@@ -133,13 +136,7 @@ namespace SharpMTProto
 
             IMessageEnvelope messageEnvelope = CreateMessageEnvelope(messageBody, isEncrypted, isContentRelated);
 
-            // TODO: enqueue message envelope to outbox queue before sending.
-
-            ulong msgId = messageEnvelope.Message.MsgId;
-            Debug.Assert(!_sentMessages.ContainsKey(msgId));
-
-            _sentMessages.GetOrAdd(msgId, messageEnvelope);
-            _outgoingMessages.OnNext(messageEnvelope);
+            EnqueueToSendingQueue(messageEnvelope);
 
             return messageEnvelope;
         }
@@ -163,6 +160,25 @@ namespace SharpMTProto
 
         public void OnCompleted()
         {
+        }
+
+        private void UpdateLastActivity()
+        {
+            LastActivity = DateTime.UtcNow;
+        }
+
+        private void EnqueueToSendingQueue(IMessageEnvelope messageEnvelope)
+        {
+            // TODO: enqueue message envelope to outbox queue before sending.
+            Task.Run(() =>
+            {
+                ulong msgId = messageEnvelope.Message.MsgId;
+
+                Debug.Assert(!_sentMessages.ContainsKey(msgId));
+
+                _sentMessages.GetOrAdd(msgId, messageEnvelope);
+                _outgoingMessages.OnNext(messageEnvelope);
+            });
         }
 
         private IMessageEnvelope CreateMessageEnvelope(object body, bool isEncrypted, bool isContentRelated)

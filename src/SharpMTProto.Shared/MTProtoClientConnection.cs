@@ -15,6 +15,7 @@ namespace SharpMTProto
     using System;
     using System.Collections.Generic;
     using System.Collections.Immutable;
+    using System.Diagnostics;
     using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
@@ -22,13 +23,14 @@ namespace SharpMTProto
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
+    using BigMath.Utils;
     using Nito.AsyncEx;
     using SharpMTProto.Annotations;
     using SharpMTProto.Authentication;
+    using SharpMTProto.Dataflows;
     using SharpMTProto.Messaging;
     using SharpMTProto.Messaging.Handlers;
     using SharpMTProto.Schema;
-    using SharpMTProto.Services;
     using SharpMTProto.Transport;
     using SharpMTProto.Utils;
 
@@ -41,7 +43,6 @@ namespace SharpMTProto
         bool IsConnected { get; }
         IClientTransport Transport { get; }
         TimeSpan DefaultResponseTimeout { get; set; }
-        IMTProtoMessenger Messenger { get; }
 
         /// <summary>
         ///     Sends request and wait for a response asynchronously.
@@ -95,36 +96,32 @@ namespace SharpMTProto
     public class MTProtoClientConnection : Cancelable, IMTProtoClientConnection
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
+        private readonly IMessageCodec _messageCodec;
         private readonly object _messageSendingFlagsSyncRoot = new object();
         private readonly MTProtoAsyncMethods _methods;
-        private readonly IMTProtoSession _session;
         private IClientTransport _clientTransport;
 
         private BehaviorSubject<ImmutableArray<Type>> _firstRequestResponseMessageTypes =
             new BehaviorSubject<ImmutableArray<Type>>(ImmutableArray<Type>.Empty);
 
         private ImmutableDictionary<Type, MessageSendingFlags> _messageSendingFlags = ImmutableDictionary<Type, MessageSendingFlags>.Empty;
-        private IMTProtoMessenger _messenger;
         private IRequestsManager _requestsManager = new RequestsManager();
+        private IMTProtoSession _session;
 
         public MTProtoClientConnection([NotNull] IClientTransport clientTransport,
-            [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMTProtoSession session,
-            [NotNull] IMTProtoMessenger messenger)
+            [NotNull] IMessageCodec messageCodec)
         {
             if (clientTransport == null)
                 throw new ArgumentNullException("clientTransport");
-            if (messageIdGenerator == null)
-                throw new ArgumentNullException("messageIdGenerator");
             if (session == null)
                 throw new ArgumentNullException("session");
-            if (messenger == null)
-                throw new ArgumentNullException("messenger");
+            if (messageCodec == null)
+                throw new ArgumentNullException("messageCodec");
 
             _clientTransport = clientTransport;
-            _messenger = messenger;
             _session = session;
-            _messenger = messenger;
+            _messageCodec = messageCodec;
 
             DefaultResponseTimeout = MTProtoDefaults.ResponseTimeout;
 
@@ -138,15 +135,6 @@ namespace SharpMTProto
         public IMTProtoAsyncMethods Methods
         {
             get { return _methods; }
-        }
-
-        public IMTProtoMessenger Messenger
-        {
-            get
-            {
-                ThrowIfDisposed();
-                return _messenger;
-            }
         }
 
         public IClientTransport Transport
@@ -241,7 +229,7 @@ namespace SharpMTProto
         public void PrepareSerializersForAllTLObjectsInAssembly(Assembly assembly)
         {
             ThrowIfDisposed();
-            _messenger.PrepareSerializersForAllTLObjectsInAssembly(assembly);
+            _messageCodec.PrepareSerializersForAllTLObjectsInAssembly(assembly);
         }
 
         private void WireMessagesPipelines()
@@ -249,14 +237,17 @@ namespace SharpMTProto
             // Ignore subscriptions disposables. On disposing all subscriptions will be disposed along with observables/producers.
 
             // Incoming messages pipeline.
-            _clientTransport.Subscribe(messageBucket => _messenger.ProcessIncomingMessageBytesAsync(messageBucket));
-            _messenger.IncomingMessages.Subscribe(_session);
+            _clientTransport.Subscribe(async messageBytesBucket =>
+            {
+                LogMessageInOut(messageBytesBucket, "IN");
+                IMessageEnvelope messageEnvelope = await _messageCodec.DecodeMessageAsync(messageBytesBucket, MessageCodecMode.Server);
+                _session.OnNext(messageEnvelope);
+            });
 
             var messageContainerHandler = new MessageContainerHandler();
             messageContainerHandler.Subscribe(_session); // Forward all extracted messages to a session.
 
             IObservable<IMessageEnvelope> inSessionMessages = _session.IncomingMessages;
-
             inSessionMessages.Subscribe(messageContainerHandler);
             inSessionMessages.Subscribe(new BadMsgNotificationHandler(_session, _requestsManager));
             inSessionMessages.Subscribe(new RpcResultHandler(_requestsManager));
@@ -264,8 +255,12 @@ namespace SharpMTProto
             inSessionMessages.Subscribe(new FirstRequestResponseHandler(_requestsManager, _firstRequestResponseMessageTypes));
 
             // Outgoing messages pipeline.
-            _session.OutgoingMessages.Subscribe(messageEnvelope => _messenger.SendAsync(messageEnvelope));
-            _messenger.OutgoingMessageBytesBuckets.Subscribe(bucket => _clientTransport.SendAsync(bucket));
+            _session.OutgoingMessages.Subscribe(async messageEnvelope =>
+            {
+                IBytesBucket messageBytesBucket = await _messageCodec.EncodeMessageAsync(messageEnvelope, MessageCodecMode.Client);
+                LogMessageInOut(messageBytesBucket, "OUT");
+                await _clientTransport.SendAsync(messageBytesBucket);
+            });
         }
 
         private Request<TResponse> CreateRequest<TResponse>(object messageBody, MessageSendingFlags flags, CancellationToken cancellationToken)
@@ -302,11 +297,6 @@ namespace SharpMTProto
         {
             if (isDisposing)
             {
-                if (_messenger != null)
-                {
-                    _messenger.Dispose();
-                    _messenger = null;
-                }
                 if (_clientTransport != null)
                 {
                     _clientTransport.Dispose();
@@ -323,8 +313,30 @@ namespace SharpMTProto
                     _requestsManager.Dispose();
                     _requestsManager = null;
                 }
+                if (_session != null)
+                {
+                    _session.Dispose();
+                    _session = null;
+                }
             }
             base.Dispose(isDisposing);
+        }
+
+        #endregion
+
+        #region Logging
+
+        [Conditional("DEBUG")]
+        private static void LogMessageInOut(IBytesBucket messageBytes, string inOrOut)
+        {
+            ArraySegment<byte> bytes = messageBytes.UsedBytes;
+            Debug(string.Format("{0} ({1} bytes): {2}", inOrOut, bytes.Count, bytes.ToHexString()));
+        }
+
+        [Conditional("DEBUG")]
+        private static void Debug(string message)
+        {
+            Log.Debug(string.Format("[MTProtoClientConnection] : {0}", message));
         }
 
         #endregion

@@ -38,7 +38,7 @@ namespace SharpMTProto.Tests
         }
 
         [Test]
-        public void Should_handle_outgoing_message()
+        public async Task Should_handle_outgoing_message()
         {
             var outgoingMessages = new ConcurrentQueue<IMessageEnvelope>();
             var expMessageBody = Fixture.Create<object>();
@@ -49,6 +49,8 @@ namespace SharpMTProto.Tests
             outgoingMessages.Should().HaveCount(0);
 
             session.Send(expMessageBody, MessageSendingFlags.EncryptedAndContentRelatedRPC);
+
+            await Task.Delay(10);
 
             outgoingMessages.Should().HaveCount(1);
 

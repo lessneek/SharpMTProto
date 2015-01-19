@@ -4,46 +4,36 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
-using FluentAssertions;
-using Moq;
-using Nito.AsyncEx;
-using NUnit.Framework;
-using SharpMTProto.Messaging;
-using SharpMTProto.Schema;
-using SharpMTProto.Tests.TestObjects;
-using SharpMTProto.Transport;
-
 namespace SharpMTProto.Tests
 {
+    using System;
+    using System.Reactive.Subjects;
+    using System.Threading;
+    using System.Threading.Tasks;
     using Autofac;
-    using SetUp;
+    using FluentAssertions;
+    using Moq;
+    using Nito.AsyncEx;
+    using NUnit.Framework;
+    using Ploeh.AutoFixture;
     using SharpMTProto.Authentication;
     using SharpMTProto.Dataflows;
+    using SharpMTProto.Messaging;
+    using SharpMTProto.Schema;
     using SharpMTProto.Services;
+    using SharpMTProto.Tests.SetUp;
+    using SharpMTProto.Tests.TestObjects;
+    using SharpMTProto.Transport;
 
     [TestFixture]
     [Category("Core")]
     public class MTProtoClientConnectionFacts : SharpMTProtoTestBase
     {
-        [SetUp]
-        public void SetUp()
-        {
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-        }
-
         [Test]
         public async Task Should_send_Rpc_and_receive_response()
         {
-            const ulong sessionId = 42;
-            var authInfo = new AuthInfo(AuthKey, 100500);
+            var sessionId = Fixture.Create<ulong>();
+            var authInfo = new AuthInfo(AuthKey, Fixture.Create<ulong>());
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
             var rpcResult = new RpcResult {ReqMsgId = TestMessageIdsGenerator.MessageIds[0], Result = expectedResponse};
@@ -59,16 +49,18 @@ namespace SharpMTProto.Tests
 
                     var messageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyWithId.AuthKeyId, sessionId),
                         authInfo.Salt,
-                        new Message(0x0102030405060708, 3, rpcResult));
+                        new Message(Fixture.Create<ulong>(), Fixture.Create<uint>(), rpcResult));
 
-                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessageCodecMode.Server);
+                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope,
+                        authInfo.AuthKey,
+                        MessageCodecMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
             });
 
             var builder = Resolve<IMTProtoClientBuilder>();
-            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
+            using (IMTProtoClientConnection connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.SetAuthInfo(authInfo);
                 connection.SetSessionId(sessionId);
@@ -86,8 +78,8 @@ namespace SharpMTProto.Tests
         [Test]
         public async Task Should_send_encrypted_message_and_wait_for_response()
         {
-            const ulong sessionId = 42;
-            var authInfo = new AuthInfo(AuthKey, 100500);
+            ulong sessionId = Fixture.Create<ulong>();
+            var authInfo = new AuthInfo(AuthKey, Fixture.Create<ulong>());
             var request = new TestRequest {TestId = 9};
             var expectedResponse = new TestResponse {TestId = 9, TestText = "Number 1"};
 
@@ -100,19 +92,20 @@ namespace SharpMTProto.Tests
 
                     AuthKeyWithId authKeyWithId = authKeysProvider.Add(authInfo.AuthKey);
 
-                    var messageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyWithId.AuthKeyId,
-                        sessionId),
+                    var messageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyWithId.AuthKeyId, sessionId),
                         authInfo.Salt,
-                        new Message(0x0102030405060708, 3, expectedResponse));
+                        new Message(0x0102030405060708, Fixture.Create<uint>(), expectedResponse));
 
-                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope, authInfo.AuthKey, MessageCodecMode.Server);
+                    byte[] expectedResponseMessageBytes = messageCodec.EncodeEncryptedMessage(messageEnvelope,
+                        authInfo.AuthKey,
+                        MessageCodecMode.Server);
 
                     return CreateMockTransportFactory(CreateMockTransportWhichReturnsBytes(expectedResponseMessageBytes).Object).Object;
                 }).As<IClientTransportFactory>().SingleInstance();
             });
 
             var builder = Resolve<IMTProtoClientBuilder>();
-            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
+            using (IMTProtoClientConnection connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.SetAuthInfo(authInfo);
                 connection.SetSessionId(sessionId);
@@ -131,8 +124,10 @@ namespace SharpMTProto.Tests
         [Test]
         public async Task Should_send_plain_message_and_wait_for_response()
         {
-            var request = new TestRequest { TestId = 9 };
-            var expectedResponse = new TestResponse { TestId = 9, TestText = "Number 1" };
+            var testId = Fixture.Create<int>();
+
+            var request = new TestRequest { TestId = testId };
+            var expectedResponse = new TestResponse { TestId = testId, TestText = "Number 1" };
 
             Override(b =>
             {
@@ -147,7 +142,7 @@ namespace SharpMTProto.Tests
             });
 
             var builder = Resolve<IMTProtoClientBuilder>();
-            using (var connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
+            using (IMTProtoClientConnection connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
                 connection.Transport.SendingTimeout = TimeSpan.FromSeconds(5);
                 await connection.ConnectAsync();
@@ -180,12 +175,15 @@ namespace SharpMTProto.Tests
         private Mock<IClientTransport> CreateMockTransportWhichReturnsBytes(byte[] expectedResponseMessageBytes)
         {
             var inConnector = new Subject<IBytesBucket>();
-            var mockTransport = CreateMockTransport();
+            Mock<IClientTransport> mockTransport = CreateMockTransport();
 
-            mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<IBytesBucket>>())).Callback<IObserver<IBytesBucket>>(observer => inConnector.Subscribe(observer));
+            mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<IBytesBucket>>()))
+                .Callback<IObserver<IBytesBucket>>(observer => inConnector.Subscribe(observer));
 
             mockTransport.Setup(transport => transport.SendAsync(It.IsAny<IBytesBucket>(), It.IsAny<CancellationToken>()))
-                .Callback(() => inConnector.OnNext(Mock.Of<IBytesBucket>(bucket => bucket.UsedBytes == new ArraySegment<byte>(expectedResponseMessageBytes))))
+                .Callback(
+                    () =>
+                        inConnector.OnNext(Mock.Of<IBytesBucket>(bucket => bucket.UsedBytes == new ArraySegment<byte>(expectedResponseMessageBytes))))
                 .Returns(() => TaskConstants.Completed);
 
             return mockTransport;

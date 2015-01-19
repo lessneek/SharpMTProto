@@ -39,6 +39,14 @@ namespace SharpMTProto.Messaging
         Task EncodeMessageAsync([NotNull] IMessageEnvelope messageEnvelope, [NotNull] TLStreamer streamer, MessageCodecMode messageCodecMode);
 
         /// <summary>
+        ///     Encodes a message asynchronously.
+        /// </summary>
+        /// <param name="messageEnvelope">Message envelope.</param>
+        /// <param name="messageCodecMode">Messenger mode.</param>
+        /// <returns>A bytes bucket with the message.</returns>
+        Task<IBytesBucket> EncodeMessageAsync(IMessageEnvelope messageEnvelope, MessageCodecMode messageCodecMode);
+
+        /// <summary>
         ///     Decodes a message asyncronously.
         /// </summary>
         /// <param name="streamer">Streamer.</param>
@@ -205,75 +213,7 @@ namespace SharpMTProto.Messaging
             _randomGenerator = randomGenerator;
             _authKeysProvider = authKeysProvider;
 
-            // TODO: bytes ocean.
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultMessageCodecBytesOcean();
-        }
-
-        #endregion
-
-        #region Common methods.
-
-        public Task EncodeMessageAsync(IMessageEnvelope messageEnvelope, TLStreamer streamer, MessageCodecMode messageCodecMode)
-        {
-            if (messageEnvelope == null)
-                throw new ArgumentNullException("messageEnvelope");
-            if (streamer == null)
-                throw new ArgumentNullException("streamer");
-
-            if (messageEnvelope.IsEncrypted)
-            {
-                AuthKeyWithId authKeyWithId;
-                if (!_authKeysProvider.TryGet(messageEnvelope.SessionTag.AuthKeyId, out authKeyWithId))
-                {
-                    throw new InvalidMessageException(
-                        string.Format("Unable to encrypt a message with auth key ID '{0}'. Auth key with such ID not found.",
-                            messageEnvelope.SessionTag.AuthKeyId));
-                }
-
-                return EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKeyWithId.AuthKey, messageCodecMode);
-            }
-            return EncodePlainMessageAsync(messageEnvelope.Message, streamer);
-        }
-
-        public async Task<IMessageEnvelope> DecodeMessageAsync(TLStreamer streamer, MessageCodecMode messageCodecMode)
-        {
-            IMessageEnvelope messageEnvelope;
-
-            ulong incomingMsgAuthKeyId = ReadAuthKeyId(streamer);
-            if (incomingMsgAuthKeyId == 0)
-            {
-                // Assume the message bytes has a plain (unencrypted) message.
-                LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", incomingMsgAuthKeyId));
-
-                IMessage message = await DecodePlainMessageAsync(streamer);
-                messageEnvelope = new MessageEnvelope(message);
-            }
-            else
-            {
-                // Assume the stream has an encrypted message.
-                LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", incomingMsgAuthKeyId));
-
-                // Getting auth key by id.
-                AuthKeyWithId incomingMsgAuthKeyWithId;
-                if (!_authKeysProvider.TryGet(incomingMsgAuthKeyId, out incomingMsgAuthKeyWithId))
-                {
-                    throw new InvalidMessageException(
-                        string.Format("Unable to decrypt incoming message with auth key ID '{0}'. Auth key with such ID not found.",
-                            incomingMsgAuthKeyId));
-                }
-
-                // Decoding an encrypted message.
-                messageEnvelope =
-                    await
-                        DecodeEncryptedMessageAsync(streamer, incomingMsgAuthKeyWithId.AuthKey, messageCodecMode);
-
-                // TODO: check salt.
-                // _authInfo.Salt == messageEnvelope.Salt;
-
-                LogDebug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", messageEnvelope.Message.MsgId));
-            }
-
-            return messageEnvelope;
         }
 
         #endregion
@@ -317,6 +257,84 @@ namespace SharpMTProto.Messaging
         private readonly IRandomGenerator _randomGenerator;
         private readonly IAuthKeysProvider _authKeysProvider;
         private readonly TLRig _tlRig;
+
+        #endregion
+
+        #region Common methods.
+
+        public Task EncodeMessageAsync(IMessageEnvelope messageEnvelope, TLStreamer streamer, MessageCodecMode messageCodecMode)
+        {
+            if (messageEnvelope == null)
+                throw new ArgumentNullException("messageEnvelope");
+            if (streamer == null)
+                throw new ArgumentNullException("streamer");
+
+            if (messageEnvelope.IsEncrypted)
+            {
+                AuthKeyWithId authKeyWithId;
+                if (!_authKeysProvider.TryGet(messageEnvelope.SessionTag.AuthKeyId, out authKeyWithId))
+                {
+                    throw new InvalidMessageException(
+                        string.Format("Unable to encrypt a message with auth key ID '{0}'. Auth key with such ID not found.",
+                            messageEnvelope.SessionTag.AuthKeyId));
+                }
+
+                return EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKeyWithId.AuthKey, messageCodecMode);
+            }
+            return EncodePlainMessageAsync(messageEnvelope.Message, streamer);
+        }
+
+        public async Task<IBytesBucket> EncodeMessageAsync(IMessageEnvelope messageEnvelope, MessageCodecMode messageCodecMode)
+        {
+            IBytesBucket messageBytesBucket = await _bytesOcean.TakeAsync(MaximumMessageLength).ConfigureAwait(false);
+            using (var streamer = new TLStreamer(messageBytesBucket.Bytes))
+            {
+                await EncodeMessageAsync(messageEnvelope, streamer, messageCodecMode);
+                messageBytesBucket.Used = (int)streamer.Position;
+            }
+            return messageBytesBucket;
+        }
+
+        public async Task<IMessageEnvelope> DecodeMessageAsync(TLStreamer streamer, MessageCodecMode messageCodecMode)
+        {
+            IMessageEnvelope messageEnvelope;
+
+            ulong incomingMsgAuthKeyId = ReadAuthKeyId(streamer);
+            if (incomingMsgAuthKeyId == 0)
+            {
+                // Assume the message bytes has a plain (unencrypted) message.
+                LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", incomingMsgAuthKeyId));
+
+                IMessage message = await DecodePlainMessageAsync(streamer);
+                messageEnvelope = new MessageEnvelope(message);
+            }
+            else
+            {
+                // Assume the stream has an encrypted message.
+                LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is encrypted message.", incomingMsgAuthKeyId));
+
+                // Getting auth key by id.
+                AuthKeyWithId incomingMsgAuthKeyWithId;
+                if (!_authKeysProvider.TryGet(incomingMsgAuthKeyId, out incomingMsgAuthKeyWithId))
+                {
+                    throw new InvalidMessageException(
+                        string.Format("Unable to decrypt incoming message with auth key ID '{0}'. Auth key with such ID not found.",
+                            incomingMsgAuthKeyId));
+                }
+
+                // Decoding an encrypted message.
+                messageEnvelope =
+                    await
+                        DecodeEncryptedMessageAsync(streamer, incomingMsgAuthKeyWithId.AuthKey, messageCodecMode);
+
+                // TODO: check salt.
+                // _authInfo.Salt == messageEnvelope.Salt;
+
+                LogDebug(string.Format("Received encrypted message. Message ID = 0x{0:X16}.", messageEnvelope.Message.MsgId));
+            }
+
+            return messageEnvelope;
+        }
 
         #endregion
 
@@ -816,6 +834,10 @@ namespace SharpMTProto.Messaging
             }
         }
 
+        #endregion
+
+        #region Common methods.
+
         /// <summary>
         ///     Decodes a message asyncronously.
         /// </summary>
@@ -823,7 +845,9 @@ namespace SharpMTProto.Messaging
         /// <param name="data">Serialized message bytes.</param>
         /// <param name="messageCodecMode">Messenger mode which encoded a message in the stream.</param>
         /// <returns>Message envelope.</returns>
-        public static async Task<IMessageEnvelope> DecodeMessageAsync(this IMessageCodec codec, ArraySegment<byte> data, MessageCodecMode messageCodecMode)
+        public static async Task<IMessageEnvelope> DecodeMessageAsync(this IMessageCodec codec,
+            ArraySegment<byte> data,
+            MessageCodecMode messageCodecMode)
         {
             using (var streamer = new TLStreamer(data))
             {
@@ -841,6 +865,21 @@ namespace SharpMTProto.Messaging
         public static IMessageEnvelope DecodeMessage(this IMessageCodec codec, ArraySegment<byte> data, MessageCodecMode messageCodecMode)
         {
             return codec.DecodeMessageAsync(data, messageCodecMode).Result;
+        }
+
+        /// <summary>
+        /// Decode a message.
+        /// </summary>
+        /// <param name="codec">Codec itself.</param>
+        /// <param name="messageBucket">A bytes bucket with message bytes.</param>
+        /// <param name="messageCodecMode">Messenger mode which encoded a message in the stream.</param>
+        /// <returns></returns>
+        public static async Task<IMessageEnvelope> DecodeMessageAsync(this IMessageCodec codec, IBytesBucket messageBucket, MessageCodecMode messageCodecMode)
+        {
+            using (messageBucket)
+            {
+                return await codec.DecodeMessageAsync(messageBucket.UsedBytes, messageCodecMode).ConfigureAwait(false);
+            }
         }
 
         #endregion
