@@ -100,7 +100,7 @@ namespace SharpMTProto
             set
             {
                 _authInfo = value;
-                ulong authKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.ComputeAuthKeyId(_authInfo.AuthKey);
+                ulong authKeyId = _authInfo.AuthKey == null ? 0 : _authKeysProvider.Add(_authInfo.AuthKey).AuthKeyId;
                 _sessionTag.Value = SessionTag.Value.UpdateAuthKeyId(authKeyId);
             }
         }
