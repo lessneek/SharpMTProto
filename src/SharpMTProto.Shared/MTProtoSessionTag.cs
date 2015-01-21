@@ -46,6 +46,11 @@ namespace SharpMTProto
             return new MTProtoSessionTag(authKeyId, SessionId);
         }
 
+        public override string ToString()
+        {
+            return string.Format("AuthKeyId: {0}, SessionId: {1}", AuthKeyId, SessionId);
+        }
+
         #region Equality
 
         public bool Equals(MTProtoSessionTag other)
