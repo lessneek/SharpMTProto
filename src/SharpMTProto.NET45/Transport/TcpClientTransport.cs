@@ -50,9 +50,8 @@ namespace SharpMTProto.Transport
             _config = config;
             _packetProcessor = packetProcessor;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
-            _state = new ObservableProperty<IClientTransport, ClientTransportState>(this, ClientTransportState.Disconnected);
 
-            TransportId = Guid.NewGuid();
+            Init();
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
@@ -83,7 +82,7 @@ namespace SharpMTProto.Transport
             _packetProcessor = packetProcessor;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
 
-            TransportId = Guid.NewGuid();
+            Init();
 
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
             if (_remoteEndPoint == null)
@@ -97,6 +96,12 @@ namespace SharpMTProto.Transport
             _config = new TcpClientTransportConfig(_remoteEndPoint.Address.ToString(), _remoteEndPoint.Port);
 
             InternalConnectAsync().Wait();
+        }
+
+        private void Init()
+        {
+            TransportId = Guid.NewGuid();
+            _state = new ObservableProperty<IClientTransport, ClientTransportState>(this, ClientTransportState.Disconnected);
         }
 
         public IDisposable Subscribe(IObserver<IBytesBucket> observer)
