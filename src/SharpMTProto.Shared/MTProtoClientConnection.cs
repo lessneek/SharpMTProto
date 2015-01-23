@@ -99,7 +99,7 @@ namespace SharpMTProto
         private readonly IMessageCodec _messageCodec;
         private readonly object _messageSendingFlagsSyncRoot = new object();
         private readonly MTProtoAsyncMethods _methods;
-        private IClientTransport _clientTransport;
+        private IConnectableClientTransport _clientTransport;
 
         private BehaviorSubject<ImmutableArray<Type>> _firstRequestResponseMessageTypes =
             new BehaviorSubject<ImmutableArray<Type>>(ImmutableArray<Type>.Empty);
@@ -108,7 +108,7 @@ namespace SharpMTProto
         private IRequestsManager _requestsManager = new RequestsManager();
         private IMTProtoSession _session;
 
-        public MTProtoClientConnection([NotNull] IClientTransport clientTransport,
+        public MTProtoClientConnection([NotNull] IConnectableClientTransport clientTransport,
             [NotNull] IMTProtoSession session,
             [NotNull] IMessageCodec messageCodec)
         {

@@ -7,6 +7,7 @@ namespace SharpMTProto.Tests.SetUp
     using Autofac;
     using BigMath.Utils;
     using Moq;
+    using NUnit.Framework;
     using Ploeh.AutoFixture;
     using Ploeh.AutoFixture.AutoMoq;
     using SharpMTProto.Authentication;
@@ -23,7 +24,7 @@ namespace SharpMTProto.Tests.SetUp
 
         protected IFixture Fixture { get; private set; }
 
-        [NUnit.Framework.SetUp]
+        [SetUp]
         public void SetUp()
         {
             Fixture = new Fixture().Customize(new AutoConfiguredMoqCustomization());
@@ -42,7 +43,8 @@ namespace SharpMTProto.Tests.SetUp
             builder.RegisterType<SystemHashServiceProvider>().As<IHashServiceProvider>().SingleInstance();
 
             builder.RegisterInstance(
-                Mock.Of<IClientTransportFactory>(factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IClientTransport>()));
+                Mock.Of<IClientTransportFactory>(
+                    factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IConnectableClientTransport>()));
 
             builder.RegisterType<MTProtoClientBuilder>().As<IMTProtoClientBuilder>();
             builder.RegisterType<MTProtoSession>().As<IMTProtoSession>().AsSelf();

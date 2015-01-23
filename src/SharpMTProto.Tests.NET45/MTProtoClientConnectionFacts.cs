@@ -172,10 +172,10 @@ namespace SharpMTProto.Tests
             testAction.ShouldThrow<TimeoutException>();
         }
 
-        private Mock<IClientTransport> CreateMockTransportWhichReturnsBytes(byte[] expectedResponseMessageBytes)
+        private Mock<IConnectableClientTransport> CreateMockTransportWhichReturnsBytes(byte[] expectedResponseMessageBytes)
         {
             var inConnector = new Subject<IBytesBucket>();
-            Mock<IClientTransport> mockTransport = CreateMockTransport();
+            Mock<IConnectableClientTransport> mockTransport = CreateMockTransport();
 
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<IBytesBucket>>()))
                 .Callback<IObserver<IBytesBucket>>(observer => inConnector.Subscribe(observer));
@@ -189,18 +189,17 @@ namespace SharpMTProto.Tests
             return mockTransport;
         }
 
-        private static Mock<IClientTransport> CreateMockTransport()
+        private static Mock<IConnectableClientTransport> CreateMockTransport()
         {
-            var mockTransport = new Mock<IClientTransport>();
+            var mockTransport = new Mock<IConnectableClientTransport>();
 
             mockTransport.Setup(transport => transport.ConnectAsync()).Returns(() => Task.FromResult(TransportConnectResult.Success));
-
             mockTransport.Setup(transport => transport.IsConnected).Returns(() => true);
 
             return mockTransport;
         }
 
-        private static Mock<IClientTransportFactory> CreateMockTransportFactory(IClientTransport clientTransport)
+        private static Mock<IClientTransportFactory> CreateMockTransportFactory(IConnectableClientTransport clientTransport)
         {
             var mockTransportFactory = new Mock<IClientTransportFactory>();
             mockTransportFactory.Setup(manager => manager.CreateTransport(It.IsAny<IClientTransportConfig>())).Returns(() => clientTransport);

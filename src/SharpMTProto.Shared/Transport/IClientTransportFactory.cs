@@ -16,6 +16,6 @@ namespace SharpMTProto.Transport
         /// </summary>
         /// <param name="clientTransportConfig">Transport info.</param>
         /// <returns>Cllient TCP transport.</returns>
-        IClientTransport CreateTransport(IClientTransportConfig clientTransportConfig);
+        IConnectableClientTransport CreateTransport(IClientTransportConfig clientTransportConfig);
     }
 }

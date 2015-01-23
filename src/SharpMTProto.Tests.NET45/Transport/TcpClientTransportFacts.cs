@@ -59,11 +59,12 @@ namespace SharpMTProto.Tests.Transport
 
             using (TcpClientTransport clientTransport = CreateTcpTransport())
             {
-                clientTransport.StateChanges.Subscribe(state => currentState = state);
+                currentState = clientTransport.State.Value;
+                clientTransport.State.Subscribe(state => currentState = state.NewValue);
 
                 currentState.Should().NotBeNull();
                 currentState.Should().Be(ClientTransportState.Disconnected);
-                clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+                clientTransport.State.Value.Should().Be(ClientTransportState.Disconnected);
                 clientTransport.IsConnected.Should().BeFalse();
 
                 await clientTransport.ConnectAsync();
@@ -74,7 +75,7 @@ namespace SharpMTProto.Tests.Transport
                 clientSocket.IsConnected().Should().BeTrue();
 
                 currentState.Should().Be(ClientTransportState.Connected);
-                clientTransport.State.Should().Be(ClientTransportState.Connected);
+                clientTransport.State.Value.Should().Be(ClientTransportState.Connected);
                 clientTransport.IsConnected.Should().BeTrue();
 
                 await clientTransport.DisconnectAsync();
@@ -82,7 +83,7 @@ namespace SharpMTProto.Tests.Transport
                 clientSocket.IsConnected().Should().BeFalse();
 
                 currentState.Should().Be(ClientTransportState.Disconnected);
-                clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+                clientTransport.State.Value.Should().Be(ClientTransportState.Disconnected);
                 clientTransport.IsConnected.Should().BeFalse();
             }
         }
@@ -92,7 +93,7 @@ namespace SharpMTProto.Tests.Transport
         {
             TcpClientTransport clientTransport = CreateTcpTransport();
 
-            clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+            clientTransport.State.Value.Should().Be(ClientTransportState.Disconnected);
 
             await clientTransport.ConnectAsync();
 
@@ -101,7 +102,7 @@ namespace SharpMTProto.Tests.Transport
             clientSocket.Should().NotBeNull();
             clientSocket.IsConnected().Should().BeTrue();
 
-            clientTransport.State.Should().Be(ClientTransportState.Connected);
+            clientTransport.State.Value.Should().Be(ClientTransportState.Connected);
 
             clientSocket.Shutdown(SocketShutdown.Both);
             clientSocket.Disconnect(false);
@@ -109,11 +110,11 @@ namespace SharpMTProto.Tests.Transport
 
             await Task.Delay(200);
 
-            clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+            clientTransport.State.Value.Should().Be(ClientTransportState.Disconnected);
 
             await clientTransport.DisconnectAsync();
 
-            clientTransport.State.Should().Be(ClientTransportState.Disconnected);
+            clientTransport.State.Value.Should().Be(ClientTransportState.Disconnected);
         }
 
         [Test]

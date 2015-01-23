@@ -10,8 +10,12 @@ namespace SharpMTProto.Transport
     using System.Reactive.Disposables;
     using System.Threading;
     using System.Threading.Tasks;
-    using Dataflows;
+    using SharpMTProto.Dataflows;
+    using SharpMTProto.Utils;
 
+    /// <summary>
+    ///     Clien transport state.
+    /// </summary>
     public enum ClientTransportState
     {
         Disconnected = 0,
@@ -31,15 +35,25 @@ namespace SharpMTProto.Transport
         Timeout = 3
     }
 
-    public interface IClientTransport : IObservable<IBytesBucket>, ICancelable
+    /// <summary>
+    ///     A client transport without ability to connect. May be used as connected transport.
+    /// </summary>
+    public interface IClientTransport : IObservable<IBytesBucket>, /*ITransportOutChannel,*/ ICancelable
     {
+        Guid TransportId { get; }
         bool IsConnected { get; }
-        ClientTransportState State { get; }
         TimeSpan SendingTimeout { get; set; }
-        TimeSpan ConnectTimeout { get; set; }
-        IObservable<ClientTransportState> StateChanges { get; }
-        Task<TransportConnectResult> ConnectAsync();
-        Task DisconnectAsync();
         Task SendAsync(IBytesBucket payload, CancellationToken cancellationToken = default (CancellationToken));
+        Task DisconnectAsync();
+    }
+
+    /// <summary>
+    ///     Connectable client transport.
+    /// </summary>
+    public interface IConnectableClientTransport : IClientTransport
+    {
+        IObservableReadonlyProperty<IClientTransport, ClientTransportState> State { get; }
+        TimeSpan ConnectTimeout { get; set; }
+        Task<TransportConnectResult> ConnectAsync();
     }
 }

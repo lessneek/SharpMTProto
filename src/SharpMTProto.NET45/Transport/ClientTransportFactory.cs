@@ -11,7 +11,7 @@ namespace SharpMTProto.Transport
 
     public class ClientTransportFactory : IClientTransportFactory
     {
-        private readonly Func<TcpClientTransportConfig, TcpClientTransport> _createTcpClientTransport;
+        private readonly Func<TcpClientTransportConfig, IConnectableClientTransport> _createTcpClientTransport;
 
         public ClientTransportFactory([NotNull] Func<TcpClientTransportConfig, TcpClientTransport> createTcpClientTransport)
         {
@@ -21,7 +21,7 @@ namespace SharpMTProto.Transport
             _createTcpClientTransport = createTcpClientTransport;
         }
 
-        public IClientTransport CreateTransport(IClientTransportConfig clientTransportConfig)
+        public IConnectableClientTransport CreateTransport(IClientTransportConfig clientTransportConfig)
         {
             // TCP.
             var tcpTransportConfig = clientTransportConfig as TcpClientTransportConfig;

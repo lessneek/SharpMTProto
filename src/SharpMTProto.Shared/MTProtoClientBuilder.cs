@@ -94,7 +94,7 @@ namespace SharpMTProto
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
-            IClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
+            IConnectableClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
 
             // TODO: add bytes ocean external config.
             return new MTProtoClientConnection(transport, new MTProtoSession(_messageIdGenerator, _randomGenerator, _authKeysProvider), _messageCodec);

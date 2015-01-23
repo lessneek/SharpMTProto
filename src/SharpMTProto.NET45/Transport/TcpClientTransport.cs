@@ -11,7 +11,6 @@ namespace SharpMTProto.Transport
     using System.Net;
     using System.Net.Sockets;
     using System.Reactive.Linq;
-    using System.Reactive.Subjects;
     using System.Reactive.Threading.Tasks;
     using System.Threading;
     using System.Threading.Tasks;
@@ -26,18 +25,18 @@ namespace SharpMTProto.Transport
     /// <summary>
     ///     MTProto TCP clientTransport.
     /// </summary>
-    public class TcpClientTransport : Cancelable, IClientTransport
+    public class TcpClientTransport : Cancelable, IConnectableClientTransport
     {
         private CancellationTokenSource _connectionCancellationTokenSource;
         private ITransportPacketProcessor _packetProcessor;
         private Socket _socket;
-        private BehaviorSubject<ClientTransportState> _stateChanges = new BehaviorSubject<ClientTransportState>(ClientTransportState.Disconnected);
         private readonly IBytesOcean _bytesOcean;
         private readonly TcpClientTransportConfig _config;
         private readonly bool _isConnectedSocket;
         private readonly BufferBlock<IBytesBucket> _outgoingQueue = new BufferBlock<IBytesBucket>();
         private readonly IPEndPoint _remoteEndPoint;
         private readonly AsyncLock _stateAsyncLock = new AsyncLock();
+        private ObservableProperty<IClientTransport, ClientTransportState> _state;
 
         public TcpClientTransport([NotNull] TcpClientTransportConfig config,
             [NotNull] ITransportPacketProcessor packetProcessor,
@@ -51,6 +50,9 @@ namespace SharpMTProto.Transport
             _config = config;
             _packetProcessor = packetProcessor;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
+            _state = new ObservableProperty<IClientTransport, ClientTransportState>(this, ClientTransportState.Disconnected);
+
+            TransportId = Guid.NewGuid();
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
@@ -81,6 +83,8 @@ namespace SharpMTProto.Transport
             _packetProcessor = packetProcessor;
             _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
 
+            TransportId = Guid.NewGuid();
+
             _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
             if (_remoteEndPoint == null)
             {
@@ -101,20 +105,16 @@ namespace SharpMTProto.Transport
             return _packetProcessor.IncomingMessageBuckets.Subscribe(observer);
         }
 
+        public Guid TransportId { get; private set; }
+
         public bool IsConnected
         {
-            get { return State == ClientTransportState.Connected; }
+            get { return _state.Value == ClientTransportState.Connected; }
         }
 
-        public ClientTransportState State
+        public IObservableReadonlyProperty<IClientTransport, ClientTransportState> State
         {
-            get { return _stateChanges.Value; }
-            private set { _stateChanges.OnNext(value); }
-        }
-
-        public IObservable<ClientTransportState> StateChanges
-        {
-            get { return _stateChanges; }
+            get { return _state.AsReadonly; }
         }
 
         public TimeSpan ConnectTimeout { get; set; }
@@ -135,15 +135,15 @@ namespace SharpMTProto.Transport
         {
             using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
-                Debug.Assert(State != ClientTransportState.Connecting, "This should never happens.");
-                Debug.Assert(State != ClientTransportState.Disconnecting, "This should never happens.");
+                Debug.Assert(_state.Value != ClientTransportState.Connecting, "This should never happens.");
+                Debug.Assert(_state.Value != ClientTransportState.Disconnecting, "This should never happens.");
 
-                if (State != ClientTransportState.Connected)
+                if (_state.Value != ClientTransportState.Connected)
                 {
                     LogDebug(string.Format("Could not disconnect in non connected state."));
                     return;
                 }
-                State = ClientTransportState.Disconnecting;
+                _state.Value = ClientTransportState.Disconnecting;
                 LogDebug(string.Format("Disconnecting."));
 
                 if (_connectionCancellationTokenSource != null)
@@ -176,7 +176,7 @@ namespace SharpMTProto.Transport
                     }
                 }
 
-                State = ClientTransportState.Disconnected;
+                _state.Value = ClientTransportState.Disconnected;
                 LogDebug(string.Format("Disconnected."));
             }
         }
@@ -202,21 +202,21 @@ namespace SharpMTProto.Transport
 
             using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
-                Debug.Assert(State != ClientTransportState.Connecting, "This should never happens.");
-                Debug.Assert(State != ClientTransportState.Disconnecting, "This should never happens.");
+                Debug.Assert(_state.Value != ClientTransportState.Connecting, "This should never happens.");
+                Debug.Assert(_state.Value != ClientTransportState.Disconnecting, "This should never happens.");
 
                 var result = TransportConnectResult.Unknown;
 
-                if (State == ClientTransportState.Connected)
+                if (_state.Value == ClientTransportState.Connected)
                 {
                     LogDebug(string.Format("Client transport ({0}) already connected.", _remoteEndPoint));
                     return TransportConnectResult.Success;
                 }
-                State = ClientTransportState.Connecting;
+                _state.Value = ClientTransportState.Connecting;
 
                 if (_isConnectedSocket)
                 {
-                    State = ClientTransportState.Connected;
+                    _state.Value = ClientTransportState.Connected;
                     result = TransportConnectResult.Success;
                 }
                 else
@@ -243,7 +243,7 @@ namespace SharpMTProto.Transport
                         catch (Exception e)
                         {
                             LogDebug(e, "Fatal error on connect.");
-                            State = ClientTransportState.Disconnected;
+                            _state.Value = ClientTransportState.Disconnected;
                             throw;
                         }
 
@@ -269,14 +269,14 @@ namespace SharpMTProto.Transport
                 switch (result)
                 {
                     case TransportConnectResult.Success:
-                        State = ClientTransportState.Connected;
+                        _state.Value = ClientTransportState.Connected;
                         break;
                     case TransportConnectResult.Unknown:
                     case TransportConnectResult.Fail:
                     case TransportConnectResult.Timeout:
                         _socket.Close();
                         _socket = null;
-                        State = ClientTransportState.Disconnected;
+                        _state.Value = ClientTransportState.Disconnected;
                         return result;
                     default:
                         throw new ArgumentOutOfRangeException();
@@ -364,7 +364,7 @@ namespace SharpMTProto.Transport
                 args.Dispose();
             }
 
-            if (State == ClientTransportState.Connected)
+            if (_state.Value == ClientTransportState.Connected)
             {
                 await DisconnectAsync();
             }
@@ -438,7 +438,7 @@ namespace SharpMTProto.Transport
                 senderBucket.Dispose();
             }
 
-            if (State == ClientTransportState.Connected)
+            if (_state.Value == ClientTransportState.Connected)
             {
                 await DisconnectAsync();
             }
@@ -484,7 +484,7 @@ namespace SharpMTProto.Transport
         {
             if (isDisposing)
             {
-                if (State != ClientTransportState.Disconnected)
+                if (_state.Value != ClientTransportState.Disconnected)
                 {
                     await DisconnectAsync();
                 }
@@ -497,11 +497,10 @@ namespace SharpMTProto.Transport
                     _packetProcessor.Dispose();
                     _packetProcessor = null;
                 }
-                if (_stateChanges != null)
+                if (_state != null)
                 {
-                    _stateChanges.OnCompleted();
-                    _stateChanges.Dispose();
-                    _stateChanges = null;
+                    _state.Dispose();
+                    _state = null;
                 }
             }
             base.Dispose(isDisposing);

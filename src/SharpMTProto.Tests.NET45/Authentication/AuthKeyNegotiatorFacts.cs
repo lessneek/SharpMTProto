@@ -74,7 +74,7 @@ namespace SharpMTProto.Tests.Authentication
         private static Mock<IClientTransportFactory> CreateMockClientTransportFactory()
         {
             var inTransport = new Subject<IBytesBucket>();
-            var mockTransport = new Mock<IClientTransport>();
+            var mockTransport = new Mock<IConnectableClientTransport>();
             mockTransport.Setup(transport => transport.Subscribe(It.IsAny<IObserver<IBytesBucket>>()))
                 .Callback<IObserver<IBytesBucket>>(observer => inTransport.Subscribe(observer));
 
