@@ -41,7 +41,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Request.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\RequestsManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\MessageCodecMode.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)MTProtoClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientConnection.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoClientBuilder.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)MTProtoSessionTag.cs" />
