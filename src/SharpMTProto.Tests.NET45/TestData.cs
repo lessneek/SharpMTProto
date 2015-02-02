@@ -120,6 +120,11 @@ namespace SharpMTProto.Tests
         {
             return MessageIdsInternal[_mi++];
         }
+
+        public ulong GetNextServerMessageId(bool isResponse)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class TestNonceGenerator : INonceGenerator, IDisposable
