@@ -48,7 +48,7 @@ namespace SharpMTProto.Tests.Dataflows
             int maximalSize = minimalRequiredSize + delta;
 
             var ocean = new BytesOcean(new BytesOceanConfig(new BytesBucketsConfig(3, minimalSize), new BytesBucketsConfig(3, maximalSize)));
-            IBytesBucket bucket = await ocean.TakeAsync(minimalRequiredSize);
+            IBytesBucket bucket = await ocean.TakeAsync(minimalRequiredSize).ConfigureAwait(false);
             bucket.Should().NotBeNull();
             bucket.Ocean.Should().BeSameAs(ocean);
             bucket.Bytes.Count.Should().Be(maximalSize);
@@ -59,7 +59,7 @@ namespace SharpMTProto.Tests.Dataflows
         public void Should_throw_on_take_async_with_exceeding_minimal_size()
         {
             var ocean = new BytesOcean(new BytesOceanConfig(new BytesBucketsConfig(3, 1024), new BytesBucketsConfig(3, 16)));
-            var a = new Func<Task>(async () => await ocean.TakeAsync(1025));
+            var a = new Func<Task>(async () => await ocean.TakeAsync(1025).ConfigureAwait(false));
             a.ShouldThrow<ArgumentOutOfRangeException>();
         }
     }

@@ -289,7 +289,7 @@ namespace SharpMTProto.Messaging
             IBytesBucket messageBytesBucket = await _bytesOcean.TakeAsync(MaximumMessageLength).ConfigureAwait(false);
             using (var streamer = new TLStreamer(messageBytesBucket.Bytes))
             {
-                await EncodeMessageAsync(messageEnvelope, streamer, messageCodecMode);
+                await EncodeMessageAsync(messageEnvelope, streamer, messageCodecMode).ConfigureAwait(false);
                 messageBytesBucket.Used = (int)streamer.Position;
             }
             return messageBytesBucket;
@@ -305,7 +305,7 @@ namespace SharpMTProto.Messaging
                 // Assume the message bytes has a plain (unencrypted) message.
                 LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", incomingMsgAuthKeyId));
 
-                IMessage message = await DecodePlainMessageAsync(streamer);
+                IMessage message = await DecodePlainMessageAsync(streamer).ConfigureAwait(false);
                 messageEnvelope = MessageEnvelope.CreatePlain(message);
             }
             else
@@ -325,7 +325,7 @@ namespace SharpMTProto.Messaging
                 // Decoding an encrypted message.
                 messageEnvelope =
                     await
-                        DecodeEncryptedMessageAsync(streamer, incomingMsgAuthKeyWithId.AuthKey, messageCodecMode);
+                        DecodeEncryptedMessageAsync(streamer, incomingMsgAuthKeyWithId.AuthKey, messageCodecMode).ConfigureAwait(false);
 
                 // TODO: check salt.
                 // _authInfo.Salt == messageEnvelope.Salt;
@@ -350,7 +350,7 @@ namespace SharpMTProto.Messaging
             using (var ms = new MemoryStream())
             using (var streamer = new TLStreamer(ms))
             {
-                await EncodePlainMessageAsync(message, streamer);
+                await EncodePlainMessageAsync(message, streamer).ConfigureAwait(false);
                 return ms.ToArray();
             }
         }
@@ -369,7 +369,7 @@ namespace SharpMTProto.Messaging
         {
             using (var streamer = new TLStreamer(data))
             {
-                return await DecodePlainMessageAsync(streamer);
+                return await DecodePlainMessageAsync(streamer).ConfigureAwait(false);
             }
         }
 
@@ -537,7 +537,7 @@ namespace SharpMTProto.Messaging
             UInt32 seqno;
             Object body;
 
-            using (IBytesBucket innerDataWithPaddingBucket = await _bytesOcean.TakeAsync(MaximumMessageLength))
+            using (IBytesBucket innerDataWithPaddingBucket = await _bytesOcean.TakeAsync(MaximumMessageLength).ConfigureAwait(false))
             using (var innerStreamer = new TLStreamer(innerDataWithPaddingBucket.Bytes))
             {
                 // Decrypting.
@@ -758,7 +758,7 @@ namespace SharpMTProto.Messaging
             using (var ms = new MemoryStream())
             using (var streamer = new TLStreamer(ms))
             {
-                await codec.EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messageCodecMode);
+                await codec.EncodeEncryptedMessageAsync(messageEnvelope, streamer, authKey, messageCodecMode).ConfigureAwait(false);
                 return ms.ToArray();
             }
         }
@@ -850,7 +850,7 @@ namespace SharpMTProto.Messaging
         {
             using (var streamer = new TLStreamer(messageBytes))
             {
-                return await codec.DecodeEncryptedMessageAsync(streamer, authKey, messageCodecMode);
+                return await codec.DecodeEncryptedMessageAsync(streamer, authKey, messageCodecMode).ConfigureAwait(false);
             }
         }
 
@@ -871,7 +871,7 @@ namespace SharpMTProto.Messaging
         {
             using (var streamer = new TLStreamer(data))
             {
-                return await codec.DecodeMessageAsync(streamer, messageCodecMode);
+                return await codec.DecodeMessageAsync(streamer, messageCodecMode).ConfigureAwait(false);
             }
         }
 

@@ -270,7 +270,7 @@ namespace SharpMTProto.Tests.Transport
 
             byte[] payload = "010203040506070809".HexToBytes();
 
-            IBytesBucket sendPayloadBucket = await _bytesOcean.TakeAsync(100);
+            IBytesBucket sendPayloadBucket = await _bytesOcean.TakeAsync(100).ConfigureAwait(false);
 
             Buffer.BlockCopy(payload, 0, sendPayloadBucket.Bytes.Array, sendPayloadBucket.Bytes.Offset, payload.Length);
             sendPayloadBucket.Used = payload.Length;

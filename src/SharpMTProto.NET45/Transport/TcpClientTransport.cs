@@ -311,8 +311,7 @@ namespace SharpMTProto.Transport
             LogDebug(string.Format("Receiver task was started."));
             var canceled = false;
 
-            // TODO: add timeout.
-            IBytesBucket receiverBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
+            IBytesBucket receiverBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize).ConfigureAwait(false);
             var args = new SocketAsyncEventArgs();
             try
             {
@@ -383,7 +382,7 @@ namespace SharpMTProto.Transport
             var canceled = false;
 
             // TODO: add timeout.
-            IBytesBucket senderBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize);
+            IBytesBucket senderBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize).ConfigureAwait(false);
             var senderStreamer = new TLStreamer(senderBucket.Bytes);
             var args = new SocketAsyncEventArgs();
             try
