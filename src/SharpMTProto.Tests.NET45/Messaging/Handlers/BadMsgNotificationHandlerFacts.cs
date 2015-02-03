@@ -20,12 +20,11 @@ namespace SharpMTProto.Tests.Messaging.Handlers
         {
             const ulong newSalt = 9;
 
-            var reqMsg = new Message(0x100500, 1, new Object());
-            var reqMsgEvelope = new MessageEnvelope(reqMsg);
+            IMessage reqMsg = new Message(0x100500, 1, new Object());
             var request = new Mock<IRequest>();
-            request.SetupGet(r => r.MessageEnvelope).Returns(reqMsgEvelope);
+            request.SetupGet(r => r.MsgId).Returns(reqMsg.MsgId);
             var resMsg =
-                new MessageEnvelope(new Message(0x200600,
+                MessageEnvelope.CreatePlain(new Message(0x200600,
                     2,
                     new BadServerSalt
                     {
@@ -36,6 +35,7 @@ namespace SharpMTProto.Tests.Messaging.Handlers
                     }));
 
             var mockSession = new Mock<IMTProtoSession>();
+            mockSession.Setup(session => session.TryGetSentMessage(reqMsg.MsgId, out reqMsg)).Returns(true);
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
 

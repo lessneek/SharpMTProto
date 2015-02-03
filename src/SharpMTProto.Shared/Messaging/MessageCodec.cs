@@ -306,7 +306,7 @@ namespace SharpMTProto.Messaging
                 LogDebug(string.Format("Auth key ID = 0x{0:X16}. Assume this is a plain (unencrypted) message.", incomingMsgAuthKeyId));
 
                 IMessage message = await DecodePlainMessageAsync(streamer);
-                messageEnvelope = new MessageEnvelope(message);
+                messageEnvelope = MessageEnvelope.CreatePlain(message);
             }
             else
             {
@@ -602,7 +602,7 @@ namespace SharpMTProto.Messaging
                 #endregion
             }
 
-            return new MessageEnvelope(new MTProtoSessionTag(authKeyId, sessionId), salt, new Message(msgId, seqno, body));
+            return MessageEnvelope.CreateEncrypted(new MTProtoSessionTag(authKeyId, sessionId), salt, new Message(msgId, seqno, body));
         }
 
         #endregion

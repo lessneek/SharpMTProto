@@ -21,7 +21,10 @@ namespace SharpMTProto.Tests.Messaging.Handlers
         public void Should_handle_container_and_forward_internal_messages_to_dispatcher()
         {
             var messages = new List<Message> {new Message(1, 1, 1), new Message(2, 2, 2), new Message(3, 3, 3)};
-            var containerMessage = new MessageEnvelope(new Message(4, 4, new MsgContainer {Messages = messages}));
+            MessageEnvelope containerMessage = MessageEnvelope.CreateEncrypted(new MTProtoSessionTag(123, 321),
+                999,
+                new Message(4, 4, new MsgContainer {Messages = messages}));
+
             List<Message> expectedMessages = messages.CloneTLObject();
             var receivedMessages = new List<IMessageEnvelope>();
 

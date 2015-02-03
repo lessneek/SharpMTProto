@@ -214,7 +214,8 @@ namespace SharpMTProto
         public Task SendAsync(object requestBody)
         {
             ThrowIfDisposed();
-            _session.Send(requestBody, GetMessageSendingFlags(requestBody));
+            MessageSendingFlags flags = GetMessageSendingFlags(requestBody);
+            _session.EnqueueToSend(requestBody, flags.HasFlag(MessageSendingFlags.ContentRelated), flags.HasFlag(MessageSendingFlags.Encrypted));
             return TaskConstants.Completed;
         }
 
@@ -267,7 +268,11 @@ namespace SharpMTProto
         {
             ThrowIfDisposed();
 
-            var request = new Request<TResponse>(messageBody, flags, o => _session.Send(o, flags), _requestsManager, cancellationToken);
+            var request = new Request<TResponse>(messageBody,
+                flags,
+                o => _session.EnqueueToSend(o, flags.HasFlag(MessageSendingFlags.ContentRelated), flags.HasFlag(MessageSendingFlags.Encrypted)),
+                _requestsManager,
+                cancellationToken);
 
             ImmutableArray<Type> types = _firstRequestResponseMessageTypes.Value;
             if (!request.IsRpc && !types.Contains(request.ResponseType))

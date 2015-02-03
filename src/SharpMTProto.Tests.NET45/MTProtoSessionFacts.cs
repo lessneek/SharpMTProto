@@ -10,7 +10,6 @@ namespace SharpMTProto.Tests
     using FluentAssertions;
     using NUnit.Framework;
     using Ploeh.AutoFixture;
-    using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Tests.SetUp;
 
@@ -48,9 +47,9 @@ namespace SharpMTProto.Tests
 
             outgoingMessages.Should().HaveCount(0);
 
-            session.Send(expMessageBody, MessageSendingFlags.EncryptedAndContentRelatedRPC);
+            session.EnqueueToSend(expMessageBody, true, false);
 
-            await Task.Delay(10);
+            await Task.Delay(100);
 
             outgoingMessages.Should().HaveCount(1);
 
@@ -88,7 +87,7 @@ namespace SharpMTProto.Tests
 
             DateTime initialActivity = session.LastActivity;
             await Task.Delay(1);
-            session.Send(Fixture.Create<object>(), MessageSendingFlags.EncryptedAndContentRelatedRPC);
+            session.EnqueueToSend(Fixture.Create<object>(), true, false);
             await Task.Delay(1);
             session.LastActivity.Should().BeAfter(initialActivity).And.BeBefore(DateTime.UtcNow);
         }

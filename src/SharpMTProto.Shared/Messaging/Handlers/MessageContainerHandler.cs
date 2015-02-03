@@ -47,7 +47,7 @@ namespace SharpMTProto.Messaging.Handlers
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    _messageHandler.OnNext(new MessageEnvelope(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
+                    _messageHandler.OnNext(MessageEnvelope.CreateEncrypted(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
                 }
             }
             else

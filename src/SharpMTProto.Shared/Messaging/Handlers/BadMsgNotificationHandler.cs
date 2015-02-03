@@ -5,6 +5,7 @@
 namespace SharpMTProto.Messaging.Handlers
 {
     using System;
+    using System.Diagnostics;
     using SharpMTProto.Schema;
     using SharpMTProto.Utils;
 
@@ -65,7 +66,9 @@ namespace SharpMTProto.Messaging.Handlers
 
             #endregion
 
-            var response = (IBadMsgNotification) messageEnvelope.Message.Body;
+            var response = messageEnvelope.Message.Body as IBadMsgNotification;
+
+            Debug.Assert(response != null);
 
             var errorCode = (ErrorCode) response.ErrorCode;
             Log.Warning(string.Format("Bad message notification received with error code: {0} ({1}).", response.ErrorCode, errorCode));
@@ -78,7 +81,13 @@ namespace SharpMTProto.Messaging.Handlers
                 Log.Warning(string.Format("Bad message (MsgId: 0x{0:X}) was NOT found. Ignored.", response.BadMsgId));
                 return;
             }
-            IMessage message = request.MessageEnvelope.Message;
+
+            IMessage message;
+            if (!_session.TryGetSentMessage(request.MsgId, out message))
+            {
+                Log.Warning(string.Format("Bad message (MsgId: 0x{0:X}) was not found. Ignored.", response.BadMsgId));
+                return;
+            }
             if (message.Seqno != response.BadMsgSeqno)
             {
                 Log.Warning(

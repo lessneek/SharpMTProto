@@ -13,14 +13,17 @@ namespace SharpMTProto
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
     using System.Diagnostics;
+    using System.Linq;
     using System.Reactive.Disposables;
     using System.Reactive.Linq;
     using System.Reactive.Subjects;
+    using System.Threading;
     using System.Threading.Tasks;
+    using Nito.AsyncEx;
     using SharpMTProto.Annotations;
     using SharpMTProto.Authentication;
-    using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Services;
     using SharpMTProto.Utils;
@@ -42,22 +45,45 @@ namespace SharpMTProto
         DateTime LastActivity { get; }
         MTProtoSessionEnvironment Environment { get; }
         void UpdateSalt(ulong salt);
-        IMessageEnvelope Send(object messageBody, MessageSendingFlags flags);
+        ulong EnqueueToSend(object messageBody, bool isContentRelated, bool isEncrypted);
         void SetSessionId(ulong sessionId);
+        bool TryGetSentMessage(ulong msgId, out IMessage message);
+    }
+
+    public struct MessageToSend
+    {
+        public MessageToSend(Message message, bool isEncrypted) : this()
+        {
+            Message = message;
+            IsEncrypted = isEncrypted;
+        }
+
+        public Message Message { get; private set; }
+        public bool IsEncrypted { get; private set; }
     }
 
     public class MTProtoSession : Cancelable, IMTProtoSession
     {
         private readonly IAuthKeysProvider _authKeysProvider;
-        private readonly MTProtoSessionEnvironment _environment = new MTProtoSessionEnvironment();
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly IRandomGenerator _randomGenerator;
-        private readonly ConcurrentDictionary<ulong, IMessageEnvelope> _sentMessages = new ConcurrentDictionary<ulong, IMessageEnvelope>();
-        private IAuthInfo _authInfo = new AuthInfo();
-        private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
+
         private uint _messageSeqNumber;
-        private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
+        private IAuthInfo _authInfo = new AuthInfo();
         private ObservableProperty<IMTProtoSession, MTProtoSessionTag> _sessionTag;
+        private readonly MTProtoSessionEnvironment _environment = new MTProtoSessionEnvironment();
+
+        private readonly SortedSet<ulong> _receivedMsgIds = new SortedSet<ulong>();
+        private readonly ConcurrentDictionary<ulong, IMessageEnvelope> _sentMessages = new ConcurrentDictionary<ulong, IMessageEnvelope>();
+
+        private readonly ConcurrentQueue<MessageToSend> _messagesToSend = new ConcurrentQueue<MessageToSend>();
+        private readonly ConcurrentQueue<ulong> _msgIdsToAcknowledge = new ConcurrentQueue<ulong>();
+
+        private Subject<IMessageEnvelope> _incomingMessages = new Subject<IMessageEnvelope>();
+        private Subject<IMessageEnvelope> _outgoingMessages = new Subject<IMessageEnvelope>();
+
+        private readonly AsyncLock _sendingAsyncLock = new AsyncLock();
+        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
 
         public MTProtoSession([NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IRandomGenerator randomGenerator,
@@ -76,8 +102,16 @@ namespace SharpMTProto
 
             _sessionTag = new ObservableProperty<IMTProtoSession, MTProtoSessionTag>(this) {Value = MTProtoSessionTag.Empty};
 
+            AcknowledgeInterval = TimeSpan.FromSeconds(25);
+            SendingInterval = TimeSpan.FromMilliseconds(50);
+
             UpdateLastActivity();
+
+            StartSchedulers(_cancellationTokenSource.Token);
         }
+
+        public TimeSpan AcknowledgeInterval { get; set; }
+        public TimeSpan SendingInterval { get; set; }
 
         public IObservable<IMessageEnvelope> IncomingMessages
         {
@@ -125,29 +159,58 @@ namespace SharpMTProto
             _authInfo.Salt = salt;
         }
 
-        public IMessageEnvelope Send(object messageBody, MessageSendingFlags flags)
+        public ulong EnqueueToSend(object messageBody, bool isContentRelated, bool isEncrypted)
         {
             ThrowIfDisposed();
-
             UpdateLastActivity();
 
-            bool isEncrypted = flags.HasFlag(MessageSendingFlags.Encrypted);
-            bool isContentRelated = flags.HasFlag(MessageSendingFlags.ContentRelated);
+            Message message = CreateMessage(messageBody, isContentRelated);
 
-            IMessageEnvelope messageEnvelope = CreateMessageEnvelope(messageBody, isEncrypted, isContentRelated);
+            _messagesToSend.Enqueue(new MessageToSend(message, isEncrypted));
 
-            EnqueueToSendingQueue(messageEnvelope);
+            // Trigger sending of the whole messages queue.
+            SendAllQueuedAsync();
 
-            return messageEnvelope;
+            return message.MsgId;
         }
 
+        public bool TryGetSentMessage(ulong msgId, out IMessage message)
+        {
+            message = null;
+            IMessageEnvelope messageEnvelope;
+            if (!_sentMessages.TryGetValue(msgId, out messageEnvelope))
+                return false;
+
+            message = messageEnvelope.Message;
+            return true;
+        }
+
+        /// <summary>
+        ///     Processes next incoming message.
+        /// </summary>
+        /// <param name="messageEnvelope">A message envelope.</param>
         public void OnNext(IMessageEnvelope messageEnvelope)
         {
-            // TODO: check msgId for multiple accepting of one message.
-            // TODO: check msgId is not too old or from future.
-
             if (IsDisposed)
                 return;
+
+            ulong msgId = messageEnvelope.Message.MsgId;
+
+            // Validate a message id.
+            if (!IsMsgIdValid(msgId))
+                return;
+
+            lock (_receivedMsgIds)
+            {
+                // Ignore duplicates.
+                if (_receivedMsgIds.Contains(msgId))
+                    return;
+
+                _receivedMsgIds.Add(msgId);
+            }
+
+            if (messageEnvelope.IsEncrypted && IsContentRelated(messageEnvelope.Message.Seqno))
+                _msgIdsToAcknowledge.Enqueue(msgId);
 
             UpdateLastActivity();
 
@@ -162,33 +225,106 @@ namespace SharpMTProto
         {
         }
 
+        private void StartSchedulers(CancellationToken cancellationToken)
+        {
+            Observable.Interval(AcknowledgeInterval).Subscribe(l =>
+            {
+                EnqueueToSend(new MsgsAck {MsgIds = DequeueAllMsgsAckToSend()}, true, true);
+                SendAllQueuedAsync();
+            },
+                cancellationToken);
+        }
+
+        private Task SendAllQueuedAsync()
+        {
+            return Task.Run(async () =>
+            {
+                using (await _sendingAsyncLock.LockAsync())
+                {
+                    await Task.Delay(SendingInterval);
+
+                    List<MessageToSend> messagesToSend = DequeueAllMessagesToSend();
+
+                    if (messagesToSend.Count == 0)
+                        return;
+
+                    var plainMessages = messagesToSend.Where(mts => !mts.IsEncrypted).Select(mts => mts.Message).ToList();
+                    var encryptedMessages = messagesToSend.Where(mts => mts.IsEncrypted).Select(mts => mts.Message).ToList();
+
+                    if (plainMessages.Count > 0)
+                    {
+                        // Send all plain messages separately.
+                        foreach (var plainMsg in plainMessages)
+                        {
+                            Send(CreateMessageEnvelope(plainMsg, false));
+                        }
+                    }
+
+                    if (encryptedMessages.Count > 0)
+                    {
+                        // Send single encrpted message or all encrypted messages in a container.
+                        Message encryptedMessage = encryptedMessages.Count == 1
+                            ? encryptedMessages.Single()
+                            : CreateMessage(new MsgContainer {Messages = encryptedMessages}, false);
+
+                        IMessageEnvelope messageEnvelope = CreateMessageEnvelope(encryptedMessage, true);
+
+                        Send(messageEnvelope);
+                    }
+                }
+            });
+        }
+
+        private List<ulong> DequeueAllMsgsAckToSend()
+        {
+            var msgIds = new List<ulong>(_msgIdsToAcknowledge.Count);
+            ulong msgId;
+            while (_msgIdsToAcknowledge.TryDequeue(out msgId))
+            {
+                msgIds.Add(msgId);
+            }
+            return msgIds;
+        }
+
+        private List<MessageToSend> DequeueAllMessagesToSend()
+        {
+            var messageEnvelopes = new List<MessageToSend>();
+            MessageToSend messageToSend;
+            while (_messagesToSend.TryDequeue(out messageToSend))
+            {
+                messageEnvelopes.Add(messageToSend);
+            }
+            return messageEnvelopes;
+        }
+
         private void UpdateLastActivity()
         {
             LastActivity = DateTime.UtcNow;
         }
 
-        private void EnqueueToSendingQueue(IMessageEnvelope messageEnvelope)
+        private void Send(IMessageEnvelope messageEnvelope)
         {
-            // TODO: enqueue message envelope to outbox queue before sending.
-            Task.Run(() =>
-            {
-                ulong msgId = messageEnvelope.Message.MsgId;
+            ulong msgId = messageEnvelope.Message.MsgId;
 
-                Debug.Assert(!_sentMessages.ContainsKey(msgId));
+            Debug.Assert(!_sentMessages.ContainsKey(msgId));
 
-                _sentMessages.GetOrAdd(msgId, messageEnvelope);
-                _outgoingMessages.OnNext(messageEnvelope);
-            });
+            _sentMessages.GetOrAdd(msgId, messageEnvelope);
+            _outgoingMessages.OnNext(messageEnvelope);
         }
 
-        private IMessageEnvelope CreateMessageEnvelope(object body, bool isEncrypted, bool isContentRelated)
+        private Message CreateMessage(object body, bool isContentRelated)
         {
-            var message = new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
-            if (isEncrypted)
-            {
-                return new MessageEnvelope(_sessionTag.Value, _authInfo.Salt, message);
-            }
-            return new MessageEnvelope(message);
+            return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
+        }
+
+        private IMessageEnvelope CreateMessageEnvelope(object body, bool isContentRelated, bool isEncrypted)
+        {
+            return CreateMessageEnvelope(CreateMessage(body, isContentRelated), isEncrypted);
+        }
+
+        private IMessageEnvelope CreateMessageEnvelope(IMessage message, bool isEncrypted)
+        {
+            return isEncrypted ? MessageEnvelope.CreateEncrypted(_sessionTag.Value, _authInfo.Salt, message) : MessageEnvelope.CreatePlain(message);
         }
 
         private ulong GetNewSessionId()
@@ -209,10 +345,28 @@ namespace SharpMTProto
             return result;
         }
 
+        private bool IsContentRelated(ulong seqno)
+        {
+            return (seqno%2) == 1;
+        }
+
+        private bool IsMsgIdValid(ulong msgId)
+        {
+            // TODO: implement msgId validation.
+            // TODO: check msgId is not too old or from future.
+            return true;
+        }
+
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
+                if (_cancellationTokenSource != null)
+                {
+                    _cancellationTokenSource.Cancel();
+                    _cancellationTokenSource.Dispose();
+                    _cancellationTokenSource = null;
+                }
                 if (_incomingMessages != null)
                 {
                     _incomingMessages.OnCompleted();
@@ -229,6 +383,10 @@ namespace SharpMTProto
                 {
                     _sessionTag.Dispose();
                     _sessionTag = null;
+                }
+                lock (_receivedMsgIds)
+                {
+                    _receivedMsgIds.Clear();
                 }
             }
             base.Dispose(disposing);

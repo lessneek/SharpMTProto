@@ -47,7 +47,7 @@ namespace SharpMTProto.Tests
 
                     AuthKeyWithId authKeyWithId = authKeysProvider.Add(authInfo.AuthKey);
 
-                    var messageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyWithId.AuthKeyId, sessionId),
+                    var messageEnvelope = MessageEnvelope.CreateEncrypted(new MTProtoSessionTag(authKeyWithId.AuthKeyId, sessionId),
                         authInfo.Salt,
                         new Message(Fixture.Create<ulong>(), Fixture.Create<uint>(), rpcResult));
 
@@ -92,7 +92,7 @@ namespace SharpMTProto.Tests
 
                     AuthKeyWithId authKeyWithId = authKeysProvider.Add(authInfo.AuthKey);
 
-                    var messageEnvelope = new MessageEnvelope(new MTProtoSessionTag(authKeyWithId.AuthKeyId, sessionId),
+                    var messageEnvelope = MessageEnvelope.CreateEncrypted(new MTProtoSessionTag(authKeyWithId.AuthKeyId, sessionId),
                         authInfo.Salt,
                         new Message(0x0102030405060708, Fixture.Create<uint>(), expectedResponse));
 

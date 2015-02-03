@@ -8,17 +8,14 @@ namespace SharpMTProto.Messaging
 {
     using System;
     using System.Reflection;
-    using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
-    using Schema;
     using SharpMTProto.Annotations;
-    using SharpMTProto.Utils;
 
     public interface IRequest
     {
-        IMessageEnvelope MessageEnvelope { get; }
         MessageSendingFlags Flags { get; }
+
         bool IsAcknowledged { get; }
 
         bool IsResponseReceived { get; }
@@ -38,24 +35,25 @@ namespace SharpMTProto.Messaging
         void SetResponse(object response);
 
         bool CanSetResponse(Type responseType);
-        IMessageEnvelope Send();
+        ulong Send();
         void SetException(Exception ex);
         Type ResponseType { get; }
         bool IsRpc { get; }
+        ulong MsgId { get; }
     }
 
     public class Request<TResponse> : IRequest
     {
         private static readonly Type ResponseTypeInternal = typeof (TResponse);
-        private readonly Func<object, IMessageEnvelope> _send;
+        private readonly Func<object, ulong> _send;
         private readonly TaskCompletionSource<TResponse> _taskCompletionSource = new TaskCompletionSource<TResponse>();
         private readonly object _messageBody;
-        private IMessageEnvelope _messageEnvelope;
-        private IRequestsManager _requestsManager;
+        private ulong _msgId;
+        private readonly IRequestsManager _requestsManager;
 
         public Request([NotNull] object messageBody,
             MessageSendingFlags flags,
-            [NotNull] Func<object, IMessageEnvelope> send,
+            [NotNull] Func<object, ulong> send,
             [NotNull] IRequestsManager requestsManager,
             CancellationToken cancellationToken)
         {
@@ -74,9 +72,9 @@ namespace SharpMTProto.Messaging
 
         public DateTime? ResponseTime { get; private set; }
 
-        public IMessageEnvelope MessageEnvelope
+        public ulong MsgId
         {
-            get { return _messageEnvelope; }
+            get { return _msgId; }
         }
 
         public MessageSendingFlags Flags { get; private set; }
@@ -121,22 +119,24 @@ namespace SharpMTProto.Messaging
             return !IsResponseReceived && ResponseTypeInternal.GetTypeInfo().IsAssignableFrom(responseType.GetTypeInfo());
         }
 
-        public IMessageEnvelope Send()
+        public ulong Send()
         {
-            var oldMessageEnvelope = _messageEnvelope;
-            var newMessageEnvelope = _send(_messageBody);
-            _messageEnvelope = newMessageEnvelope;
-            if (oldMessageEnvelope != null)
+            var oldMsgId = _msgId;
+            
+            // Sending.
+            var newMsgId = _send(_messageBody);
+            _msgId = newMsgId;
+            
+            if (oldMsgId != default(ulong))
             {
-                // Resending.
-                _requestsManager.Change(newMessageEnvelope.Message.MsgId, oldMessageEnvelope.Message.MsgId);
+                _requestsManager.Change(newMsgId, oldMsgId);
             }
             else
             {
                 _requestsManager.Add(this);
             }
 
-            return _messageEnvelope;
+            return _msgId;
         }
 
         public void SetException(Exception ex)

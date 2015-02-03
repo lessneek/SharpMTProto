@@ -29,7 +29,7 @@ namespace SharpMTProto.Messaging
             ThrowIfDisposed();
             lock (_requests)
             {
-                _requests.Add(request.MessageEnvelope.Message.MsgId, request);
+                _requests.Add(request.MsgId, request);
             }
         }
 

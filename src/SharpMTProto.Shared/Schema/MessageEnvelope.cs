@@ -5,6 +5,7 @@
 namespace SharpMTProto.Schema
 {
     using System;
+    using SharpMTProto.Annotations;
 
     public interface IMessageEnvelope
     {
@@ -38,8 +39,11 @@ namespace SharpMTProto.Schema
         ///     Initializes a new <see cref="MessageEnvelope" /> for a plain message with zero auth key id.
         /// </summary>
         /// <param name="message">A message.</param>
-        public MessageEnvelope(IMessage message)
+        private MessageEnvelope([NotNull] IMessage message)
         {
+            if (message == null)
+                throw new ArgumentNullException("message");
+
             SessionTag = MTProtoSessionTag.Empty;
             Salt = 0;
             Message = message;
@@ -51,11 +55,26 @@ namespace SharpMTProto.Schema
         /// <param name="sessionTag">MTProto session tag.</param>
         /// <param name="salt">Salt.</param>
         /// <param name="message">A message.</param>
-        public MessageEnvelope(MTProtoSessionTag sessionTag, ulong salt, IMessage message)
+        private MessageEnvelope(MTProtoSessionTag sessionTag, ulong salt, [NotNull] IMessage message)
         {
+            if (message == null)
+                throw new ArgumentNullException("message");
+            if (sessionTag.AuthKeyId == 0)
+                throw new ArgumentOutOfRangeException("sessionTag", "AuthKeyId can not be zero for encrypted message envelope.");
+
             SessionTag = sessionTag;
             Salt = salt;
             Message = message;
+        }
+
+        public static MessageEnvelope CreatePlain(IMessage message)
+        {
+            return new MessageEnvelope(message);
+        }
+
+        public static MessageEnvelope CreateEncrypted(MTProtoSessionTag sessionTag, ulong salt, [NotNull] IMessage message)
+        {
+            return new MessageEnvelope(sessionTag, salt, message);
         }
 
         public MTProtoSessionTag SessionTag { get; private set; }

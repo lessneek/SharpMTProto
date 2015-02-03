@@ -20,13 +20,12 @@ namespace SharpMTProto.Tests.Messaging.Handlers
         public void Should_set_exception_on_rpc_error_response()
         {
             var reqMsg = new Message(0x100500, 1, new TestRequest {TestId = 1});
-            var reqMsgEnvelope = new MessageEnvelope(reqMsg);
 
             var rpcResult = new RpcResult {ReqMsgId = reqMsg.MsgId, Result = new RpcError {ErrorCode = 400, ErrorMessage = "BAD_REQUEST"}};
-            var resMsg = new MessageEnvelope(new Message(0x200600, 2, rpcResult));
+            var resMsg = MessageEnvelope.CreatePlain(new Message(0x200600, 2, rpcResult));
 
             var request = new Mock<IRequest>();
-            request.SetupGet(r => r.MessageEnvelope).Returns(reqMsgEnvelope);
+            request.SetupGet(r => r.MsgId).Returns(reqMsg.MsgId);
 
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
@@ -45,13 +44,13 @@ namespace SharpMTProto.Tests.Messaging.Handlers
         public void Should_set_rpc_result_to_requst()
         {
             var reqMsg = new Message(0x100500, 1, new TestRequest {TestId = 1});
-            var reqMsgEnvelope = new MessageEnvelope(reqMsg);
+            var reqMsgEnvelope = MessageEnvelope.CreatePlain(reqMsg);
 
             var rpcResult = new RpcResult {ReqMsgId = reqMsg.MsgId, Result = new TestResponse {TestId = 1, TestText = "THIS IS RESPONSE!"}};
-            var resMsg = new MessageEnvelope(new Message(0x200600, 2, rpcResult));
+            var resMsg = MessageEnvelope.CreatePlain(new Message(0x200600, 2, rpcResult));
 
             var request = new Mock<IRequest>();
-            request.SetupGet(r => r.MessageEnvelope).Returns(reqMsgEnvelope);
+            request.SetupGet(r => r.MsgId).Returns(reqMsg.MsgId);
 
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.Get(reqMsg.MsgId)).Returns(request.Object);
