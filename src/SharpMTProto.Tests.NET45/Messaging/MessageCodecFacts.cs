@@ -8,7 +8,6 @@ namespace SharpMTProto.Tests.Messaging
 {
     using System;
     using System.Threading.Tasks;
-    using Autofac;
     using BigMath.Utils;
     using FluentAssertions;
     using NUnit.Framework;
@@ -33,12 +32,6 @@ namespace SharpMTProto.Tests.Messaging
                 .HexToBytes();
 
         private static readonly IMessage TestMessage = new Message(0x0102030405060708UL, 0, "000102030405060708".HexToBytes());
-
-        [SetUp]
-        public void SetUp()
-        {
-            Override(builder => builder.Register(context => new RandomGenerator(9)).As<IRandomGenerator>());
-        }
 
         [Test]
         public void Should_throw_on_decode_plain_message_with_wrong_body_length()
