@@ -4,6 +4,7 @@
 
 namespace SharpMTProto.Dataflows
 {
+    using System;
     using System.Threading;
     using System.Threading.Tasks;
 
@@ -12,14 +13,15 @@ namespace SharpMTProto.Dataflows
         int Size { get; }
         int MaximalBucketSize { get; }
         int MinimalBucketSize { get; }
-        Task<IBytesBucket> TakeAsync(int minimalSize, CancellationToken cancellationToken);
+        TimeSpan DefaultTimeout { get; set; }
+        Task<IBytesBucket> TakeAsync(int minimalSize, CancellationToken cancellationToken, TimeSpan? timeout = null);
     }
 
     public static class BytesOceanExtensions
     {
-        public static Task<IBytesBucket> TakeAsync(this IBytesOcean bytesOcean, int minimalSize)
+        public static Task<IBytesBucket> TakeAsync(this IBytesOcean bytesOcean, int minimalSize, TimeSpan? timeout = null)
         {
-            return bytesOcean.TakeAsync(minimalSize, CancellationToken.None);
+            return bytesOcean.TakeAsync(minimalSize, CancellationToken.None, timeout);
         }
     }
 }

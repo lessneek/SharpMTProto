@@ -7,6 +7,8 @@ namespace SharpMTProto.Dataflows
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Reactive.Linq;
+    using System.Reactive.Threading.Tasks;
     using System.Threading;
     using System.Threading.Tasks;
     using System.Threading.Tasks.Dataflow;
@@ -69,15 +71,23 @@ namespace SharpMTProto.Dataflows
             get { return _maximalBucketSize; }
         }
 
-        public async Task<IBytesBucket> TakeAsync(int minimalSize, CancellationToken cancellationToken)
+        public TimeSpan DefaultTimeout
+        {
+            get { return _config.DefaultTimeout; }
+            set { _config.DefaultTimeout = value; }
+        }
+
+        public async Task<IBytesBucket> TakeAsync(int minimalSize, CancellationToken cancellationToken, TimeSpan? timeout = null)
         {
             if (minimalSize > _maximalBucketSize)
                 throw new ArgumentOutOfRangeException("minimalSize", minimalSize, "Couldn't take bucket with such minimal size.");
 
             cancellationToken.ThrowIfCancellationRequested();
 
+            timeout = timeout.HasValue ? timeout : DefaultTimeout;
+
             int sizeKey = _buckets.Keys.FirstOrDefault(size => size >= minimalSize);
-            BytesBucket bucket = await _buckets[sizeKey].ReceiveAsync(cancellationToken).ConfigureAwait(false);
+            BytesBucket bucket = await _buckets[sizeKey].ReceiveAsync(cancellationToken).ToObservable().Timeout(timeout.Value);
             bucket.SetTaken();
             return bucket;
         }

@@ -28,11 +28,14 @@ namespace SharpMTProto.Dataflows
                     totalSize));
             }
             TotalSize = (int) totalSize;
+
+            DefaultTimeout = TimeSpan.FromSeconds(5);
         }
 
         public IEnumerable<BytesBucketsConfig> BucketsConfigs { get; private set; }
         public int TotalSize { get; private set; }
         public int BucketSizes { get; private set; }
+        public TimeSpan DefaultTimeout { get; set; }
     }
 
     public struct BytesBucketsConfig
