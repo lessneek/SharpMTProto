@@ -30,7 +30,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)IRemoteProcedureCaller.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\BadMsgNotificationHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\FirstRequestResponseHandler.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageContainerHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\MessageHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\RpcResultHandler.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Messaging\Handlers\SessionHandler.cs" />

@@ -245,11 +245,7 @@ namespace SharpMTProto
                 _session.OnNext(messageEnvelope);
             });
 
-            var messageContainerHandler = new MessageContainerHandler();
-            messageContainerHandler.Subscribe(_session); // Forward all extracted messages to a session.
-
             IObservable<IMessageEnvelope> inSessionMessages = _session.IncomingMessages;
-            inSessionMessages.Subscribe(messageContainerHandler);
             inSessionMessages.Subscribe(new BadMsgNotificationHandler(_session, _requestsManager));
             inSessionMessages.Subscribe(new RpcResultHandler(_requestsManager));
             inSessionMessages.Subscribe(new SessionHandler());

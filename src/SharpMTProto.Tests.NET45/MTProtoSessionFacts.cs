@@ -6,6 +6,8 @@ namespace SharpMTProto.Tests
 {
     using System;
     using System.Collections.Concurrent;
+    using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using FluentAssertions;
     using NUnit.Framework;
@@ -90,6 +92,24 @@ namespace SharpMTProto.Tests
             session.EnqueueToSend(Fixture.Create<object>(), true, false);
             await Task.Delay(1);
             session.LastActivity.Should().BeAfter(initialActivity).And.BeBefore(DateTime.UtcNow);
+        }
+
+        [Test]
+        public void Should_handle_container()
+        {
+            var messages = new List<Message> { new Message(1, 1, 1), new Message(2, 2, 2), new Message(3, 3, 3) };
+            MessageEnvelope containerMessage = MessageEnvelope.CreateEncrypted(new MTProtoSessionTag(123, 321),
+                999,
+                new Message(4, 4, new MsgContainer { Messages = messages }));
+
+            List<Message> expectedMessages = messages.CloneTLObject();
+            var receivedMessages = new List<IMessageEnvelope>();
+
+            var session = Resolve<MTProtoSession>();
+            session.IncomingMessages.Subscribe(receivedMessages.Add);
+            session.OnNext(containerMessage);
+
+            receivedMessages.Select(envelope => envelope.Message).Should().Equal(expectedMessages);
         }
     }
 }
