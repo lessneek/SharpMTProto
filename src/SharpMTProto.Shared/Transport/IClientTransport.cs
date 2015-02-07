@@ -38,7 +38,7 @@ namespace SharpMTProto.Transport
     /// <summary>
     ///     A client transport without ability to connect. May be used as connected transport.
     /// </summary>
-    public interface IClientTransport : IObservable<IBytesBucket>, /*ITransportOutChannel,*/ ICancelable
+    public interface IClientTransport : IObservable<IBytesBucket>, ICancelable
     {
         Guid TransportId { get; }
         bool IsConnected { get; }
