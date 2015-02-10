@@ -29,7 +29,7 @@ namespace SharpMTProto.Tests
 
             incomingMessages.Should().HaveCount(0);
 
-            session.OnNext(expMessageEnvelope);
+            session.ProcessIncomingMessage(expMessageEnvelope);
 
             incomingMessages.Should().HaveCount(1);
 
@@ -77,7 +77,7 @@ namespace SharpMTProto.Tests
 
             DateTime initialActivity = session.LastActivity;
             await Task.Delay(1);
-            session.OnNext(Fixture.Create<IMessageEnvelope>());
+            session.ProcessIncomingMessage(Fixture.Create<IMessageEnvelope>());
             await Task.Delay(1);
             session.LastActivity.Should().BeAfter(initialActivity).And.BeBefore(DateTime.UtcNow);
         }
@@ -107,7 +107,7 @@ namespace SharpMTProto.Tests
 
             var session = Resolve<MTProtoSession>();
             session.IncomingMessages.Subscribe(receivedMessages.Add);
-            session.OnNext(containerMessage);
+            session.ProcessIncomingMessage(containerMessage);
 
             receivedMessages.Select(envelope => envelope.Message).Should().Equal(expectedMessages);
         }

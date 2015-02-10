@@ -36,7 +36,7 @@ namespace SharpMTProto
         }
     }
 
-    public interface IMTProtoSession : IObserver<IMessageEnvelope>, ICancelable
+    public interface IMTProtoSession : ICancelable
     {
         IAuthInfo AuthInfo { get; set; }
         IObservable<IMessageEnvelope> OutgoingMessages { get; }
@@ -48,6 +48,7 @@ namespace SharpMTProto
         ulong EnqueueToSend(object messageBody, bool isContentRelated, bool isEncrypted);
         void SetSessionId(ulong sessionId);
         bool TryGetSentMessage(ulong msgId, out IMessage message);
+        void ProcessIncomingMessage(IMessageEnvelope messageEnvelope);
     }
 
     public struct MessageToSend
@@ -191,7 +192,7 @@ namespace SharpMTProto
         ///     Processes next incoming message.
         /// </summary>
         /// <param name="messageEnvelope">A message envelope.</param>
-        public void OnNext(IMessageEnvelope messageEnvelope)
+        public void ProcessIncomingMessage(IMessageEnvelope messageEnvelope)
         {
             if (IsDisposed)
                 return;
@@ -218,14 +219,6 @@ namespace SharpMTProto
 
             if (!HandleContainer(messageEnvelope))
                 _incomingMessages.OnNext(messageEnvelope);
-        }
-
-        public void OnError(Exception error)
-        {
-        }
-
-        public void OnCompleted()
-        {
         }
 
         private bool HandleContainer(IMessageEnvelope messageEnvelope)
@@ -255,7 +248,7 @@ namespace SharpMTProto
                 }
                 foreach (Message msg in msgContainer.Messages)
                 {
-                    OnNext(MessageEnvelope.CreateEncrypted(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
+                    ProcessIncomingMessage(MessageEnvelope.CreateEncrypted(messageEnvelope.SessionTag, messageEnvelope.Salt, msg));
                 }
                 return true;
             }

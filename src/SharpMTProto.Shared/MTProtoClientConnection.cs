@@ -242,7 +242,7 @@ namespace SharpMTProto
             {
                 LogMessageInOut(messageBytesBucket, "IN");
                 IMessageEnvelope messageEnvelope = await _messageCodec.DecodeMessageAsync(messageBytesBucket, MessageCodecMode.Server);
-                _session.OnNext(messageEnvelope);
+                _session.ProcessIncomingMessage(messageEnvelope);
             });
 
             IObservable<IMessageEnvelope> inSessionMessages = _session.IncomingMessages;
