@@ -2,46 +2,78 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
+#region R#
+
+// ReSharper disable ClassNeverInstantiated.Local
+
+#endregion
+
 namespace SharpMTProto.Tests
 {
     using System;
     using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
+    using Autofac;
     using FluentAssertions;
     using NUnit.Framework;
     using Ploeh.AutoFixture;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
+    using SharpMTProto.Services;
     using SharpMTProto.Tests.SetUp;
 
     [TestFixture]
     public class MTProtoSessionFacts : SharpMTProtoTestBase
     {
-        [Test]
-        public void Should_handle_incoming_message()
+        private class TestMTProtoSession : MTProtoSession
         {
-            var incomingMessages = new ConcurrentQueue<IMessageEnvelope>();
-            var expMessageEnvelope = Fixture.Create<IMessageEnvelope>();
+            public TestMTProtoSession([NotNull] IMessageIdGenerator messageIdGenerator,
+                [NotNull] IRandomGenerator randomGenerator,
+                [NotNull] IAuthKeysProvider authKeysProvider) : base(messageIdGenerator, randomGenerator, authKeysProvider)
+            {
+            }
+
+            protected override Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope,
+                CancellationToken cancellationToken = new CancellationToken())
+            {
+                return Task.FromResult(new MovingMessageEnvelope(null, messageEnvelope));
+            }
+        }
+
+        public override void SetUp()
+        {
+            base.SetUp();
+            Override(builder => { builder.RegisterType<TestMTProtoSession>().As<MTProtoSession>(); });
+        }
+
+        [Test]
+        public async Task Should_handle_incoming_message()
+        {
+            var incomingMessages = new ConcurrentQueue<MovingMessageEnvelope>();
+            var expMessageEnvelope = Fixture.Create<MovingMessageEnvelope>();
 
             var session = Resolve<MTProtoSession>();
             session.IncomingMessages.Subscribe(incomingMessages.Enqueue);
 
             incomingMessages.Should().HaveCount(0);
 
-            session.ProcessIncomingMessage(expMessageEnvelope);
+            await session.ProcessIncomingMessageAsync(expMessageEnvelope).ConfigureAwait(false);
 
             incomingMessages.Should().HaveCount(1);
 
-            IMessageEnvelope messageEnvelope;
+            MovingMessageEnvelope messageEnvelope;
             incomingMessages.TryDequeue(out messageEnvelope).Should().BeTrue();
-            messageEnvelope.Should().BeSameAs(expMessageEnvelope);
+            messageEnvelope.Should().Be(expMessageEnvelope);
         }
 
         [Test]
         public async Task Should_handle_outgoing_message()
         {
-            var outgoingMessages = new ConcurrentQueue<IMessageEnvelope>();
+            var outgoingMessages = new ConcurrentQueue<MovingMessageEnvelope>();
             var expMessageBody = Fixture.Create<object>();
 
             var session = Resolve<MTProtoSession>();
@@ -55,9 +87,9 @@ namespace SharpMTProto.Tests
 
             outgoingMessages.Should().HaveCount(1);
 
-            IMessageEnvelope messageEnvelope;
+            MovingMessageEnvelope messageEnvelope;
             outgoingMessages.TryDequeue(out messageEnvelope).Should().BeTrue();
-            messageEnvelope.Message.Body.Should().BeSameAs(expMessageBody);
+            messageEnvelope.MessageEnvelope.Message.Body.Should().BeSameAs(expMessageBody);
         }
 
         [Test]
@@ -76,9 +108,9 @@ namespace SharpMTProto.Tests
             var session = Resolve<MTProtoSession>();
 
             DateTime initialActivity = session.LastActivity;
-            await Task.Delay(1);
-            session.ProcessIncomingMessage(Fixture.Create<IMessageEnvelope>());
-            await Task.Delay(1);
+            await Task.Delay(1).ConfigureAwait(false);
+            await session.ProcessIncomingMessageAsync(Fixture.Create<MovingMessageEnvelope>()).ConfigureAwait(false);
+            await Task.Delay(1).ConfigureAwait(false);
             session.LastActivity.Should().BeAfter(initialActivity).And.BeBefore(DateTime.UtcNow);
         }
 
@@ -95,7 +127,7 @@ namespace SharpMTProto.Tests
         }
 
         [Test]
-        public void Should_handle_container()
+        public async Task Should_handle_container()
         {
             var messages = new List<Message> { new Message(1, 1, 1), new Message(2, 2, 2), new Message(3, 3, 3) };
             MessageEnvelope containerMessage = MessageEnvelope.CreateEncrypted(new MTProtoSessionTag(123, 321),
@@ -103,13 +135,13 @@ namespace SharpMTProto.Tests
                 new Message(4, 4, new MsgContainer { Messages = messages }));
 
             List<Message> expectedMessages = messages.CloneTLObject();
-            var receivedMessages = new List<IMessageEnvelope>();
+            var receivedMessages = new List<MovingMessageEnvelope>();
 
             var session = Resolve<MTProtoSession>();
             session.IncomingMessages.Subscribe(receivedMessages.Add);
-            session.ProcessIncomingMessage(containerMessage);
+            await session.ProcessIncomingMessageAsync(new MovingMessageEnvelope(null, containerMessage)).ConfigureAwait(false);
 
-            receivedMessages.Select(envelope => envelope.Message).Should().Equal(expectedMessages);
+            receivedMessages.Select(envelope => envelope.MessageEnvelope.Message).Should().Equal(expectedMessages);
         }
     }
 }

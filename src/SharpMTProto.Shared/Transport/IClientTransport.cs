@@ -41,6 +41,7 @@ namespace SharpMTProto.Transport
     public interface IClientTransport : IObservable<IBytesBucket>, ICancelable
     {
         Guid TransportId { get; }
+        IObservableReadonlyProperty<IClientTransport, ClientTransportState> State { get; }
         bool IsConnected { get; }
         TimeSpan SendingTimeout { get; set; }
         Task SendAsync(IBytesBucket payload, CancellationToken cancellationToken = default (CancellationToken));
@@ -52,7 +53,6 @@ namespace SharpMTProto.Transport
     /// </summary>
     public interface IConnectableClientTransport : IClientTransport
     {
-        IObservableReadonlyProperty<IClientTransport, ClientTransportState> State { get; }
         TimeSpan ConnectTimeout { get; set; }
         Task<TransportConnectResult> ConnectAsync();
     }

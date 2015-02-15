@@ -116,6 +116,14 @@ namespace SharpMTProto.Schema
         Object Body { get; }
     }
 
+    public static class MessageExtensions
+    {
+        public static bool IsContentRelated(this IMessage message)
+        {
+            return message.Seqno%2 == 1;
+        }
+    }
+
     public partial interface IRpcResult
     {
         UInt64 ReqMsgId { get; set; }

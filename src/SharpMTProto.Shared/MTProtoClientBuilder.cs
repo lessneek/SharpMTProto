@@ -42,6 +42,7 @@ namespace SharpMTProto
         private readonly INonceGenerator _nonceGenerator;
         private readonly IRandomGenerator _randomGenerator;
         private readonly TLRig _tlRig;
+        private readonly IRequestsManager _requestsManager;
 
         static MTProtoClientBuilder()
         {
@@ -57,7 +58,8 @@ namespace SharpMTProto
             [NotNull] INonceGenerator nonceGenerator,
             [NotNull] IKeyChain keyChain,
             [NotNull] IAuthKeysProvider authKeysProvider,
-            [NotNull] IRandomGenerator randomGenerator)
+            [NotNull] IRandomGenerator randomGenerator,
+            [NotNull] IRequestsManager requestsManager)
         {
             if (clientTransportFactory == null)
                 throw new ArgumentNullException("clientTransportFactory");
@@ -79,6 +81,8 @@ namespace SharpMTProto
                 throw new ArgumentNullException("authKeysProvider");
             if (randomGenerator == null)
                 throw new ArgumentNullException("randomGenerator");
+            if (requestsManager == null)
+                throw new ArgumentNullException("requestsManager");
 
             _clientTransportFactory = clientTransportFactory;
             _tlRig = tlRig;
@@ -90,6 +94,7 @@ namespace SharpMTProto
             _keyChain = keyChain;
             _authKeysProvider = authKeysProvider;
             _randomGenerator = randomGenerator;
+            _requestsManager = requestsManager;
         }
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
@@ -97,7 +102,7 @@ namespace SharpMTProto
             IConnectableClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
 
             // TODO: add bytes ocean external config.
-            return new MTProtoClientConnection(transport, new MTProtoSession(_messageIdGenerator, _randomGenerator, _authKeysProvider), _messageCodec);
+            return new MTProtoClientConnection(transport, _messageCodec, _messageIdGenerator, _randomGenerator, _authKeysProvider, _requestsManager);
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)

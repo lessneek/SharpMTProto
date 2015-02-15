@@ -62,8 +62,8 @@ namespace SharpMTProto.Tests
             var builder = Resolve<IMTProtoClientBuilder>();
             using (IMTProtoClientConnection connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
-                connection.SetAuthInfo(authInfo);
-                connection.SetSessionId(sessionId);
+                connection.AuthInfo = authInfo;
+                connection.SessionId = sessionId;
 
                 await connection.ConnectAsync();
 
@@ -107,8 +107,8 @@ namespace SharpMTProto.Tests
             var builder = Resolve<IMTProtoClientBuilder>();
             using (IMTProtoClientConnection connection = builder.BuildConnection(Mock.Of<IClientTransportConfig>()))
             {
-                connection.SetAuthInfo(authInfo);
-                connection.SetSessionId(sessionId);
+                connection.AuthInfo = authInfo;
+                connection.SessionId = sessionId;
 
                 connection.Transport.SendingTimeout = TimeSpan.FromSeconds(5);
 

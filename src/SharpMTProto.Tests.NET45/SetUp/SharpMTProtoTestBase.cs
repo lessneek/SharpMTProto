@@ -25,13 +25,14 @@ namespace SharpMTProto.Tests.SetUp
         protected IFixture Fixture { get; private set; }
 
         [SetUp]
-        public void SetUp()
+        public virtual void SetUp()
         {
             Fixture = new Fixture().Customize(new AutoConfiguredMoqCustomization());
         }
 
         protected override void ConfigureBuilder(ContainerBuilder builder)
         {
+            // Singletones.
             builder.RegisterType<TLRig>().SingleInstance();
             builder.RegisterType<TestMessageIdsGenerator>().As<IMessageIdGenerator>().SingleInstance();
             builder.RegisterType<EncryptionServices>().As<IEncryptionServices>().SingleInstance();
@@ -42,12 +43,14 @@ namespace SharpMTProto.Tests.SetUp
             builder.RegisterType<AuthKeysProvider>().As<IAuthKeysProvider>().SingleInstance();
             builder.RegisterType<SystemHashServiceProvider>().As<IHashServiceProvider>().SingleInstance();
 
+            builder.RegisterType<RequestsManager>().As<IRequestsManager>();
+
             builder.RegisterInstance(
                 Mock.Of<IClientTransportFactory>(
                     factory => factory.CreateTransport(It.IsAny<IClientTransportConfig>()) == Mock.Of<IConnectableClientTransport>()));
 
             builder.RegisterType<MTProtoClientBuilder>().As<IMTProtoClientBuilder>();
-            builder.RegisterType<MTProtoSession>().As<IMTProtoSession>().AsSelf();
+            builder.RegisterType<MTProtoClientConnection>().As<IMTProtoSession>().AsSelf();
         }
     }
 }

@@ -2,10 +2,11 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto.Schema
+namespace SharpMTProto.Messaging
 {
     using System;
     using SharpMTProto.Annotations;
+    using SharpMTProto.Schema;
 
     public interface IMessageEnvelope
     {
@@ -130,5 +131,13 @@ namespace SharpMTProto.Schema
         }
 
         #endregion
+    }
+
+    public static class MessageEnvelopeExtensions
+    {
+        public static bool IsEncryptedAndContentRelated(this IMessageEnvelope messageEnvelope)
+        {
+            return messageEnvelope.IsEncrypted && messageEnvelope.Message.IsContentRelated();
+        }
     }
 }

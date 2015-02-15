@@ -123,9 +123,9 @@
     <Compile Include="Dataflows\BytesOceanConfigFacts.cs" />
     <Compile Include="Dataflows\BytesOceanFacts.cs" />
     <Compile Include="Extensions.cs" />
-    <Compile Include="Messaging\Handlers\BadMsgNotificationHandlerFacts.cs" />
-    <Compile Include="Messaging\Handlers\FirstRequestResponseHandlerFacts.cs" />
-    <Compile Include="Messaging\Handlers\RpcResultHandlerFacts.cs" />
+    <Compile Include="SessionModules\BadMsgNotificationSessionModuleTests.cs" />
+    <Compile Include="SessionModules\FirstRequestResponseSessionModuleTests.cs" />
+    <Compile Include="SessionModules\RpcResultSessionModuleTests.cs" />
     <Compile Include="Messaging\RequestsManagerFacts.cs" />
     <Compile Include="MTProtoBuilderFacts.cs" />
     <Compile Include="MTProtoSessionFacts.cs" />

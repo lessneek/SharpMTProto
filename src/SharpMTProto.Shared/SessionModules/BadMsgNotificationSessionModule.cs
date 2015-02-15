@@ -1,27 +1,30 @@
-Ôªø//////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto.Messaging.Handlers
+namespace SharpMTProto.SessionModules
 {
     using System;
-    using System.Diagnostics;
+    using System.Threading.Tasks;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Utils;
 
-    public class BadMsgNotificationHandler : SingleMessageHandler<IBadMsgNotification>
+    public class BadMsgNotificationSessionModule : SessionModule
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
         private readonly IRequestsManager _requestsManager;
-        private readonly IMTProtoSession _session;
 
-        public BadMsgNotificationHandler(IMTProtoSession session, IRequestsManager requestsManager)
+        public BadMsgNotificationSessionModule([NotNull] IRequestsManager requestsManager)
         {
-            _session = session;
+            if (requestsManager == null)
+                throw new ArgumentNullException("requestsManager");
+
             _requestsManager = requestsManager;
         }
 
-        protected override void HandleInternal(IMessageEnvelope messageEnvelope)
+        protected override async Task ProcessIncomingMessageInternal(IMTProtoSession session, MovingMessageEnvelope movingMessageEnvelope)
         {
             #region Notice of Ignored Error Message
 
@@ -34,7 +37,7 @@ namespace SharpMTProto.Messaging.Handlers
              * Here, error_code can also take on the following values:
              * 
              * 16: msg_id too low (most likely, client time is wrong; it would be worthwhile to synchronize it using msg_id notifications
-             *     and re-send the original message with the ‚Äúcorrect‚Äù msg_id or wrap it in a container with a new msg_id if the original
+             *     and re-send the original message with the ìcorrectî msg_id or wrap it in a container with a new msg_id if the original
              *     message had waited too long on the client to be transmitted)
              * 17: msg_id too high (similar to the previous case, the client time has to be synchronized, and the message re-sent with the correct msg_id)
              * 18: incorrect two lower order msg_id bits (the server expects client message msg_id to be divisible by 4)
@@ -52,7 +55,7 @@ namespace SharpMTProto.Messaging.Handlers
              * 
              * Important: if server_salt has changed on the server or if client time is incorrect, any query will result in a notification in the above format.
              * The client must check that it has, in fact, recently sent a message with the specified msg_id, and if that is the case,
-             * update its time correction value (the difference between the client‚Äôs and the server‚Äôs clocks) and the server salt based on msg_id
+             * update its time correction value (the difference between the clientís and the serverís clocks) and the server salt based on msg_id
              * and the server_salt notification, so as to use these to (re)send future messages.
              * In the meantime, the original message (the one that caused the error message to be returned) must also be re-sent with a better msg_id and/or server_salt.
              * 
@@ -66,9 +69,10 @@ namespace SharpMTProto.Messaging.Handlers
 
             #endregion
 
-            var response = messageEnvelope.Message.Body as IBadMsgNotification;
+            var response = movingMessageEnvelope.MessageEnvelope.Message.Body as IBadMsgNotification;
 
-            Debug.Assert(response != null);
+            if (response == null)
+                return;
 
             var errorCode = (ErrorCode) response.ErrorCode;
             Log.Warning(string.Format("Bad message notification received with error code: {0} ({1}).", response.ErrorCode, errorCode));
@@ -83,7 +87,7 @@ namespace SharpMTProto.Messaging.Handlers
             }
 
             IMessage message;
-            if (!_session.TryGetSentMessage(request.MsgId, out message))
+            if (!session.TryGetSentMessage(request.MsgId, out message))
             {
                 Log.Warning(string.Format("Bad message (MsgId: 0x{0:X}) was not found. Ignored.", response.BadMsgId));
                 return;
@@ -116,7 +120,7 @@ namespace SharpMTProto.Messaging.Handlers
 
                 Log.Debug("Setting new salt.");
 
-                _session.UpdateSalt(badServerSalt.NewServerSalt);
+                session.UpdateSalt(badServerSalt.NewServerSalt);
 
                 Log.Debug("Resending bad message with the new salt.");
 

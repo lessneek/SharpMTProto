@@ -6,6 +6,7 @@
 
 namespace SharpMTProto.Messaging
 {
+    using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Reactive.Disposables;
@@ -60,11 +61,13 @@ namespace SharpMTProto.Messaging
         public IRequest GetFirstOrDefaultWithUnsetResponse(object response, bool includeRpc = false)
         {
             ThrowIfDisposed();
+
+            Type responseType = response.GetType();
+
             lock (_requests)
             {
                 return
-                    _requests.Values.FirstOrDefault(
-                        r => r.CanSetResponse(response.GetType()) && (!r.Flags.HasFlag(MessageSendingFlags.RPC) || includeRpc));
+                    _requests.Values.FirstOrDefault(r => r.CanSetResponse(responseType) && (includeRpc || !r.Flags.HasFlag(MessageSendingFlags.RPC)));
             }
         }
 

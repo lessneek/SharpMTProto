@@ -2,35 +2,37 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto.Messaging.Handlers
+namespace SharpMTProto.SessionModules
 {
+    using System.Threading.Tasks;
+    using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Utils;
 
-    public class RpcResultHandler : SingleMessageHandler<IRpcResult>
+    public class RpcResultSessionModule : SessionModule
     {
         private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-
         private readonly IRequestsManager _requestsManager;
 
-        public RpcResultHandler(IRequestsManager requestsManager)
+        public RpcResultSessionModule(IRequestsManager requestsManager)
         {
             _requestsManager = requestsManager;
         }
 
-        protected override void HandleInternal(IMessageEnvelope messageEnvelope)
+        protected override async Task ProcessIncomingMessageInternal(IMTProtoSession session, MovingMessageEnvelope movingMessageEnvelope)
         {
-            if (messageEnvelope.Message.Body == null)
+            object messageBody = movingMessageEnvelope.MessageEnvelope.Message.Body;
+            if (messageBody == null)
             {
-                Log.Warning("[RpcResultHandler] accepted message with null body.");
+                Log.Warning("[RpcResultSessionModule] accepted message with null body.");
                 return;
             }
 
-            var rpcResult = messageEnvelope.Message.Body as IRpcResult;
+            var rpcResult = messageBody as IRpcResult;
             if (rpcResult == null)
             {
-                Log.Warning(string.Format("[RpcResultHandler] accepted a message envelope with message body of type: {0}, but expected: {1}.",
-                    messageEnvelope.Message.Body.GetType(),
+                Log.Warning(string.Format("[RpcResultSessionModule] accepted a message envelope with message body of type: {0}, but expected: {1}.",
+                    messageBody.GetType(),
                     typeof (IRpcResult)));
                 return;
             }
@@ -40,7 +42,7 @@ namespace SharpMTProto.Messaging.Handlers
             IRequest request = _requestsManager.Get(rpcResult.ReqMsgId);
             if (request == null)
             {
-                Log.Warning(string.Format("[RpcResultHandler] Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
+                Log.Warning(string.Format("[RpcResultSessionModule] Ignored message of type '{1}' for not existed request with MsgId: 0x{0:X8}.",
                     rpcResult.ReqMsgId,
                     result.GetType()));
                 return;

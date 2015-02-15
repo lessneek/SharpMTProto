@@ -2,42 +2,36 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto.Tests.Messaging.Handlers
+namespace SharpMTProto.Tests.SessionModules
 {
-    using System;
-    using System.Collections.Immutable;
-    using System.Reactive.Subjects;
-    using FluentAssertions;
+    using System.Threading.Tasks;
     using Moq;
     using NUnit.Framework;
     using SharpMTProto.Messaging;
-    using SharpMTProto.Messaging.Handlers;
     using SharpMTProto.Schema;
+    using SharpMTProto.SessionModules;
     using SharpMTProto.Tests.TestObjects;
 
     [TestFixture]
-    [Category("Messaging.Handlers")]
-    public class FirstRequestResponseHandlerFacts
+    [Category("SessionModules")]
+    public class FirstRequestResponseSessionModuleTests
     {
         [Test]
-        public void Should_set_response_to_request()
+        public async Task Should_set_response_to_request()
         {
             var request = new Mock<IRequest>();
             request.SetupGet(request1 => request1.MsgId).Returns(() => 1);
 
             var response = new TestResponse {TestId = 1, TestText = "Simple test text."};
-            var responseMessage = MessageEnvelope.CreatePlain(new Message(1, 1, response));
+            var responseMessage = new MovingMessageEnvelope(null, MessageEnvelope.CreatePlain(new Message(1, 1, response)));
 
             var requestsManager = new Mock<IRequestsManager>();
             requestsManager.Setup(manager => manager.GetFirstOrDefaultWithUnsetResponse(response, It.IsAny<bool>()))
                 .Returns(request.Object)
                 .Verifiable();
 
-            var messageTypes = new BehaviorSubject<ImmutableArray<Type>>(ImmutableArray.Create(typeof (TestResponse)));
-
-            var handler = new FirstRequestResponseHandler(requestsManager.Object, messageTypes);
-            handler.CanHandle(responseMessage).Should().BeTrue();
-            handler.OnNext(responseMessage);
+            var sessionModule = new FirstRequestResponseSessionModule(requestsManager.Object);
+            await sessionModule.ProcessIncomingMessageAsync(null, responseMessage).ConfigureAwait(false);
 
             requestsManager.Verify();
             request.Verify(request1 => request1.SetResponse(response), Times.Once());
