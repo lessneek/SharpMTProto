@@ -10,6 +10,7 @@ namespace SharpMTProto.Services
     using System.Collections.Immutable;
     using BigMath.Utils;
     using SharpMTProto.Annotations;
+    using SharpMTProto.Authentication;
 
     public interface IAuthKeysProvider
     {

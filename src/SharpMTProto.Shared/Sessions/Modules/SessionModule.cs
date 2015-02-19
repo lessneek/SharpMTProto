@@ -2,7 +2,7 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto.SessionModules
+namespace SharpMTProto.Sessions.Modules
 {
     using System.Reactive.Disposables;
     using System.Threading.Tasks;

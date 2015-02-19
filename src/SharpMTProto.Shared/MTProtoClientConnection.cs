@@ -29,7 +29,8 @@ namespace SharpMTProto
     using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Services;
-    using SharpMTProto.SessionModules;
+    using SharpMTProto.Sessions;
+    using SharpMTProto.Sessions.Modules;
     using SharpMTProto.Transport;
 
     /// <summary>

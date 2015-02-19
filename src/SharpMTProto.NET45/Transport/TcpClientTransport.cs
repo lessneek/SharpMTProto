@@ -15,10 +15,10 @@ namespace SharpMTProto.Transport
     using System.Threading;
     using System.Threading.Tasks;
     using System.Threading.Tasks.Dataflow;
-    using Annotations;
     using BigMath.Utils;
     using Dataflows;
     using Nito.AsyncEx;
+    using SharpMTProto.Annotations;
     using SharpTL;
     using Utils;
 

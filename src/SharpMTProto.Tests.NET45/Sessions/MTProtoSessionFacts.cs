@@ -8,7 +8,7 @@
 
 #endregion
 
-namespace SharpMTProto.Tests
+namespace SharpMTProto.Tests.Sessions
 {
     using System;
     using System.Collections.Concurrent;
@@ -24,6 +24,7 @@ namespace SharpMTProto.Tests
     using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Services;
+    using SharpMTProto.Sessions;
     using SharpMTProto.Tests.SetUp;
 
     [TestFixture]

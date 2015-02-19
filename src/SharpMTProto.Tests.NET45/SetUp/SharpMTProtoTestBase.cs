@@ -13,6 +13,7 @@ namespace SharpMTProto.Tests.SetUp
     using SharpMTProto.Authentication;
     using SharpMTProto.Messaging;
     using SharpMTProto.Services;
+    using SharpMTProto.Sessions;
     using SharpMTProto.Transport;
     using SharpTL;
 

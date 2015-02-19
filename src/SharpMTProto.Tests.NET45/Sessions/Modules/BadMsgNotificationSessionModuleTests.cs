@@ -2,7 +2,7 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto.Tests.SessionModules
+namespace SharpMTProto.Tests.Sessions.Modules
 {
     using System;
     using System.Threading.Tasks;
@@ -10,7 +10,8 @@ namespace SharpMTProto.Tests.SessionModules
     using NUnit.Framework;
     using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
-    using SharpMTProto.SessionModules;
+    using SharpMTProto.Sessions;
+    using SharpMTProto.Sessions.Modules;
 
     [TestFixture]
     [Category("SessionModules")]

@@ -2,7 +2,7 @@
 // Copyright (c) Alexander Logger. All rights reserved. //
 //////////////////////////////////////////////////////////
 
-namespace SharpMTProto
+namespace SharpMTProto.Authentication
 {
     public struct AuthKeyWithId
     {

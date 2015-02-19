@@ -20,6 +20,7 @@ namespace SharpMTProto.Messaging
     using BigMath;
     using BigMath.Utils;
     using SharpMTProto.Annotations;
+    using SharpMTProto.Authentication;
     using SharpMTProto.Dataflows;
     using SharpMTProto.Schema;
     using SharpMTProto.Services;
@@ -525,7 +526,7 @@ namespace SharpMTProto.Messaging
             ulong authKeyId = streamer.ReadUInt64();
             if (authKeyId != providedAuthKeyId)
             {
-                throw new InvalidAuthKey(
+                throw new InvalidAuthKeyException(
                     string.Format("Message encrypted with auth key with id={0}, but auth key provided for decryption with id={1}.",
                         authKeyId,
                         providedAuthKeyId));

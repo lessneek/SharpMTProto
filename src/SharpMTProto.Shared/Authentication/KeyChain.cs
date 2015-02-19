@@ -4,17 +4,16 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using BigMath.Utils;
-using SharpMTProto.Annotations;
-using SharpMTProto.Services;
-using SharpTL;
-
 namespace SharpMTProto.Authentication
 {
     using System;
+    using System.Collections;
+    using System.Collections.Generic;
+    using System.Linq;
+    using BigMath.Utils;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Services;
+    using SharpTL;
 
     /// <summary>
     ///     Key chain interface.
@@ -35,8 +34,8 @@ namespace SharpMTProto.Authentication
     /// </summary>
     public class KeyChain : IKeyChain
     {
-        private readonly IHashService _sha1;
         private readonly Dictionary<ulong, PublicKey> _keys = new Dictionary<ulong, PublicKey>();
+        private readonly IHashService _sha1;
         private readonly TLRig _tlRig;
 
         public KeyChain([NotNull] TLRig tlRig, [NotNull] IHashServiceProvider hashServiceProvider)

@@ -6,10 +6,10 @@
 
 namespace SharpMTProto
 {
-    using Annotations;
     using Authentication;
     using Messaging;
     using Services;
+    using SharpMTProto.Annotations;
     using SharpTL;
     using Transport;
 

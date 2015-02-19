@@ -13,9 +13,9 @@ namespace SharpMTProto.Authentication
     using System.Threading.Tasks;
     using BigMath;
     using BigMath.Utils;
-    using Annotations;
     using Schema;
     using Services;
+    using SharpMTProto.Annotations;
     using Transport;
     using SharpTL;
     using Utils;

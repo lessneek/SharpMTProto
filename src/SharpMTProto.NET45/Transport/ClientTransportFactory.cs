@@ -7,7 +7,7 @@
 namespace SharpMTProto.Transport
 {
     using System;
-    using Annotations;
+    using SharpMTProto.Annotations;
 
     public class ClientTransportFactory : IClientTransportFactory
     {

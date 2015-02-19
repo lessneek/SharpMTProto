@@ -9,7 +9,7 @@
 
 #endregion
 
-namespace SharpMTProto
+namespace SharpMTProto.Sessions
 {
     using System;
     using System.Collections.Concurrent;
@@ -27,7 +27,7 @@ namespace SharpMTProto
     using SharpMTProto.Messaging;
     using SharpMTProto.Schema;
     using SharpMTProto.Services;
-    using SharpMTProto.SessionModules;
+    using SharpMTProto.Sessions.Modules;
     using SharpMTProto.Transport;
     using SharpMTProto.Utils;
 

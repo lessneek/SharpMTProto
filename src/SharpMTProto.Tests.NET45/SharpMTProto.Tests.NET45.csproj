@@ -123,12 +123,12 @@
     <Compile Include="Dataflows\BytesOceanConfigFacts.cs" />
     <Compile Include="Dataflows\BytesOceanFacts.cs" />
     <Compile Include="Extensions.cs" />
-    <Compile Include="SessionModules\BadMsgNotificationSessionModuleTests.cs" />
-    <Compile Include="SessionModules\FirstRequestResponseSessionModuleTests.cs" />
-    <Compile Include="SessionModules\RpcResultSessionModuleTests.cs" />
+    <Compile Include="Sessions\Modules\BadMsgNotificationSessionModuleTests.cs" />
+    <Compile Include="Sessions\Modules\FirstRequestResponseSessionModuleTests.cs" />
+    <Compile Include="Sessions\Modules\RpcResultSessionModuleTests.cs" />
     <Compile Include="Messaging\RequestsManagerFacts.cs" />
     <Compile Include="MTProtoBuilderFacts.cs" />
-    <Compile Include="MTProtoSessionFacts.cs" />
+    <Compile Include="Sessions\MTProtoSessionFacts.cs" />
     <Compile Include="Services\EncryptionServicesFacts.cs" />
     <Compile Include="Authentication\KeyChainFacts.cs" />
     <Compile Include="MTProtoClientConnectionFacts.cs" />
