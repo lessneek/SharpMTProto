@@ -428,7 +428,7 @@ namespace SharpMTProto.Sessions
             try
             {
                 MovingMessageEnvelope movingMessageEnvelope = await SendInternalAsync(messageEnvelope, cancellationToken).ConfigureAwait(false);
-                
+
                 _sentMessages.GetOrAdd(msgId, messageEnvelope);
                 _outgoingMessages.OnNext(movingMessageEnvelope);
 
@@ -441,17 +441,17 @@ namespace SharpMTProto.Sessions
             return false;
         }
 
-        private Message CreateMessage(object body, bool isContentRelated)
+        protected Message CreateMessage(object body, bool isContentRelated)
         {
             return new Message(GetNextMsgId(), GetNextMsgSeqno(isContentRelated), body);
         }
 
-        private IMessageEnvelope CreateMessageEnvelope(object body, bool isContentRelated, bool isEncrypted)
+        protected IMessageEnvelope CreateMessageEnvelope(object body, bool isContentRelated, bool isEncrypted)
         {
             return CreateMessageEnvelope(CreateMessage(body, isContentRelated), isEncrypted);
         }
 
-        private IMessageEnvelope CreateMessageEnvelope(IMessage message, bool isEncrypted)
+        protected IMessageEnvelope CreateMessageEnvelope(IMessage message, bool isEncrypted)
         {
             return isEncrypted ? MessageEnvelope.CreateEncrypted(_sessionTag.Value, _authInfo.Salt, message) : MessageEnvelope.CreatePlain(message);
         }
