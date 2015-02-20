@@ -108,7 +108,7 @@ namespace SharpMTProto.Sessions
             SendAsyncFunc = (s, e, c) => Task.FromResult(false);
 
             AcknowledgeInterval = TimeSpan.FromSeconds(25);
-            SendingInterval = TimeSpan.FromMilliseconds(50);
+            MaxDelay = TimeSpan.FromMilliseconds(50);
 
             UpdateLastActivity();
 
@@ -116,7 +116,7 @@ namespace SharpMTProto.Sessions
         }
 
         public TimeSpan AcknowledgeInterval { get; set; }
-        public TimeSpan SendingInterval { get; set; }
+        public TimeSpan MaxDelay { get; set; }
 
         public IObservable<MovingMessageEnvelope> IncomingMessages
         {
@@ -344,7 +344,7 @@ namespace SharpMTProto.Sessions
         {
             using (await _sendingAsyncLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
-                await Task.Delay(SendingInterval, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(MaxDelay, cancellationToken).ConfigureAwait(false);
 
                 ImmutableArray<Message> plainMessages = DequeueAllMessagesToSend(false);
                 ImmutableArray<Message> encryptedMessages = DequeueAllMessagesToSend(true);
