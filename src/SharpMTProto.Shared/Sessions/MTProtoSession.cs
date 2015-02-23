@@ -69,7 +69,7 @@ namespace SharpMTProto.Sessions
         private readonly IAuthKeysProvider _authKeysProvider;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly IRandomGenerator _randomGenerator;
-        
+
         private uint _messageSeqNumber;
         private IAuthInfo _authInfo = new AuthInfo();
         private ObservableProperty<IMTProtoSession, MTProtoSessionTag> _sessionTag;
@@ -105,7 +105,6 @@ namespace SharpMTProto.Sessions
             _authKeysProvider = authKeysProvider;
 
             _sessionTag = new ObservableProperty<IMTProtoSession, MTProtoSessionTag>(this) {Value = MTProtoSessionTag.Empty};
-            SendAsyncFunc = (s, e, c) => Task.FromResult(false);
 
             AcknowledgeInterval = TimeSpan.FromSeconds(25);
             MaxDelay = TimeSpan.FromMilliseconds(50);
@@ -169,8 +168,6 @@ namespace SharpMTProto.Sessions
         {
             get { return _environment; }
         }
-
-        public Func<IMTProtoSession, IMessageEnvelope, CancellationToken, Task<bool>> SendAsyncFunc { get; set; }
 
         #region Modules
 
