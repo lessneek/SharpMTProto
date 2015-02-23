@@ -87,7 +87,7 @@ namespace SharpMTProto.Sessions
         private Subject<MovingMessageEnvelope> _outgoingMessages = new Subject<MovingMessageEnvelope>();
 
         private readonly AsyncLock _sendingAsyncLock = new AsyncLock();
-        private CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();
+        private CancellationTokenSource _sessionCancellationTokenSource = new CancellationTokenSource();
 
         public MTProtoSession([NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IRandomGenerator randomGenerator,
@@ -112,7 +112,7 @@ namespace SharpMTProto.Sessions
 
             UpdateLastActivity();
 
-            StartSchedulers(_cancellationTokenSource.Token);
+            StartSchedulers(_sessionCancellationTokenSource.Token);
         }
 
         public TimeSpan AcknowledgeInterval { get; set; }
@@ -232,7 +232,7 @@ namespace SharpMTProto.Sessions
                 _plainMessagesToSend.Enqueue(message);
 
             // Trigger sending of the whole messages queue.
-            SendAllQueuedAsync(_cancellationTokenSource.Token);
+            SendAllQueuedAsync(_sessionCancellationTokenSource.Token);
 
             return message.MsgId;
         }
@@ -250,6 +250,11 @@ namespace SharpMTProto.Sessions
 
         protected virtual void BindClientTransport(IClientTransport clientTransport)
         {
+        }
+
+        protected CancellationToken SessionCancellationToken
+        {
+            get { return _sessionCancellationTokenSource.Token; }
         }
 
         /// <summary>
@@ -513,11 +518,11 @@ namespace SharpMTProto.Sessions
         {
             if (disposing)
             {
-                if (_cancellationTokenSource != null)
+                if (_sessionCancellationTokenSource != null)
                 {
-                    _cancellationTokenSource.Cancel();
-                    _cancellationTokenSource.Dispose();
-                    _cancellationTokenSource = null;
+                    _sessionCancellationTokenSource.Cancel();
+                    _sessionCancellationTokenSource.Dispose();
+                    _sessionCancellationTokenSource = null;
                 }
                 if (_incomingMessages != null)
                 {
