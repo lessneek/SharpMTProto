@@ -342,7 +342,7 @@ namespace SharpMTProto.Sessions
                 cancellationToken);
         }
 
-        private async Task SendAllQueuedAsync(CancellationToken cancellationToken)
+        protected async Task SendAllQueuedAsync(CancellationToken cancellationToken)
         {
             using (await _sendingAsyncLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -373,7 +373,7 @@ namespace SharpMTProto.Sessions
             }
         }
 
-        private void EnqueueToResend(ImmutableArray<Message> messagesToResend, bool encrypted)
+        protected void EnqueueToResend(ImmutableArray<Message> messagesToResend, bool encrypted)
         {
             ConcurrentQueue<Message> queue = encrypted ? _encryptedMessagesToSend : _plainMessagesToSend;
 
@@ -381,16 +381,16 @@ namespace SharpMTProto.Sessions
                 queue.Enqueue(messagesToResend[i]);
         }
 
-        private void EnqueueToResend(Message messageToResend, bool encrypted)
+        protected void EnqueueToResend(Message messageToResend, bool encrypted)
         {
             (encrypted ? _encryptedMessagesToSend : _plainMessagesToSend).Enqueue(messageToResend);
         }
 
-        private ImmutableArray<Message> DequeueAllMessagesToSend(bool encrypted)
+        protected ImmutableArray<Message> DequeueAllMessagesToSend(bool encrypted)
         {
             ConcurrentQueue<Message> queue = encrypted ? _encryptedMessagesToSend : _plainMessagesToSend;
             var messageEnvelopes = ImmutableArray.CreateBuilder<Message>(queue.Count);
-            
+
             Message message;
             while (queue.TryDequeue(out message))
                 messageEnvelopes.Add(message);
@@ -398,7 +398,7 @@ namespace SharpMTProto.Sessions
             return messageEnvelopes.ToImmutable();
         }
 
-        private ImmutableArray<ulong> DequeueAllMsgsAckToSend()
+        protected ImmutableArray<ulong> DequeueAllMsgsAckToSend()
         {
             var msgIds = ImmutableArray.CreateBuilder<ulong>(_msgIdsToAcknowledge.Count);
 
