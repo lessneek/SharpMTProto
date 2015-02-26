@@ -236,14 +236,14 @@ namespace SharpMTProto
             AddModule(new FirstRequestResponseSessionModule(_requestsManager));
         }
 
-        protected override async Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope,
+        protected override async Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope, IClientTransport clientTransport = null,
             CancellationToken cancellationToken = new CancellationToken())
         {
             IBytesBucket messageBytesBucket = await _messageCodec.EncodeMessageAsync(messageEnvelope, MessageCodecMode.Client);
             LogMessageInOut(messageBytesBucket, "OUT");
-            
+
             await _clientTransport.SendAsync(messageBytesBucket, cancellationToken).ConfigureAwait(false);
-            
+
             return new MovingMessageEnvelope(_clientTransport, messageEnvelope);
         }
 

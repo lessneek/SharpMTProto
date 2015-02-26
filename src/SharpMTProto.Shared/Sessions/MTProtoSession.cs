@@ -409,15 +409,29 @@ namespace SharpMTProto.Sessions
             return msgIds.ToImmutable();
         }
 
+        protected void EnqueueMsgsAckToResend(ImmutableArray<ulong> msgsAckToResend)
+        {
+            foreach (var msgAck in msgsAckToResend)
+                _msgIdsToAcknowledge.Enqueue(msgAck);
+        }
+
         private void UpdateLastActivity()
         {
             LastActivity = DateTime.UtcNow;
         }
 
-        protected abstract Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope,
+        protected abstract Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope, IClientTransport clientTransport = null,
             CancellationToken cancellationToken = new CancellationToken());
 
-        private async Task<bool> SendAsync(IMessageEnvelope messageEnvelope, CancellationToken cancellationToken)
+        protected Task<bool> SendAsync(IMessageEnvelope messageEnvelope,
+            CancellationToken cancellationToken = new CancellationToken())
+        {
+            return SendAsync(messageEnvelope, null, cancellationToken);
+        }
+
+        protected async Task<bool> SendAsync(IMessageEnvelope messageEnvelope,
+            IClientTransport clientTransport = null,
+            CancellationToken cancellationToken = new CancellationToken())
         {
             ulong msgId = messageEnvelope.Message.MsgId;
 
@@ -429,7 +443,8 @@ namespace SharpMTProto.Sessions
 
             try
             {
-                MovingMessageEnvelope movingMessageEnvelope = await SendInternalAsync(messageEnvelope, cancellationToken).ConfigureAwait(false);
+                MovingMessageEnvelope movingMessageEnvelope =
+                    await SendInternalAsync(messageEnvelope, clientTransport, cancellationToken).ConfigureAwait(false);
 
                 _sentMessages.GetOrAdd(msgId, messageEnvelope);
                 _outgoingMessages.OnNext(movingMessageEnvelope);
@@ -545,7 +560,7 @@ namespace SharpMTProto.Sessions
                 lock (_modulesSyncRoot)
                 {
                     _modules = ImmutableArray<ISessionModule>.Empty;
-                    
+
                     foreach (var disposable in _modulesToDispose)
                         disposable.Dispose();
                     _modulesToDispose = ImmutableArray<IDisposable>.Empty;

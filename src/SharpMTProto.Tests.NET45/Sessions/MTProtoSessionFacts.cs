@@ -26,6 +26,7 @@ namespace SharpMTProto.Tests.Sessions
     using SharpMTProto.Services;
     using SharpMTProto.Sessions;
     using SharpMTProto.Tests.SetUp;
+    using SharpMTProto.Transport;
 
     [TestFixture]
     public class MTProtoSessionFacts : SharpMTProtoTestBase
@@ -38,10 +39,10 @@ namespace SharpMTProto.Tests.Sessions
             {
             }
 
-            protected override Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope,
+            protected override Task<MovingMessageEnvelope> SendInternalAsync(IMessageEnvelope messageEnvelope, IClientTransport clientTransport = null,
                 CancellationToken cancellationToken = new CancellationToken())
             {
-                return Task.FromResult(new MovingMessageEnvelope(null, messageEnvelope));
+                return Task.FromResult(new MovingMessageEnvelope(clientTransport, messageEnvelope));
             }
         }
 
