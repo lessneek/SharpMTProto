@@ -70,5 +70,26 @@ namespace SharpMTProto.Utils
                 throw new ObjectDisposedException("Connection was disposed.");
             }
         }
+
+        /// <summary>
+        ///     Sets reference of an object to null and performs action before disposing in case the object implements
+        ///     <see cref="IDisposable" />.
+        /// </summary>
+        /// <typeparam name="T">Type of an object.</typeparam>
+        /// <param name="obj">An object.</param>
+        /// <param name="action">Action before disposing.</param>
+        protected static void NullAndDispose<T>(ref T obj, Action<T> action = null) where T : class
+        {
+            T val = Interlocked.Exchange(ref obj, null);
+            if (val == null)
+                return;
+
+            if (action != null)
+                action(val);
+
+            var disposable = val as IDisposable;
+            if (disposable != null)
+                disposable.Dispose();
+        }
     }
 }
