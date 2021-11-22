@@ -1,7 +1,5 @@
 # SharpMTProto
 
-**WARNING: the library is not implemented yet (consider donation to speed up development process).**
-
 C# [MTProto Mobile Protocol](http://core.telegram.org/mtproto) implementation.
 
 ## Usage
@@ -118,7 +116,3 @@ PM> Install-Package SharpMTProto
 - Implemented creation of auth key logic.
 - Implemented in/out logic of the MTProtoConnection with RX. Changed MTProtoSchema names of items to PascalCase.
 Working on creating auth key logic.
-
-## Donation ###
-
-**Bitcoin** address: [1FgVQvPmaZ1cdM8TqaH5UPuwp7CPTiMm4h](bitcoin:1FgVQvPmaZ1cdM8TqaH5UPuwp7CPTiMm4h?label=SharpMTProto&message=123)
