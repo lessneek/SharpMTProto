@@ -4,32 +4,32 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-
 namespace SharpMTProto.Authentication
 {
+    public interface IAuthInfo
+    {
+        byte[] AuthKey { get; set; }
+        ulong Salt { get; set; }
+        bool HasAuthKey { get; }
+    }
+
     /// <summary>
     ///     Auth info contains of auth key and initial salt.
     /// </summary>
-    public class AuthInfo
+    public class AuthInfo : IAuthInfo
     {
-        private readonly byte[] _authKey;
-        private readonly UInt64 _salt;
-
-        public AuthInfo(byte[] authKey, ulong salt)
+        public AuthInfo(byte[] authKey = null, ulong salt = 0)
         {
-            _authKey = authKey;
-            _salt = salt;
+            AuthKey = authKey;
+            Salt = salt;
         }
 
-        public byte[] AuthKey
-        {
-            get { return _authKey; }
-        }
+        public byte[] AuthKey { get; set; }
+        public ulong Salt { get; set; }
 
-        public ulong Salt
+        public bool HasAuthKey
         {
-            get { return _salt; }
+            get { return AuthKey != null; }
         }
     }
 }

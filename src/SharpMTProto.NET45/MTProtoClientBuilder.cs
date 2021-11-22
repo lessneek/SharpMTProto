@@ -4,38 +4,44 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using SharpMTProto.Annotations;
-using SharpMTProto.Authentication;
-using SharpMTProto.Messaging;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
-
 namespace SharpMTProto
 {
+    using Authentication;
+    using Messaging;
+    using Services;
+    using SharpMTProto.Annotations;
+    using SharpTL;
+    using Transport;
+
     public partial class MTProtoClientBuilder
     {
         [NotNull]
         private static MTProtoClientBuilder CreateDefault()
         {
-            var clientTransportFactory = new ClientTransportFactory();
+            var clientTransportFactory =
+                new ClientTransportFactory(config => new TcpClientTransport(config, new TcpTransportFullPacketProcessor()));
             var tlRig = new TLRig();
             var messageIdGenerator = new MessageIdGenerator();
-            var hashServices = new HashServices();
+            var hashServiceProvider = new SystemHashServiceProvider();
             var encryptionServices = new EncryptionServices();
             var randomGenerator = new RandomGenerator();
-            var messageCodec = new MessageCodec(tlRig, hashServices, encryptionServices, randomGenerator);
-            var keyChain = new KeyChain(tlRig, hashServices);
+            var authKeysProvider = new AuthKeysProvider(hashServiceProvider);
+            var messageCodec = new MessageCodec(tlRig, hashServiceProvider, encryptionServices, randomGenerator, authKeysProvider);
+            var keyChain = new KeyChain(tlRig, hashServiceProvider);
             var nonceGenerator = new NonceGenerator();
+            var requestsManager = new RequestsManager();
 
             return new MTProtoClientBuilder(clientTransportFactory,
                 tlRig,
                 messageIdGenerator,
                 messageCodec,
-                hashServices,
+                hashServiceProvider,
                 encryptionServices,
                 nonceGenerator,
-                keyChain);
+                keyChain,
+                authKeysProvider,
+                randomGenerator,
+                requestsManager);
         }
     }
 }

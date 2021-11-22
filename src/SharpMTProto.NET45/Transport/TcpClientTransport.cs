@@ -1,250 +1,337 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="TcpClientTransport.cs">
-//   Copyright (c) 2014 Alexander Logger. All rights reserved.
+//   Copyright (c) 2013-2014 Alexander Logger. All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
-using System.Reactive.Subjects;
-using System.Threading;
-using System.Threading.Tasks;
-using BigMath.Utils;
-using Catel.Logging;
-using Nito.AsyncEx;
-using SharpMTProto.Utils;
-using SharpTL;
-
 namespace SharpMTProto.Transport
 {
-    using Annotations;
+    using System;
+    using System.Diagnostics;
+    using System.Net;
+    using System.Net.Sockets;
+    using System.Reactive.Linq;
+    using System.Reactive.Threading.Tasks;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using System.Threading.Tasks.Dataflow;
+    using BigMath.Utils;
+    using Dataflows;
+    using Nito.AsyncEx;
+    using SharpMTProto.Annotations;
+    using SharpTL;
+    using Utils;
 
     /// <summary>
     ///     MTProto TCP clientTransport.
     /// </summary>
-    public class TcpClientTransport : IClientTransport
+    public class TcpClientTransport : Cancelable, IConnectableClientTransport
     {
-        private const int PacketLengthBytesCount = 4;
-        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
-        private readonly TimeSpan _connectTimeout;
-        private readonly byte[] _readerBuffer;
-
-        private readonly AsyncLock _stateAsyncLock = new AsyncLock();
-        private readonly byte[] _tempLengthBuffer = new byte[PacketLengthBytesCount];
-
         private CancellationTokenSource _connectionCancellationTokenSource;
-        private Subject<byte[]> _in = new Subject<byte[]>();
-        private int _nextPacketBytesCountLeft;
-        private byte[] _nextPacketDataBuffer;
-        private TLStreamer _nextPacketStreamer;
-        private Task _receiverTask;
+        private ITransportPacketProcessor _packetProcessor;
         private Socket _socket;
-        private volatile ClientTransportState _state = ClientTransportState.Disconnected;
-        private int _tempLengthBufferFill;
-        private int _packetNumber;
-        private volatile bool _isDisposed;
+        private readonly IBytesOcean _bytesOcean;
+        private readonly TcpClientTransportConfig _config;
+        private readonly bool _isConnectedSocket;
+        private readonly BufferBlock<IBytesBucket> _outgoingQueue = new BufferBlock<IBytesBucket>();
         private readonly IPEndPoint _remoteEndPoint;
+        private readonly AsyncLock _stateAsyncLock = new AsyncLock();
+        private ObservableProperty<IClientTransport, ClientTransportState> _state;
 
-        private readonly bool _isOnServerSide;
-
-        public TcpClientTransport(TcpClientTransportConfig config)
+        public TcpClientTransport([NotNull] TcpClientTransportConfig config,
+            [NotNull] ITransportPacketProcessor packetProcessor,
+            IBytesOcean bytesOcean = null)
         {
             if (config.Port <= 0 || config.Port > ushort.MaxValue)
-            {
                 throw new ArgumentException(string.Format("Port {0} is incorrect.", config.Port));
-            }
+            if (packetProcessor == null)
+                throw new ArgumentNullException("packetProcessor");
+
+            _config = config;
+            _packetProcessor = packetProcessor;
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
+
+            Init();
 
             IPAddress ipAddress;
             if (!IPAddress.TryParse(config.IPAddress, out ipAddress))
             {
                 throw new ArgumentException(string.Format("IP address [{0}] is incorrect.", config.IPAddress));
             }
-
             _remoteEndPoint = new IPEndPoint(ipAddress, config.Port);
-            _connectTimeout = config.ConnectTimeout;
 
-            _readerBuffer = new byte[config.MaxBufferSize];
-
-            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+            ConnectTimeout = config.ConnectTimeout;
+            SendingTimeout = config.SendingTimeout;
         }
 
-        public TcpClientTransport([NotNull] Socket socket, bool isOnServerSide = true)
+        /// <summary>
+        ///     Create a new instance of <see cref="TcpClientTransport" /> with connected socket.
+        /// </summary>
+        /// <param name="socket">Connected socket.</param>
+        /// <param name="packetProcessor">Packet processor.</param>
+        /// <param name="bytesOcean">Bytes ocean.</param>
+        public TcpClientTransport([NotNull] Socket socket, [NotNull] ITransportPacketProcessor packetProcessor, IBytesOcean bytesOcean = null)
         {
             if (socket == null)
-            {
                 throw new ArgumentNullException("socket");
+            if (packetProcessor == null)
+                throw new ArgumentNullException("packetProcessor");
+
+            _isConnectedSocket = true;
+            _socket = socket;
+            _packetProcessor = packetProcessor;
+            _bytesOcean = bytesOcean ?? MTProtoDefaults.CreateDefaultTransportBytesOcean();
+
+            Init();
+
+            _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
+            if (_remoteEndPoint == null)
+            {
+                throw new TransportException(
+                    string.Format(
+                        "TcpClientTransport accepts sockets only with RemoteEndPoint of type IPEndPoint, but socket with {0} RemoteEndPoint is found.",
+                        _socket.RemoteEndPoint.GetType()));
             }
 
-            _isOnServerSide = isOnServerSide;
-            _socket = socket;
-            _remoteEndPoint = _socket.RemoteEndPoint as IPEndPoint;
-            _readerBuffer = new byte[_socket.ReceiveBufferSize];
-            if (_socket.IsConnected())
-            {
-                _state = ClientTransportState.Connected;
-            }
+            _config = new TcpClientTransportConfig(_remoteEndPoint.Address.ToString(), _remoteEndPoint.Port);
+
+            InternalConnectAsync().Wait();
         }
 
-        public IDisposable Subscribe(IObserver<byte[]> observer)
+        private void Init()
+        {
+            TransportId = Guid.NewGuid();
+            _state = new ObservableProperty<IClientTransport, ClientTransportState>(this, ClientTransportState.Disconnected);
+        }
+
+        public IDisposable Subscribe(IObserver<IBytesBucket> observer)
         {
             ThrowIfDisposed();
-            return _in.Subscribe(observer);
+            return _packetProcessor.IncomingMessageBuckets.Subscribe(observer);
         }
+
+        public Guid TransportId { get; private set; }
 
         public bool IsConnected
         {
-            get { return State == ClientTransportState.Connected; }
+            get { return _state.Value == ClientTransportState.Connected; }
         }
 
-        public ClientTransportState State
+        public IObservableReadonlyProperty<IClientTransport, ClientTransportState> State
         {
-            get { return _state; }
+            get { return _state.AsReadonly; }
         }
 
-        public void Connect()
+        public TimeSpan ConnectTimeout { get; set; }
+        public TimeSpan SendingTimeout { get; set; }
+
+        public IPEndPoint RemoteEndPoint
         {
-            ThrowIfDisposed();
-            ThrowIfOnServerSide();
-            ConnectAsync().Wait();
+            get { return _remoteEndPoint; }
         }
 
-        public Task ConnectAsync()
+        public Task<TransportConnectResult> ConnectAsync()
         {
-            return ConnectAsync(CancellationToken.None);
-        }
-
-        public async Task ConnectAsync(CancellationToken token)
-        {
-            ThrowIfDisposed();
-            ThrowIfOnServerSide();
-            using (await _stateAsyncLock.LockAsync(token))
-            {
-                if (State == ClientTransportState.Connected)
-                {
-                    return;
-                }
-
-                var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint};
-                
-                var awaitable = new SocketAwaitable(args);
-
-                try
-                {
-                    _packetNumber = 0;
-                    await _socket.ConnectAsync(awaitable);
-                }
-                catch (SocketException e)
-                {
-                    Log.Debug(e);
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e);
-                    _state = ClientTransportState.Disconnected;
-                    throw;
-                }
-
-                switch (args.SocketError)
-                {
-                    case SocketError.Success:
-                    case SocketError.IsConnected:
-                        _state = ClientTransportState.Connected;
-                        break;
-                    default:
-                        _state = ClientTransportState.Disconnected;
-                        break;
-                }
-                if (_state != ClientTransportState.Connected)
-                {
-                    return;
-                }
-                _connectionCancellationTokenSource = new CancellationTokenSource();
-                _receiverTask = StartReceiver(_connectionCancellationTokenSource.Token);
-            }
-        }
-
-        public void Disconnect()
-        {
-            DisconnectAsync().Wait();
+            ThrowIfConnectedSocket();
+            return InternalConnectAsync();
         }
 
         public async Task DisconnectAsync()
         {
-            ThrowIfDisposed();
-            using (await _stateAsyncLock.LockAsync())
+            using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
-                if (_state == ClientTransportState.Disconnected)
+                Debug.Assert(_state.Value != ClientTransportState.Connecting, "This should never happens.");
+                Debug.Assert(_state.Value != ClientTransportState.Disconnecting, "This should never happens.");
+
+                if (_state.Value != ClientTransportState.Connected)
                 {
+                    LogDebug(string.Format("Could not disconnect in non connected state."));
                     return;
                 }
-                var args = new SocketAsyncEventArgs();
-                var awaitable = new SocketAwaitable(args);
-                try
+                _state.Value = ClientTransportState.Disconnecting;
+                LogDebug(string.Format("Disconnecting."));
+
+                if (_connectionCancellationTokenSource != null)
                 {
-                    if (_socket.Connected)
+                    _connectionCancellationTokenSource.Cancel();
+                    _connectionCancellationTokenSource.Dispose();
+                    _connectionCancellationTokenSource = null;
+                }
+                await Task.Delay(10);
+
+                using (var args = new SocketAsyncEventArgs {DisconnectReuseSocket = false})
+                {
+                    var awaitable = new SocketAwaitable(args);
+                    try
                     {
-                        _socket.Shutdown(SocketShutdown.Both);
-                        await _socket.DisconnectAsync(awaitable);
+                        if (_socket.Connected)
+                        {
+                            _socket.Shutdown(SocketShutdown.Both);
+                            await _socket.DisconnectAsync(awaitable);
+                        }
+                    }
+                    catch (SocketException e)
+                    {
+                        LogDebug(e);
+                    }
+                    finally
+                    {
+                        _socket.Dispose();
+                        _socket = null;
                     }
                 }
-                catch (SocketException e)
-                {
-                    Log.Debug(e);
-                }
 
-                _state = ClientTransportState.Disconnected;
+                _state.Value = ClientTransportState.Disconnected;
+                LogDebug(string.Format("Disconnected."));
             }
         }
 
-        public void Send(byte[] payload)
+        public Task SendAsync(IBytesBucket payload, CancellationToken cancellationToken)
         {
-            SendAsync(payload).Wait();
+            if (IsDisposed)
+                return TaskConstants.Completed;
+
+            return _outgoingQueue.SendAsync(payload, cancellationToken);
         }
 
-        public Task SendAsync(byte[] payload)
+        public Task SendAsync(IBytesBucket payload)
         {
             return SendAsync(payload, CancellationToken.None);
         }
 
-        public Task SendAsync(byte[] payload, CancellationToken token)
+        private async Task<TransportConnectResult> InternalConnectAsync()
         {
+            LogDebug(string.Format("Connecting..."));
+
             ThrowIfDisposed();
-            return Task.Run(async () =>
+
+            using (await _stateAsyncLock.LockAsync().ConfigureAwait(false))
             {
-                var packet = new TcpTransportPacket(_packetNumber++, payload);
+                Debug.Assert(_state.Value != ClientTransportState.Connecting, "This should never happens.");
+                Debug.Assert(_state.Value != ClientTransportState.Disconnecting, "This should never happens.");
 
-                var args = new SocketAsyncEventArgs();
-                args.SetBuffer(packet.Data, 0, packet.Data.Length);
+                var result = TransportConnectResult.Unknown;
 
-                var awaitable = new SocketAwaitable(args);
-                await _socket.SendAsync(awaitable);
-            }, token);
+                if (_state.Value == ClientTransportState.Connected)
+                {
+                    LogDebug(string.Format("Client transport ({0}) already connected.", _remoteEndPoint));
+                    return TransportConnectResult.Success;
+                }
+                _state.Value = ClientTransportState.Connecting;
+
+                if (_isConnectedSocket)
+                {
+                    _state.Value = ClientTransportState.Connected;
+                    result = TransportConnectResult.Success;
+                }
+                else
+                {
+                    using (var args = new SocketAsyncEventArgs {RemoteEndPoint = _remoteEndPoint})
+                    {
+                        var awaitable = new SocketAwaitable(args);
+
+                        try
+                        {
+                            _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                            await Task.Run(async () => await _socket.ConnectAsync(awaitable)).ToObservable().Timeout(ConnectTimeout);
+                        }
+                        catch (TimeoutException)
+                        {
+                            result = TransportConnectResult.Timeout;
+                        }
+                        catch (SocketException e)
+                        {
+                            // Log only. Process actual SocketError below.
+                            LogDebug(e);
+                        }
+                        catch (Exception e)
+                        {
+                            LogDebug(e, "Fatal error on connect.");
+                            _state.Value = ClientTransportState.Disconnected;
+                            throw;
+                        }
+
+                        if (result == TransportConnectResult.Unknown)
+                        {
+                            switch (args.SocketError)
+                            {
+                                case SocketError.Success:
+                                case SocketError.IsConnected:
+                                    result = TransportConnectResult.Success;
+                                    break;
+                                case SocketError.TimedOut:
+                                    result = TransportConnectResult.Timeout;
+                                    break;
+                                default:
+                                    result = TransportConnectResult.Fail;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
+                switch (result)
+                {
+                    case TransportConnectResult.Success:
+                        _state.Value = ClientTransportState.Connected;
+                        break;
+                    case TransportConnectResult.Unknown:
+                    case TransportConnectResult.Fail:
+                    case TransportConnectResult.Timeout:
+                        _socket.Close();
+                        _socket = null;
+                        _state.Value = ClientTransportState.Disconnected;
+                        return result;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                _connectionCancellationTokenSource = new CancellationTokenSource();
+
+                StartReceiver(_connectionCancellationTokenSource.Token);
+                StartSender(_connectionCancellationTokenSource.Token);
+
+                return result;
+            }
         }
 
-        private Task StartReceiver(CancellationToken token)
+        private void StartReceiver(CancellationToken cancellationToken)
         {
-            return Task.Run(async () =>
+            Task.Run(() => ReceiverTask(cancellationToken), cancellationToken);
+        }
+
+        private void StartSender(CancellationToken cancellationToken)
+        {
+            Task.Run(() => SenderTask(cancellationToken), cancellationToken);
+        }
+
+        private async Task ReceiverTask(CancellationToken cancellationToken)
+        {
+            LogDebug(string.Format("Receiver task was started."));
+            var canceled = false;
+
+            IBytesBucket receiverBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize).ConfigureAwait(false);
+            var args = new SocketAsyncEventArgs();
+            try
             {
-                var args = new SocketAsyncEventArgs();
-                args.SetBuffer(_readerBuffer, 0, _readerBuffer.Length);
+                ArraySegment<byte> bytes = receiverBucket.Bytes;
+                args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
                 var awaitable = new SocketAwaitable(args);
 
-                while (!token.IsCancellationRequested && _socket.IsConnected())
+                while (!cancellationToken.IsCancellationRequested && _socket.Connected)
                 {
                     try
                     {
-                        if (_socket.Available == 0)
-                        {
-                            await Task.Delay(10, token);
-                            continue;
-                        }
+                        LogDebug(string.Format("Awaiting socket receive async..."));
+
                         await _socket.ReceiveAsync(awaitable);
+
+                        LogDebug(string.Format("Socket has received {0} bytes async.", args.BytesTransferred));
                     }
                     catch (SocketException e)
                     {
-                        Log.Debug(e);
+                        LogDebug(e);
                     }
                     if (args.SocketError != SocketError.Success)
                     {
@@ -255,194 +342,174 @@ namespace SharpMTProto.Transport
                     {
                         break;
                     }
-
+                    receiverBucket.Used = bytesRead;
                     try
                     {
-                        await ProcessReceivedDataAsync(new ArraySegment<byte>(_readerBuffer, 0, bytesRead));
+                        await _packetProcessor.ProcessIncomingPacketAsync(receiverBucket.UsedBytes, cancellationToken).ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
-                        Log.Error(e, "Critical error while precessing received data.");
+                        LogDebug(e, "Critical error while precessing received data.");
                         break;
                     }
                 }
-                try
-                {
-                    await DisconnectAsync();
-                }
-                catch (Exception e)
-                {
-                    Log.Debug(e);
-                }
-            }, token);
+            }
+            catch (TaskCanceledException)
+            {
+                canceled = true;
+            }
+            catch (Exception e)
+            {
+                LogDebug(e);
+            }
+            finally
+            {
+                receiverBucket.Dispose();
+                args.Dispose();
+            }
+
+            if (_state.Value == ClientTransportState.Connected)
+            {
+                await DisconnectAsync();
+            }
+
+            LogDebug(string.Format("Receiver task was {0}.", canceled ? "canceled" : "ended"));
         }
 
-        private async Task ProcessReceivedDataAsync(ArraySegment<byte> buffer)
+        private async Task SenderTask(CancellationToken token)
         {
+            LogDebug(string.Format("Sender task was started."));
+            var canceled = false;
+
+            // TODO: add timeout.
+            IBytesBucket senderBucket = await _bytesOcean.TakeAsync(_config.MaxBufferSize).ConfigureAwait(false);
+            var senderStreamer = new TLStreamer(senderBucket.Bytes);
+            var args = new SocketAsyncEventArgs();
             try
             {
-                int bytesRead = 0;
-                while (bytesRead < buffer.Count)
+                ArraySegment<byte> bytes = senderBucket.Bytes;
+                args.SetBuffer(bytes.Array, bytes.Offset, bytes.Count);
+                var awaitable = new SocketAwaitable(args);
+
+                while (!token.IsCancellationRequested && _socket.Connected)
                 {
-                    int startIndex = buffer.Offset + bytesRead;
-                    int bytesToRead = buffer.Count - bytesRead;
-
-                    if (_nextPacketBytesCountLeft == 0)
+                    senderStreamer.Position = 0;
+                    try
                     {
-                        int tempLengthBytesToRead = PacketLengthBytesCount - _tempLengthBufferFill;
-                        tempLengthBytesToRead = (bytesToRead < tempLengthBytesToRead) ? bytesToRead : tempLengthBytesToRead;
-                        Buffer.BlockCopy(buffer.Array, startIndex, _tempLengthBuffer, _tempLengthBufferFill, tempLengthBytesToRead);
+                        LogDebug(string.Format("Awaiting for outgoing queue items..."));
 
-                        _tempLengthBufferFill += tempLengthBytesToRead;
-                        if (_tempLengthBufferFill < PacketLengthBytesCount)
+                        using (IBytesBucket payloadBucket = await _outgoingQueue.ReceiveAsync(token).ConfigureAwait(false))
                         {
-                            break;
+                            int packetLength = _packetProcessor.WritePacket(payloadBucket.UsedBytes, senderStreamer);
+                            args.SetBuffer(bytes.Offset, packetLength);
+#if DEBUG
+                                var packetBytes = new ArraySegment<byte>(bytes.Array, bytes.Offset, packetLength);
+                                LogDebug(string.Format("Sending packet data: {0}.", packetBytes.ToHexString()));
+#endif
                         }
 
-                        startIndex += tempLengthBytesToRead;
-                        bytesToRead -= tempLengthBytesToRead;
+                        await _socket.SendAsync(awaitable);
 
-                        _tempLengthBufferFill = 0;
-                        _nextPacketBytesCountLeft = _tempLengthBuffer.ToInt32();
-
-                        if (_nextPacketDataBuffer == null || _nextPacketDataBuffer.Length < _nextPacketBytesCountLeft || _nextPacketStreamer == null)
-                        {
-                            _nextPacketDataBuffer = new byte[_nextPacketBytesCountLeft];
-                            _nextPacketStreamer = new TLStreamer(_nextPacketDataBuffer);
-                        }
-
-                        // Writing packet length.
-                        _nextPacketStreamer.Write(_tempLengthBuffer);
-                        _nextPacketBytesCountLeft -= PacketLengthBytesCount;
-                        bytesRead += PacketLengthBytesCount;
+                        LogDebug(string.Format("Socket has sent {0} bytes async.", args.BytesTransferred));
                     }
-
-                    bytesToRead = bytesToRead > _nextPacketBytesCountLeft ? _nextPacketBytesCountLeft : bytesToRead;
-
-                    _nextPacketStreamer.Write(buffer.Array, startIndex, bytesToRead);
-
-                    bytesRead += bytesToRead;
-                    _nextPacketBytesCountLeft -= bytesToRead;
-
-                    if (_nextPacketBytesCountLeft > 0)
+                    catch (SocketException e)
+                    {
+                        LogDebug(e);
+                    }
+                    if (args.SocketError != SocketError.Success)
                     {
                         break;
                     }
-
-                    var packet = new TcpTransportPacket(_nextPacketDataBuffer, 0, (int) _nextPacketStreamer.Position);
-
-                    await ProcessReceivedPacket(packet);
-
-                    _nextPacketBytesCountLeft = 0;
-                    _nextPacketStreamer.Position = 0;
+                    int bytesRead = args.BytesTransferred;
+                    if (bytesRead <= 0)
+                    {
+                        break;
+                    }
                 }
             }
-            catch (Exception)
+            catch (TaskCanceledException)
             {
-                if (_nextPacketStreamer != null)
-                {
-                    _nextPacketStreamer.Dispose();
-                    _nextPacketStreamer = null;
-                }
-                _nextPacketDataBuffer = null;
-                _nextPacketBytesCountLeft = 0;
-
-                throw;
+                canceled = true;
             }
-        }
-
-        private async Task ProcessReceivedPacket(TcpTransportPacket packet)
-        {
-            await Task.Run(() => _in.OnNext(packet.GetPayloadCopy()));
-        }
-
-        private void ThrowIfOnServerSide()
-        {
-            if (_isOnServerSide)
+            catch (Exception e)
             {
-                throw new NotSupportedException("Not supported in server client mode.");
+                LogDebug(e);
+            }
+            finally
+            {
+                args.Dispose();
+                senderStreamer.Dispose();
+                senderBucket.Dispose();
+            }
+
+            if (_state.Value == ClientTransportState.Connected)
+            {
+                await DisconnectAsync();
+            }
+
+            LogDebug(string.Format("Sender task was {0}.", canceled ? "canceled" : "ended"));
+        }
+
+        #region Logging
+
+        private static readonly ILog Log = LogManager.GetCurrentClassLogger();
+
+        [Conditional("DEBUG")]
+        private void LogDebug(string text)
+        {
+            Log.Debug(string.Format("[TcpClientTransport] [{0}]: {1}", _remoteEndPoint, text));
+        }
+
+        [Conditional("DEBUG")]
+        private void LogDebug(Exception exception)
+        {
+            Log.Debug(exception, string.Format("[TcpClientTransport] [{0}]", _remoteEndPoint));
+        }
+
+        [Conditional("DEBUG")]
+        private void LogDebug(Exception exception, string message)
+        {
+            Log.Debug(exception, string.Format("[TcpClientTransport] [{0}]: {1}.", _remoteEndPoint, message));
+        }
+
+        #endregion
+
+        private void ThrowIfConnectedSocket()
+        {
+            if (_isConnectedSocket)
+            {
+                throw new NotSupportedException("Not supported in connected socket mode.");
             }
         }
 
         #region Disposing
-        public void Dispose()
+
+        protected override async void Dispose(bool isDisposing)
         {
-            GC.SuppressFinalize(this);
-            Dispose(true);
+            if (isDisposing)
+            {
+                if (_state.Value != ClientTransportState.Disconnected)
+                {
+                    await DisconnectAsync();
+                }
+                if (_outgoingQueue != null)
+                {
+                    _outgoingQueue.Complete();
+                }
+                if (_packetProcessor != null)
+                {
+                    _packetProcessor.Dispose();
+                    _packetProcessor = null;
+                }
+                if (_state != null)
+                {
+                    _state.Dispose();
+                    _state = null;
+                }
+            }
+            base.Dispose(isDisposing);
         }
 
-        protected virtual void Dispose(bool isDisposing)
-        {
-            if (_isDisposed)
-            {
-                return;
-            }
-            _isDisposed = true;
-
-            if (!isDisposing)
-            {
-                return;
-            }
-
-            if (_connectionCancellationTokenSource != null)
-            {
-                _connectionCancellationTokenSource.Cancel();
-                _connectionCancellationTokenSource = null;
-            }
-            if (_receiverTask != null)
-            {
-                if (!_receiverTask.IsCompleted)
-                {
-                    _receiverTask.Wait(1000);
-                }
-                if (_receiverTask.IsCompleted)
-                {
-                    _receiverTask.Dispose();
-                }
-                else
-                {
-                    Log.Warning("Receiver task did not completed on transport disposing.");
-                }
-                _receiverTask = null;
-            }
-            if (_nextPacketStreamer != null)
-            {
-                _nextPacketStreamer.Dispose();
-                _nextPacketStreamer = null;
-            }
-            if (_in != null)
-            {
-                _in.OnCompleted();
-                _in.Dispose();
-                _in = null;
-            }
-            if (_socket != null)
-            {
-                try
-                {
-                    _socket.Shutdown(SocketShutdown.Both);
-                    _socket.Disconnect(false);
-                    _socket.Close();
-                }
-                catch (Exception e)
-                {
-                    Log.Error(e);
-                }
-                finally
-                {
-                    _socket = null;
-                }
-            }
-        }
-
-        [DebuggerStepThrough]
-        private void ThrowIfDisposed()
-        {
-            if (_isDisposed)
-            {
-                throw new ObjectDisposedException("Connection was disposed.");
-            }
-        }
         #endregion
     }
 }

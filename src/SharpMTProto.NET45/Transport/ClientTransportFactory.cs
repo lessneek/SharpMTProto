@@ -4,19 +4,30 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-
 namespace SharpMTProto.Transport
 {
+    using System;
+    using SharpMTProto.Annotations;
+
     public class ClientTransportFactory : IClientTransportFactory
     {
-        public IClientTransport CreateTransport(IClientTransportConfig clientTransportConfig)
+        private readonly Func<TcpClientTransportConfig, IConnectableClientTransport> _createTcpClientTransport;
+
+        public ClientTransportFactory([NotNull] Func<TcpClientTransportConfig, TcpClientTransport> createTcpClientTransport)
+        {
+            if (createTcpClientTransport == null)
+                throw new ArgumentNullException("createTcpClientTransport");
+
+            _createTcpClientTransport = createTcpClientTransport;
+        }
+
+        public IConnectableClientTransport CreateTransport(IClientTransportConfig clientTransportConfig)
         {
             // TCP.
             var tcpTransportConfig = clientTransportConfig as TcpClientTransportConfig;
             if (tcpTransportConfig != null)
             {
-                return new TcpClientTransport(tcpTransportConfig);
+                return _createTcpClientTransport(tcpTransportConfig);
             }
 
             throw new NotSupportedException(string.Format("Transport type '{0}' is not supported.", clientTransportConfig.TransportName));

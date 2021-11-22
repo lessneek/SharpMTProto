@@ -4,17 +4,17 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using BigMath.Utils;
-using Catel;
-using SharpMTProto.Annotations;
-using SharpMTProto.Services;
-using SharpTL;
-
 namespace SharpMTProto.Authentication
 {
+    using System;
+    using System.Collections;
+    using System.Collections.Generic;
+    using System.Linq;
+    using BigMath.Utils;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Services;
+    using SharpTL;
+
     /// <summary>
     ///     Key chain interface.
     /// </summary>
@@ -34,22 +34,28 @@ namespace SharpMTProto.Authentication
     /// </summary>
     public class KeyChain : IKeyChain
     {
-        private readonly IHashServices _hashServices;
         private readonly Dictionary<ulong, PublicKey> _keys = new Dictionary<ulong, PublicKey>();
+        private readonly IHashService _sha1;
         private readonly TLRig _tlRig;
 
-        public KeyChain([NotNull] TLRig tlRig, [NotNull] IHashServices hashServices)
+        public KeyChain([NotNull] TLRig tlRig, [NotNull] IHashServiceProvider hashServiceProvider)
         {
-            Argument.IsNotNull(() => tlRig);
-            Argument.IsNotNull(() => hashServices);
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (hashServiceProvider == null)
+                throw new ArgumentNullException("hashServiceProvider");
 
             _tlRig = tlRig;
-            _hashServices = hashServices;
+            _sha1 = hashServiceProvider.Create(HashServiceTag.SHA1);
         }
 
         public PublicKey this[ulong keyFingerprint]
         {
-            get { return _keys.ContainsKey(keyFingerprint) ? _keys[keyFingerprint] : null; }
+            get
+            {
+                PublicKey value;
+                return _keys.TryGetValue(keyFingerprint, out value) ? value : null;
+            }
         }
 
         public IEnumerator<PublicKey> GetEnumerator()
@@ -133,7 +139,7 @@ namespace SharpMTProto.Authentication
         /// <returns>Returns fingerprint as lower 64 bits of the SHA1(RSAPublicKey).</returns>
         public ulong ComputeFingerprint(byte[] keyData)
         {
-            byte[] hash = _hashServices.ComputeSHA1(keyData);
+            byte[] hash = _sha1.Hash(keyData);
             return hash.ToUInt64(hash.Length - 8);
         }
     }

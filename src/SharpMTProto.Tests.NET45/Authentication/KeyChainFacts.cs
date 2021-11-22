@@ -19,7 +19,7 @@ namespace SharpMTProto.Tests.Authentication
         [Test]
         public void Should_add_keys()
         {
-            var keyChain = new KeyChain(TLRig.Default, new HashServices());
+            var keyChain = new KeyChain(TLRig.Default, new SystemHashServiceProvider());
 
             keyChain.AddKeys(TestData.TestPublicKeys);
 
@@ -35,7 +35,7 @@ namespace SharpMTProto.Tests.Authentication
         [Test]
         public void Should_check_key_fingerprint()
         {
-            var keyChain = new KeyChain(TLRig.Default, new HashServices());
+            var keyChain = new KeyChain(TLRig.Default, new SystemHashServiceProvider());
 
             foreach (PublicKey testKey in TestData.TestPublicKeys)
             {
@@ -46,7 +46,7 @@ namespace SharpMTProto.Tests.Authentication
         [Test]
         public void Should_compute_key_fingerprint()
         {
-            var keyChain = new KeyChain(TLRig.Default, new HashServices());
+            var keyChain = new KeyChain(TLRig.Default, new SystemHashServiceProvider());
 
             foreach (PublicKey testKey in TestData.TestPublicKeys)
             {

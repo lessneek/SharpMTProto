@@ -4,24 +4,22 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Threading;
-using System.Threading.Tasks;
-using BigMath;
-using BigMath.Utils;
-using Catel;
-using Catel.Logging;
-using SharpMTProto.Annotations;
-using SharpMTProto.Schema;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
-
 namespace SharpMTProto.Authentication
 {
+    using System;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using BigMath;
+    using BigMath.Utils;
+    using Schema;
+    using Services;
+    using SharpMTProto.Annotations;
+    using Transport;
+    using SharpTL;
+    using Utils;
+
     /// <summary>
     ///     Auth key negotiator.
     /// </summary>
@@ -53,33 +51,40 @@ namespace SharpMTProto.Authentication
         private readonly IClientTransportConfig _clientTransportConfig;
         private readonly IMTProtoClientBuilder _mtProtoBuilder;
         private readonly IEncryptionServices _encryptionServices;
-        private readonly IHashServices _hashServices;
+        private readonly IHashService _sha1;
         private readonly IKeyChain _keyChain;
         private readonly INonceGenerator _nonceGenerator;
         private readonly TLRig _tlRig;
-        
+
         public AuthKeyNegotiator(
             [NotNull] IClientTransportConfig clientTransportConfig,
             [NotNull] IMTProtoClientBuilder mtProtoBuilder,
             [NotNull] TLRig tlRig,
             [NotNull] INonceGenerator nonceGenerator,
-            [NotNull] IHashServices hashServices,
+            [NotNull] IHashServiceProvider hashServiceProvider,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] IKeyChain keyChain)
         {
-            Argument.IsNotNull(() => clientTransportConfig);
-            Argument.IsNotNull(() => mtProtoBuilder);
-            Argument.IsNotNull(() => tlRig);
-            Argument.IsNotNull(() => nonceGenerator);
-            Argument.IsNotNull(() => hashServices);
-            Argument.IsNotNull(() => encryptionServices);
-            Argument.IsNotNull(() => keyChain);
+            if (clientTransportConfig == null)
+                throw new ArgumentNullException("clientTransportConfig");
+            if (mtProtoBuilder == null)
+                throw new ArgumentNullException("mtProtoBuilder");
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (nonceGenerator == null)
+                throw new ArgumentNullException("nonceGenerator");
+            if (hashServiceProvider == null)
+                throw new ArgumentNullException("hashServiceProvider");
+            if (encryptionServices == null)
+                throw new ArgumentNullException("encryptionServices");
+            if (keyChain == null)
+                throw new ArgumentNullException("keyChain");
 
             _clientTransportConfig = clientTransportConfig;
             _mtProtoBuilder = mtProtoBuilder;
             _tlRig = tlRig;
             _nonceGenerator = nonceGenerator;
-            _hashServices = hashServices;
+            _sha1 = hashServiceProvider.Create(HashServiceTag.SHA1);
             _encryptionServices = encryptionServices;
             _keyChain = keyChain;
         }
@@ -107,8 +112,8 @@ namespace SharpMTProto.Authentication
 
                 // Connecting.
                 Log.Debug("Connecting...");
-                MTProtoConnectResult result = await connection.Connect(cancellationToken);
-                if (result != MTProtoConnectResult.Success)
+                var result = await connection.ConnectAsync();
+                if (result != TransportConnectResult.Success)
                 {
                     throw new CouldNotConnectException("Connection trial was unsuccessful.", result);
                 }
@@ -228,7 +233,7 @@ namespace SharpMTProto.Authentication
                         p.ToHexString(), authKey.ToHexString()));
 
                     // byte[] authKeyHash = ComputeSHA1(authKey).Skip(HashLength - 8).Take(8).ToArray(); // Not used in client.
-                    authKeyAuxHash = ComputeSHA1(authKey).Take(8).ToArray();
+                    authKeyAuxHash = _sha1.Hash(authKey).Take(8).ToArray();
 
                     byte[] data = _tlRig.Serialize(clientDHInnerData);
 
@@ -296,12 +301,6 @@ namespace SharpMTProto.Authentication
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private byte[] ComputeSHA1(byte[] data)
-        {
-            return _hashServices.ComputeSHA1(data);
-        }
-
         private UInt64 ComputeInitialSalt(byte[] newNonceBytes, byte[] serverNonceBytes)
         {
             var x = newNonceBytes.ToUInt64();
@@ -319,7 +318,7 @@ namespace SharpMTProto.Authentication
                 streamer.WriteByte(num);
                 streamer.Write(authKeyAuxHash);
             }
-            byte[] hash = ComputeSHA1(arr);
+            byte[] hash = _sha1.Hash(arr);
             Int128 result = hash.ToInt128(HashLength - 16);
             return result;
         }
@@ -327,7 +326,7 @@ namespace SharpMTProto.Authentication
         private byte[] PrependHashAndAlign(byte[] data, int alignment)
         {
             int dataLength = data.Length;
-            byte[] dataHash = ComputeSHA1(data);
+            byte[] dataHash = _sha1.Hash(data);
             int length = HashLength + dataLength;
             int mod = length%alignment;
             length += mod > 0 ? alignment - mod : 0;
@@ -374,7 +373,7 @@ namespace SharpMTProto.Authentication
 
             // Checking the hash.
             byte[] serverDHInnerDataBytes = _tlRig.Serialize(serverDHInnerData);
-            byte[] serverDHInnerDataBytesHash = ComputeSHA1(serverDHInnerDataBytes);
+            byte[] serverDHInnerDataBytesHash = _sha1.Hash(serverDHInnerDataBytes);
             if (!serverDHInnerDataBytesHash.SequenceEqual(answerHash))
             {
                 throw new InvalidResponseException("Decrypted ServerDHInnerData hash is invalid.");
@@ -386,13 +385,13 @@ namespace SharpMTProto.Authentication
         private void ComputeTmpAesKeyAndIV(byte[] newNonceBytes, byte[] serverNonceBytes, out byte[] tmpAesKey, out byte[] tmpAesIV)
         {
             // SHA1(new_nonce + server_nonce).
-            byte[] nPsHash = ComputeSHA1(ArrayUtils.Combine(newNonceBytes, serverNonceBytes));
+            byte[] nPsHash = _sha1.Hash(ArrayUtils.Combine(newNonceBytes, serverNonceBytes));
 
             // SHA1(server_nonce + new_nonce).
-            byte[] spnHash = ComputeSHA1(ArrayUtils.Combine(serverNonceBytes, newNonceBytes));
+            byte[] spnHash = _sha1.Hash(ArrayUtils.Combine(serverNonceBytes, newNonceBytes));
 
             // SHA1(new_nonce + new_nonce).
-            byte[] npnHash = ComputeSHA1(ArrayUtils.Combine(newNonceBytes, newNonceBytes));
+            byte[] npnHash = _sha1.Hash(ArrayUtils.Combine(newNonceBytes, newNonceBytes));
 
             // tmp_aes_key := SHA1(new_nonce + server_nonce) + substr (SHA1(server_nonce + new_nonce), 0, 12);
             tmpAesKey = new byte[32];
@@ -408,7 +407,7 @@ namespace SharpMTProto.Authentication
 
         private bool CheckNewNonceHash(Int256 newNonce, Int128 newNonceHash)
         {
-            byte[] hash = ComputeSHA1(newNonce.ToBytes());
+            byte[] hash = _sha1.Hash(newNonce.ToBytes());
             Int128 nonceHash = hash.ToInt128();
             return nonceHash == newNonceHash;
         }
@@ -431,7 +430,7 @@ namespace SharpMTProto.Authentication
             };
 
             byte[] data = _tlRig.Serialize(pqInnerData);
-            byte[] dataHash = ComputeSHA1(data);
+            byte[] dataHash = _sha1.Hash(data);
 
             Debug.Assert((dataHash.Length + data.Length) <= 255);
 

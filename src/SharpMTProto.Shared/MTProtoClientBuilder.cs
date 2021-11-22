@@ -4,17 +4,22 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using SharpMTProto.Annotations;
-using SharpMTProto.Authentication;
-using SharpMTProto.Messaging;
-using SharpMTProto.Services;
-using SharpMTProto.Transport;
-using SharpTL;
+#region R#
 
 // ReSharper disable MemberCanBePrivate.Global
 
+#endregion
+
 namespace SharpMTProto
 {
+    using System;
+    using SharpMTProto.Annotations;
+    using SharpMTProto.Authentication;
+    using SharpMTProto.Messaging;
+    using SharpMTProto.Services;
+    using SharpMTProto.Transport;
+    using SharpTL;
+
     public interface IMTProtoClientBuilder
     {
         [NotNull]
@@ -27,55 +32,82 @@ namespace SharpMTProto
     public partial class MTProtoClientBuilder : IMTProtoClientBuilder
     {
         public static readonly IMTProtoClientBuilder Default;
-
+        private readonly IAuthKeysProvider _authKeysProvider;
+        private readonly IClientTransportFactory _clientTransportFactory;
         private readonly IEncryptionServices _encryptionServices;
-        private readonly IHashServices _hashServices;
+        private readonly IHashServiceProvider _hashServiceProvider;
         private readonly IKeyChain _keyChain;
         private readonly IMessageCodec _messageCodec;
         private readonly IMessageIdGenerator _messageIdGenerator;
         private readonly INonceGenerator _nonceGenerator;
+        private readonly IRandomGenerator _randomGenerator;
         private readonly TLRig _tlRig;
-        private readonly IClientTransportFactory _clientTransportFactory;
+        private readonly IRequestsManager _requestsManager;
 
         static MTProtoClientBuilder()
         {
             Default = CreateDefault();
         }
 
-        public MTProtoClientBuilder(
-            [NotNull] IClientTransportFactory clientTransportFactory,
+        public MTProtoClientBuilder([NotNull] IClientTransportFactory clientTransportFactory,
             [NotNull] TLRig tlRig,
             [NotNull] IMessageIdGenerator messageIdGenerator,
             [NotNull] IMessageCodec messageCodec,
-            [NotNull] IHashServices hashServices,
+            [NotNull] IHashServiceProvider hashServiceProvider,
             [NotNull] IEncryptionServices encryptionServices,
             [NotNull] INonceGenerator nonceGenerator,
-            [NotNull] IKeyChain keyChain)
+            [NotNull] IKeyChain keyChain,
+            [NotNull] IAuthKeysProvider authKeysProvider,
+            [NotNull] IRandomGenerator randomGenerator,
+            [NotNull] IRequestsManager requestsManager)
         {
+            if (clientTransportFactory == null)
+                throw new ArgumentNullException("clientTransportFactory");
+            if (tlRig == null)
+                throw new ArgumentNullException("tlRig");
+            if (messageIdGenerator == null)
+                throw new ArgumentNullException("messageIdGenerator");
+            if (messageCodec == null)
+                throw new ArgumentNullException("messageCodec");
+            if (hashServiceProvider == null)
+                throw new ArgumentNullException("hashServiceProvider");
+            if (encryptionServices == null)
+                throw new ArgumentNullException("encryptionServices");
+            if (nonceGenerator == null)
+                throw new ArgumentNullException("nonceGenerator");
+            if (keyChain == null)
+                throw new ArgumentNullException("keyChain");
+            if (authKeysProvider == null)
+                throw new ArgumentNullException("authKeysProvider");
+            if (randomGenerator == null)
+                throw new ArgumentNullException("randomGenerator");
+            if (requestsManager == null)
+                throw new ArgumentNullException("requestsManager");
+
             _clientTransportFactory = clientTransportFactory;
             _tlRig = tlRig;
             _messageIdGenerator = messageIdGenerator;
             _messageCodec = messageCodec;
-            _hashServices = hashServices;
+            _hashServiceProvider = hashServiceProvider;
             _encryptionServices = encryptionServices;
             _nonceGenerator = nonceGenerator;
             _keyChain = keyChain;
+            _authKeysProvider = authKeysProvider;
+            _randomGenerator = randomGenerator;
+            _requestsManager = requestsManager;
         }
 
         IMTProtoClientConnection IMTProtoClientBuilder.BuildConnection(IClientTransportConfig clientTransportConfig)
         {
-            return new MTProtoClientConnection(clientTransportConfig, _clientTransportFactory, _tlRig, _messageIdGenerator, _messageCodec);
+            IConnectableClientTransport transport = _clientTransportFactory.CreateTransport(clientTransportConfig);
+
+            // TODO: add bytes ocean external config.
+            return new MTProtoClientConnection(transport, _messageCodec, _messageIdGenerator, _randomGenerator, _authKeysProvider, _requestsManager);
         }
 
         IAuthKeyNegotiator IMTProtoClientBuilder.BuildAuthKeyNegotiator(IClientTransportConfig clientTransportConfig)
         {
-            return new AuthKeyNegotiator(clientTransportConfig,
-                this,
-                _tlRig,
-                _nonceGenerator,
-                _hashServices,
-                _encryptionServices,
-                _keyChain);
+            return new AuthKeyNegotiator(clientTransportConfig, this, _tlRig, _nonceGenerator, _hashServiceProvider, _encryptionServices, _keyChain);
         }
 
         [NotNull]

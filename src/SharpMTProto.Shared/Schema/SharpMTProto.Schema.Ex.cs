@@ -4,18 +4,18 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Collections;
-using System.Linq;
-using SharpMTProto.Messaging;
-using SharpTL;
-
 // ReSharper disable once CheckNamespace
 
 namespace SharpMTProto.Schema
 {
+    using System;
+    using System.Collections;
+    using System.Linq;
+    using SharpMTProto.Messaging;
+    using SharpTL;
+
     [TLObjectWithCustomSerializer(typeof (MessageSerializer))]
-    public partial class Message: IEquatable<Message>
+    public partial class Message : IEquatable<Message>
     {
         public Message()
         {
@@ -29,6 +29,7 @@ namespace SharpMTProto.Schema
         }
 
         #region Equality
+
         public bool Equals(Message other)
         {
             if (ReferenceEquals(null, other))
@@ -85,6 +86,7 @@ namespace SharpMTProto.Schema
         {
             return !Equals(left, right);
         }
+
         #endregion
     }
 
@@ -114,26 +116,30 @@ namespace SharpMTProto.Schema
         Object Body { get; }
     }
 
+    public static class MessageExtensions
+    {
+        public static bool IsContentRelated(this IMessage message)
+        {
+            return message.Seqno%2 == 1;
+        }
+    }
+
     public partial interface IRpcResult
     {
         UInt64 ReqMsgId { get; set; }
-
         Object Result { get; set; }
     }
 
     public partial interface IRpcError
     {
         UInt32 ErrorCode { get; set; }
-
         String ErrorMessage { get; set; }
     }
 
     public partial interface IBadMsgNotification
     {
         UInt64 BadMsgId { get; set; }
-
         UInt32 BadMsgSeqno { get; set; }
-
         UInt32 ErrorCode { get; set; }
     }
 }

@@ -4,13 +4,14 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-using SharpMTProto.Schema;
-
 namespace SharpMTProto
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+    using Schema;
+    using Transport;
+
     public class MTProtoException : Exception
     {
         public MTProtoException()
@@ -62,11 +63,11 @@ namespace SharpMTProto
         {
         }
 
-        public CouldNotConnectException(string message, MTProtoConnectResult result) : base(message)
+        public CouldNotConnectException(string message, TransportConnectResult result) : base(message)
         {
         }
 
-        public CouldNotConnectException(string message, MTProtoConnectResult result, Exception innerException)
+        public CouldNotConnectException(string message, TransportConnectResult result, Exception innerException)
             : base(message, innerException)
         {
         }
@@ -111,28 +112,44 @@ namespace SharpMTProto
         }
     }
 
-    public class InvalidAuthKey : MTProtoException
+    public class InvalidAuthKeyException : MTProtoException
     {
-        public InvalidAuthKey()
+        public InvalidAuthKeyException()
         {
         }
 
-        public InvalidAuthKey(string message) : base(message)
+        public InvalidAuthKeyException(string message) : base(message)
         {
         }
 
-        public InvalidAuthKey(string message, Exception innerException) : base(message, innerException)
+        public InvalidAuthKeyException(string message, Exception innerException) : base(message, innerException)
         {
         }
     }
 
     public class RpcErrorException : MTProtoException
     {
+        public RpcErrorException(uint code, string type, string description = null)
+        {
+            Error = new RpcError {ErrorCode = code, ErrorMessage = type};
+            Description = description;
+        }
+
         public RpcErrorException(IRpcError error) : base(string.Format("Error [{0}]: '{1}'.", error.ErrorCode, error.ErrorMessage))
         {
             Error = error;
         }
 
         public IRpcError Error { get; private set; }
+
+        public string Description { get; private set; }
+    }
+
+    public class MTProtoErrorException : MTProtoException
+    {
+        public MTProtoErrorException(int error)
+            : base(string.Format("Received error code: {0}.", error))
+        {
+        }
     }
 }

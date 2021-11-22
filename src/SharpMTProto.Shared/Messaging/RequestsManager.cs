@@ -4,48 +4,95 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 
-using System.Collections.Generic;
-using System.Linq;
-
 namespace SharpMTProto.Messaging
 {
-    public interface IRequestsManager
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reactive.Disposables;
+    using Utils;
+
+    public interface IRequestsManager : ICancelable
     {
         void Add(IRequest request);
         IRequest Get(ulong messageId);
-        IRequest GetFirstOrDefault(object response, bool includeRpc = false);
-        void Change(ulong newMessageId, ulong oldMessageId);
+        IRequest GetFirstOrDefaultWithUnsetResponse(object response, bool includeRpc = false);
+        bool Change(ulong newMessageId, ulong oldMessageId);
+        bool Remove(ulong messageId);
     }
 
-    public class RequestsManager : IRequestsManager
+    public class RequestsManager : Cancelable, IRequestsManager
     {
-        private readonly SortedDictionary<ulong, IRequest> _requests = new SortedDictionary<ulong, IRequest>();
+        private SortedDictionary<ulong, IRequest> _requests = new SortedDictionary<ulong, IRequest>();
 
         public void Add(IRequest request)
         {
-            _requests.Add(request.Message.MsgId, request);
+            ThrowIfDisposed();
+            lock (_requests)
+            {
+                _requests.Add(request.MsgId, request);
+            }
         }
 
-        public void Change(ulong newMessageId, ulong oldMessageId)
+        public bool Change(ulong newMessageId, ulong oldMessageId)
         {
-            _requests.Add(newMessageId, _requests[oldMessageId]);
-            _requests.Remove(oldMessageId);
+            ThrowIfDisposed();
+            lock (_requests)
+            {
+                if (!_requests.ContainsKey(oldMessageId))
+                    return false;
+
+                _requests.Add(newMessageId, _requests[oldMessageId]);
+                _requests.Remove(oldMessageId);
+                return true;
+            }
         }
 
         public IRequest Get(ulong messageId)
         {
-            IRequest request;
-            return _requests.TryGetValue(messageId, out request) ? request : null;
+            ThrowIfDisposed();
+            lock (_requests)
+            {
+                IRequest request;
+                return _requests.TryGetValue(messageId, out request) ? request : null;
+            }
         }
 
-        public IRequest GetFirstOrDefault(object response, bool includeRpc = false)
+        public IRequest GetFirstOrDefaultWithUnsetResponse(object response, bool includeRpc = false)
         {
-            return _requests.Values.FirstOrDefault(r => r.CanSetResponse(response) && (!r.Flags.HasFlag(MessageSendingFlags.RPC) || includeRpc));
+            ThrowIfDisposed();
+
+            Type responseType = response.GetType();
+
+            lock (_requests)
+            {
+                return
+                    _requests.Values.FirstOrDefault(r => r.CanSetResponse(responseType) && (includeRpc || !r.Flags.HasFlag(MessageSendingFlags.RPC)));
+            }
         }
 
-        public void Remove(ulong messageId)
+        public bool Remove(ulong messageId)
         {
-            _requests.Remove(messageId);
+            lock (_requests)
+            {
+                return _requests.Remove(messageId);
+            }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                lock (_requests)
+                {
+                    if (_requests != null)
+                    {
+                        _requests.Clear();
+                        _requests = null;
+                    }
+                }
+            }
+            base.Dispose(disposing);
         }
     }
 }
